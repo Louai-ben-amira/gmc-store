@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /oauth/
+
+Sitemap: https://gmcstore.tn/sitemap.xml

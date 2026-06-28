@@ -1,0 +1,73 @@
+{
+  "title": "My Wallet",
+  "subtitle": "Manage your balance, top up, and track transactions",
+  "balance": {
+    "label": "Available Balance",
+    "points": "Loyalty Points",
+    "topUp": "Top Up",
+    "addFunds": "Add Funds"
+  },
+  "recharge": {
+    "title": "Add Funds",
+    "amount": "Amount (DT)",
+    "amountPlaceholder": "Enter amount",
+    "minAmount": "Minimum: 5 DT",
+    "method": "Payment Method",
+    "selectMethod": "Select a method",
+    "receipt": "Upload Receipt",
+    "uploadHint": "Click or drag to upload your payment receipt",
+    "submit": "Submit Request",
+    "submitting": "Submitting…",
+    "successTitle": "Request Submitted!",
+    "successMsg": "Your recharge request has been received. We'll credit your account within 1–2 hours.",
+    "preview": "Preview",
+    "previewTitle": "You will receive",
+    "bonus": "+ {{pts}} bonus points"
+  },
+  "crypto": {
+    "title": "Crypto Payment",
+    "currency": "Currency",
+    "amount": "Amount in DT",
+    "sendTo": "Send to this address",
+    "scanQr": "Scan QR Code",
+    "txHash": "Transaction Hash (TxID)",
+    "txHashPlaceholder": "Paste your transaction hash",
+    "expiresIn": "Expires in",
+    "submit": "Confirm Payment",
+    "submitting": "Confirming…",
+    "step1": "Choose amount",
+    "step2": "Send payment",
+    "step3": "Confirm"
+  },
+  "giftCard": {
+    "title": "Redeem Gift Card",
+    "code": "Gift Card Code",
+    "codePlaceholder": "Enter your code",
+    "redeem": "Redeem",
+    "redeeming": "Redeeming…"
+  },
+  "transactions": {
+    "title": "Transaction History",
+    "totalIn": "Total In",
+    "totalOut": "Total Out",
+    "date": "Date",
+    "type": "Type",
+    "amount": "Amount",
+    "method": "Method",
+    "note": "Note",
+    "credit": "Credit",
+    "debit": "Debit",
+    "noHistory": "No transactions yet",
+    "loadMore": "Load More"
+  },
+  "methods": {
+    "d17": "D17",
+    "baridimob": "BaridiMob",
+    "dahabia": "Dahabia / E-Dinar",
+    "bank": "Bank Transfer",
+    "cash": "Cash",
+    "paypal": "PayPal",
+    "crypto": "Crypto (USDT/BNB)",
+    "giftCard": "Gift Card"
+  }
+}

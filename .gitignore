@@ -1,0 +1,57 @@
+# ══════════════════════════════════════════════════════
+#  GMC Store — Root .gitignore
+#  NEVER commit .env files — they contain real secrets
+# ══════════════════════════════════════════════════════
+
+# ── Environment / Secrets ──────────────────────────────
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# ── Python / Django ─────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+ENV/
+*.sqlite3
+gmc-backend/staticfiles/
+gmc-backend/media/
+
+# ── Node / React ────────────────────────────────────────
+node_modules/
+gmc-frontend/dist/
+gmc-frontend/dist-ssr/
+*.local
+
+# ── IDE / OS ─────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Logs ────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+celerybeat-schedule
+celerybeat.pid
+
+# ── Redis ────────────────────────────────────────────────
+dump.rdb

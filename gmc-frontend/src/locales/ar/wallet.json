@@ -1,0 +1,73 @@
+{
+  "title": "محفظتي",
+  "subtitle": "أدر رصيدك، أعد الشحن، وتتبع المعاملات",
+  "balance": {
+    "label": "الرصيد المتاح",
+    "points": "نقاط الولاء",
+    "topUp": "شحن الرصيد",
+    "addFunds": "إضافة رصيد"
+  },
+  "recharge": {
+    "title": "إضافة رصيد",
+    "amount": "المبلغ (د.ت)",
+    "amountPlaceholder": "أدخل المبلغ",
+    "minAmount": "الحد الأدنى: 5 د.ت",
+    "method": "طريقة الدفع",
+    "selectMethod": "اختر طريقة دفع",
+    "receipt": "رفع الإيصال",
+    "uploadHint": "اضغط أو اسحب لرفع إيصال الدفع",
+    "submit": "إرسال الطلب",
+    "submitting": "جارٍ الإرسال…",
+    "successTitle": "تم إرسال الطلب!",
+    "successMsg": "تم استلام طلب الشحن. سيُضاف الرصيد خلال 1-2 ساعة.",
+    "preview": "معاينة",
+    "previewTitle": "ستستلم",
+    "bonus": "+ {{pts}} نقطة إضافية"
+  },
+  "crypto": {
+    "title": "الدفع بالعملات الرقمية",
+    "currency": "العملة",
+    "amount": "المبلغ بالدينار",
+    "sendTo": "أرسل إلى هذا العنوان",
+    "scanQr": "امسح رمز QR",
+    "txHash": "معرف المعاملة (TxID)",
+    "txHashPlaceholder": "الصق معرف المعاملة",
+    "expiresIn": "ينتهي خلال",
+    "submit": "تأكيد الدفع",
+    "submitting": "جارٍ التأكيد…",
+    "step1": "اختر المبلغ",
+    "step2": "أرسل الدفعة",
+    "step3": "تأكيد"
+  },
+  "giftCard": {
+    "title": "استرداد بطاقة هدية",
+    "code": "رمز بطاقة الهدية",
+    "codePlaceholder": "أدخل الرمز",
+    "redeem": "استرداد",
+    "redeeming": "جارٍ الاسترداد…"
+  },
+  "transactions": {
+    "title": "سجل المعاملات",
+    "totalIn": "إجمالي الوارد",
+    "totalOut": "إجمالي الصادر",
+    "date": "التاريخ",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "method": "الطريقة",
+    "note": "ملاحظة",
+    "credit": "إضافة",
+    "debit": "خصم",
+    "noHistory": "لا توجد معاملات بعد",
+    "loadMore": "تحميل المزيد"
+  },
+  "methods": {
+    "d17": "D17",
+    "baridimob": "BaridiMob",
+    "dahabia": "داهبية / E-Dinar",
+    "bank": "تحويل بنكي",
+    "cash": "نقداً",
+    "paypal": "PayPal",
+    "crypto": "عملات رقمية (USDT/BNB)",
+    "giftCard": "بطاقة هدية"
+  }
+}

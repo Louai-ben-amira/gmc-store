@@ -1,0 +1,76 @@
+{
+  "title": "ملفي الشخصي",
+  "sections": {
+    "personalInfo": "المعلومات الشخصية",
+    "security": "الأمان",
+    "referral": "برنامج الإحالة",
+    "referrals": "الإحالات",
+    "vip": "الحالة الذهبية VIP"
+  },
+  "fields": {
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "username": "اسم المستخدم",
+    "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "avatar": "صورة الملف الشخصي"
+  },
+  "placeholders": {
+    "firstName": "اسمك الأول",
+    "lastName": "اسم عائلتك",
+    "phone": "+216 XX XXX XXX"
+  },
+  "avatar": {
+    "change": "تغيير الصورة",
+    "upload": "رفع صورة",
+    "remove": "حذف الصورة"
+  },
+  "password": {
+    "current": "كلمة المرور الحالية",
+    "new": "كلمة المرور الجديدة",
+    "confirm": "تأكيد كلمة المرور الجديدة",
+    "change": "تغيير كلمة المرور",
+    "changing": "جارٍ التغيير…",
+    "success": "تم تغيير كلمة المرور بنجاح"
+  },
+  "referral": {
+    "title": "أحِل واكسب",
+    "description": "اكسب 2 د.ت لكل صديق تدعوه",
+    "yourCode": "رمز الإحالة الخاص بك",
+    "shareLink": "شارك الرابط",
+    "totalEarned": "إجمالي الأرباح",
+    "friendsReferred": "الأصدقاء المُحالون",
+    "howItWorks": "كيف يعمل",
+    "step1": "شارك رمز الإحالة مع أصدقائك",
+    "step2": "يسجلون ويقومون بأول عملية شراء",
+    "step3": "تكسب 2 د.ت تضاف إلى محفظتك"
+  },
+  "vip": {
+    "title": "حالة VIP",
+    "tier": "المستوى الحالي",
+    "points": "النقاط",
+    "nextTier": "المستوى التالي",
+    "pointsToNext": "{{pts}} نقطة للوصول إلى {{tier}}",
+    "benefits": "المزايا",
+    "tiers": {
+      "bronze": "برونزي",
+      "silver": "فضي",
+      "gold": "ذهبي",
+      "platinum": "بلاتيني",
+      "diamond": "ألماسي"
+    }
+  },
+  "save": {
+    "label": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم حفظ التغييرات!"
+  },
+  "memberSince": "عضو منذ",
+  "preferences": {
+    "title": "التفضيلات",
+    "theme": "المظهر",
+    "dark": "داكن",
+    "light": "فاتح",
+    "language": "اللغة"
+  }
+}

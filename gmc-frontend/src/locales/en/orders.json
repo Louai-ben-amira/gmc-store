@@ -1,0 +1,59 @@
+{
+  "title": "My Orders",
+  "subtitle": "Track your purchases, view codes, and buy again",
+  "empty": {
+    "title": "No orders yet",
+    "subtitle": "Start shopping and your orders will appear here",
+    "cta": "Browse Products"
+  },
+  "table": {
+    "date": "Date",
+    "product": "Product",
+    "qty": "Qty",
+    "amount": "Amount",
+    "status": "Status",
+    "payment": "Payment",
+    "action": "Action"
+  },
+  "status": {
+    "all": "All",
+    "completed": "Completed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "inProgress": "In Progress"
+  },
+  "serviceStatus": {
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "completed": "Delivered"
+  },
+  "modal": {
+    "orderDetails": "Order Details",
+    "yourCode": "YOUR CODE",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "viewCode": "View Code",
+    "codeInstructions": "Use this code to redeem your product",
+    "contactSupport": "Contact Support",
+    "reorder": "Reorder",
+    "rating": "Rate this product",
+    "close": "Close"
+  },
+  "actions": {
+    "viewCode": "View Code",
+    "reorder": "Buy Again",
+    "placing": "Placing…",
+    "support": "Chat",
+    "download": "Download"
+  },
+  "labels": {
+    "orderId": "Order #",
+    "placedOn": "Placed on",
+    "total": "Total",
+    "items": "items",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price",
+    "earned": "You earned",
+    "points": "pts"
+  }
+}

@@ -1,0 +1,151 @@
+from decimal import Decimal
+from rest_framework import serializers
+from .models import RechargeRequest, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
+
+
+TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket'}
+D17_METHODS      = {'d17_number', 'd17_address'}
+TRANSFER_METHODS = {'d17_number', 'd17_address', 'bank_transfer', 'edinar', 'flouci'}
+
+
+class RechargeRequestSerializer(serializers.ModelSerializer):
+    user_username        = serializers.CharField(source='user.username', read_only=True)
+    reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, default=None)
+
+    # Computed breakdown fields — read-only, always server-side
+    tax_rate      = serializers.DecimalField(max_digits=5, decimal_places=4, read_only=True)
+    wallet_credit = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model  = RechargeRequest
+        fields = [
+            'id', 'user', 'user_username',
+            'method',
+            'ticket_code', 'ticket_value',
+            'amount_sent', 'reference_code',
+            'tax_rate', 'wallet_credit',
+            'proof', 'status', 'admin_note',
+            'reviewed_at', 'reviewed_by', 'reviewed_by_username',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id', 'user', 'tax_rate', 'wallet_credit',
+            'status', 'admin_note', 'reviewed_at', 'reviewed_by', 'created_at',
+        ]
+
+    def validate(self, attrs):
+        method = attrs.get('method', '')
+
+        if method in TICKET_METHODS:
+            if not attrs.get('ticket_code', '').strip():
+                raise serializers.ValidationError({'ticket_code': 'Ticket code is required.'})
+
+            ticket_value = attrs.get('ticket_value')
+            if ticket_value is None or ticket_value <= 0:
+                raise serializers.ValidationError({'ticket_value': 'Ticket value must be greater than 0.'})
+
+            # Uniqueness check — prevent the same ticket code being submitted twice
+            qs = RechargeRequest.objects.filter(
+                method__in=list(TICKET_METHODS),
+                ticket_code=attrs['ticket_code'].strip(),
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'ticket_code': 'This ticket code has already been submitted.'}
+                )
+
+        elif method in TRANSFER_METHODS:
+            amount_sent = attrs.get('amount_sent')
+            if amount_sent is None or amount_sent <= 0:
+                raise serializers.ValidationError({'amount_sent': 'Amount sent must be greater than 0.'})
+            if not attrs.get('reference_code', '').strip():
+                raise serializers.ValidationError({'reference_code': 'Transaction reference number is required.'})
+
+        return attrs
+
+
+class RechargePreviewSerializer(serializers.Serializer):
+    method       = serializers.ChoiceField(choices=RechargeRequest.METHOD_CHOICES)
+    ticket_value = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    amount_sent  = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+
+    def validate(self, attrs):
+        method = attrs['method']
+        if method in TICKET_METHODS and not attrs.get('ticket_value'):
+            raise serializers.ValidationError({'ticket_value': 'ticket_value is required for ticket methods.'})
+        if method in TRANSFER_METHODS and not attrs.get('amount_sent'):
+            raise serializers.ValidationError({'amount_sent': 'amount_sent is required for transfer methods.'})
+        return attrs
+
+
+class CryptoPaymentSerializer(serializers.ModelSerializer):
+    is_expired    = serializers.BooleanField(read_only=True)
+    user_id       = serializers.IntegerField(source='recharge_request.user.id',       read_only=True)
+    user_username = serializers.CharField(source='recharge_request.user.username',    read_only=True)
+    user_email    = serializers.CharField(source='recharge_request.user.email',       read_only=True)
+    user_balance  = serializers.DecimalField(source='recharge_request.user.balance',  max_digits=10, decimal_places=2, read_only=True)
+    wallet_credit = serializers.DecimalField(source='recharge_request.wallet_credit', max_digits=10, decimal_places=2, read_only=True)
+    recharge_id   = serializers.IntegerField(source='recharge_request.id',            read_only=True)
+
+    class Meta:
+        model  = CryptoPayment
+        fields = [
+            'id', 'recharge_id', 'recharge_request',
+            'user_id', 'user_username', 'user_email', 'user_balance',
+            'currency', 'wallet_address',
+            'amount_crypto', 'amount_dt', 'wallet_credit', 'exchange_rate',
+            'tx_hash', 'status', 'expires_at', 'is_expired', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'recharge_request', 'wallet_address',
+            'amount_crypto', 'exchange_rate', 'status', 'expires_at', 'created_at',
+        ]
+
+
+class InitiateCryptoSerializer(serializers.Serializer):
+    currency  = serializers.ChoiceField(choices=CryptoPayment.CURRENCY_CHOICES)
+    amount_dt = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('5'))
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = SiteSettings
+        fields = ['id', 'key', 'value', 'label']
+
+
+class GiftCardSerializer(serializers.ModelSerializer):
+    amount     = serializers.DecimalField(source='batch.amount', max_digits=10, decimal_places=2, read_only=True)
+    expires_at = serializers.DateTimeField(source='batch.expires_at', read_only=True)
+    is_used    = serializers.BooleanField(read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model  = GiftCard
+        fields = ['id', 'code', 'amount', 'expires_at', 'is_used', 'is_expired', 'created_at', 'redeemed_at']
+
+
+class GiftCardBatchSerializer(serializers.ModelSerializer):
+    cards_total     = serializers.IntegerField(source='quantity', read_only=True)
+    cards_used      = serializers.SerializerMethodField()
+    cards_available = serializers.SerializerMethodField()
+    image           = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model  = GiftCardBatch
+        fields = ['id', 'label', 'amount', 'quantity', 'expires_at', 'created_at',
+                  'cards_total', 'cards_used', 'cards_available', 'image']
+
+    def get_cards_used(self, obj):
+        return obj.cards.filter(redeemed_by__isnull=False).count()
+
+    def get_cards_available(self, obj):
+        return obj.cards.filter(redeemed_by__isnull=True).count()
+
+
+class CreateGiftCardBatchSerializer(serializers.Serializer):
+    label      = serializers.CharField(required=False, allow_blank=True)
+    amount     = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('1'))
+    quantity   = serializers.IntegerField(min_value=1, max_value=500)
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)

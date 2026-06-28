@@ -1,0 +1,180 @@
+from celery import shared_task
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+
+
+def _order_email(order):
+    """Return (subject, plain_text, html) for an order confirmation."""
+    user      = order.user
+    name      = user.get_full_name() or user.username
+    is_bundle = bool(order.bundle)
+
+    item_name = order.bundle.name if is_bundle else (order.product.name if order.product else 'Product')
+    item_type = 'Bundle' if is_bundle else 'Product'
+
+    subject   = f'✅ Order Confirmed — {item_name}'
+
+    # ── Dynamic rows ────────────────────────────────────────────────────────
+    code_row = ''
+    if not is_bundle and order.code:
+        code_row = f'''
+        <tr>
+          <td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);color:#94a3b8;font-size:14px;">Your Code</td>
+          <td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);color:#ffffff;font-size:14px;font-weight:700;font-family:'Courier New',monospace;text-align:right;letter-spacing:0.08em;background:rgba(123,47,255,0.1);border-radius:6px;padding:8px 12px;">{order.code.code}</td>
+        </tr>'''
+
+    service_fee  = float(order.service_fee or 0)
+    fee_row = ''
+    if service_fee > 0:
+        fee_row = f'''
+        <tr>
+          <td style="padding:10px 0;color:#94a3b8;font-size:14px;">Service Fee (1%)</td>
+          <td style="padding:10px 0;color:#f59e0b;font-size:14px;text-align:right;">+{service_fee:.2f} DT</td>
+        </tr>'''
+
+    points_row = ''
+    if order.points_earned > 0:
+        points_row = f'''
+        <tr>
+          <td style="padding:10px 0 4px;color:#94a3b8;font-size:14px;">Points Earned</td>
+          <td style="padding:10px 0 4px;color:#3DDC84;font-size:14px;font-weight:600;text-align:right;">+{order.points_earned} pts</td>
+        </tr>'''
+
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    order_url    = f'{frontend_url}/orders'
+
+    # ── HTML body ────────────────────────────────────────────────────────────
+    html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Order Confirmed — GMC Store</title>
+</head>
+<body style="margin:0;padding:0;background:#08081a;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#08081a;padding:48px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#12122a;border-radius:20px;overflow:hidden;border:1px solid rgba(123,47,255,0.35);">
+
+        <!-- ── Header ── -->
+        <tr><td style="background:linear-gradient(135deg,#18083a 0%,#2e1168 100%);padding:44px 36px 36px;text-align:center;border-bottom:1px solid rgba(123,47,255,0.4);">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+            <div style="width:72px;height:72px;background:rgba(61,220,132,0.12);border:2px solid rgba(61,220,132,0.45);border-radius:50%;display:inline-block;line-height:72px;font-size:36px;margin-bottom:20px;">✅</div>
+            <h1 style="color:#ffffff;margin:0 0 10px;font-size:28px;font-weight:800;letter-spacing:-0.5px;">Order Confirmed!</h1>
+            <p style="color:#c4b5fd;margin:0;font-size:15px;font-weight:400;">Hi <strong style="color:#ffffff;">{name}</strong>, your purchase was successful.</p>
+          </td></tr></table>
+        </td></tr>
+
+        <!-- ── Order badge ── -->
+        <tr><td style="padding:28px 36px 4px;text-align:center;">
+          <span style="display:inline-block;background:rgba(123,47,255,0.15);border:1px solid rgba(123,47,255,0.5);color:#a78bfa;font-size:11px;font-weight:700;padding:7px 22px;border-radius:999px;letter-spacing:0.1em;text-transform:uppercase;">Order #&nbsp;{order.id}</span>
+        </td></tr>
+
+        <!-- ── Item card ── -->
+        <tr><td style="padding:16px 36px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#1c1c3e;border:1px solid rgba(123,47,255,0.3);border-radius:14px;overflow:hidden;">
+            <!-- Item header -->
+            <tr><td style="padding:18px 22px;border-bottom:1px solid rgba(255,255,255,0.07);">
+              <span style="background:rgba(123,47,255,0.2);border:1px solid rgba(123,47,255,0.4);color:#a78bfa;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;padding:4px 12px;border-radius:999px;">{item_type}</span>
+              <p style="color:#ffffff;margin:10px 0 0;font-size:19px;font-weight:700;line-height:1.3;">{item_name}</p>
+            </td></tr>
+            <!-- Details table -->
+            <tr><td style="padding:6px 22px 14px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                {code_row}
+                {fee_row}
+                {points_row}
+                <tr><td colspan="2" style="padding:10px 0 0;"><div style="height:1px;background:rgba(255,255,255,0.08);"></div></td></tr>
+                <tr>
+                  <td style="padding:14px 0 4px;color:#ffffff;font-size:16px;font-weight:700;">Total Paid</td>
+                  <td style="padding:14px 0 4px;color:#7b2fff;font-size:22px;font-weight:800;text-align:right;font-family:'Courier New',monospace;">{float(order.amount_paid):.2f}&nbsp;DT</td>
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- ── Info note ── -->
+        <tr><td style="padding:6px 36px 4px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(123,47,255,0.08);border:1px solid rgba(123,47,255,0.2);border-radius:10px;">
+            <tr><td style="padding:14px 18px;">
+              <p style="color:#a78bfa;margin:0;font-size:13px;line-height:1.6;">
+                🚀 Your order is being processed. You can track its status and view all details from your orders page.
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <!-- ── CTA ── -->
+        <tr><td style="padding:24px 36px 36px;text-align:center;">
+          <a href="{order_url}" style="display:inline-block;background:linear-gradient(135deg,#7b2fff 0%,#5b0fd4 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:15px 42px;border-radius:12px;letter-spacing:0.02em;box-shadow:0 4px 24px rgba(123,47,255,0.4);">
+            View My Orders →
+          </a>
+        </td></tr>
+
+        <!-- ── Footer ── -->
+        <tr><td style="padding:24px 36px;background:#0c0c22;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+          <p style="color:#3d3d5c;font-size:12px;margin:0 0 6px;line-height:1.6;">You received this because you made a purchase at <strong style="color:#5a5a7a;">GMC Store</strong>.</p>
+          <p style="color:#3d3d5c;font-size:12px;margin:0;">© 2025 GMC Store — All rights reserved.</p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>'''
+
+    plain = (
+        f'Hi {name},\n\n'
+        f'Your order #{order.id} has been confirmed!\n\n'
+        f'Item: {item_name}\n'
+        + (f'Your Code: {order.code.code}\n' if (not is_bundle and order.code) else '')
+        + f'Total Paid: {float(order.amount_paid):.2f} DT\n'
+        + (f'Points Earned: +{order.points_earned} pts\n' if order.points_earned > 0 else '')
+        + f'\nView your order: {order_url}\n\n'
+        f'Thank you for shopping at GMC Store!'
+    )
+
+    return subject, plain, html
+
+
+@shared_task
+def send_order_confirmation_email(order_id):
+    from apps.orders.models import Order
+    try:
+        order = Order.objects.select_related('user', 'product', 'bundle', 'code').get(pk=order_id)
+        if not order.user.email:
+            return
+        subject, plain, html = _order_email(order)
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=plain,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[order.user.email],
+        )
+        msg.attach_alternative(html, 'text/html')
+        msg.send()
+    except Exception:
+        pass
+
+
+@shared_task
+def schedule_credentials_deletion(order_id):
+    """
+    Purge the encrypted credential payload for a closed/completed order.
+    Keeps the OrderCredentials row intact for audit (access_log, revealed_at, etc.).
+    Only purges if the order is in a terminal state — prevents early deletion
+    if the task fires before the buyer has confirmed.
+    """
+    from apps.orders.models import Order, OrderCredentials
+    try:
+        order = Order.objects.get(pk=order_id)
+        if order.escrow_held:
+            return
+        creds = OrderCredentials.objects.get(order_id=order_id)
+        if not creds.deleted_at:
+            creds.purge_payload()
+    except (Order.DoesNotExist, OrderCredentials.DoesNotExist):
+        pass
+    except Exception:
+        pass

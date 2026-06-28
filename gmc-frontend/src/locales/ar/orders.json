@@ -1,0 +1,59 @@
+{
+  "title": "طلباتي",
+  "subtitle": "تابع مشترياتك، عرض الرموز، واشترِ مجدداً",
+  "empty": {
+    "title": "لا توجد طلبات بعد",
+    "subtitle": "ابدأ التسوق وستظهر طلباتك هنا",
+    "cta": "تصفح المنتجات"
+  },
+  "table": {
+    "date": "التاريخ",
+    "product": "المنتج",
+    "qty": "الكمية",
+    "amount": "المبلغ",
+    "status": "الحالة",
+    "payment": "طريقة الدفع",
+    "action": "إجراء"
+  },
+  "status": {
+    "all": "الكل",
+    "completed": "مكتمل",
+    "pending": "قيد الانتظار",
+    "cancelled": "ملغى",
+    "inProgress": "قيد التنفيذ"
+  },
+  "serviceStatus": {
+    "pending": "قيد الانتظار",
+    "inProgress": "قيد التنفيذ",
+    "completed": "تم التسليم"
+  },
+  "modal": {
+    "orderDetails": "تفاصيل الطلب",
+    "yourCode": "رمزك",
+    "copy": "نسخ",
+    "copied": "تم النسخ!",
+    "viewCode": "عرض الرمز",
+    "codeInstructions": "استخدم هذا الرمز لاسترداد منتجك",
+    "contactSupport": "تواصل مع الدعم",
+    "reorder": "إعادة الطلب",
+    "rating": "قيّم هذا المنتج",
+    "close": "إغلاق"
+  },
+  "actions": {
+    "viewCode": "عرض الرمز",
+    "reorder": "اشتر مجدداً",
+    "placing": "جارٍ الطلب…",
+    "support": "دردشة",
+    "download": "تنزيل"
+  },
+  "labels": {
+    "orderId": "طلب رقم ",
+    "placedOn": "تاريخ الطلب",
+    "total": "الإجمالي",
+    "items": "عناصر",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "earned": "ربحت",
+    "points": "نقطة"
+  }
+}

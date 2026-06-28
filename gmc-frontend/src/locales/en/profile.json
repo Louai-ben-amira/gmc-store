@@ -1,0 +1,76 @@
+{
+  "title": "My Profile",
+  "sections": {
+    "personalInfo": "Personal Info",
+    "security": "Security",
+    "referral": "Referral Program",
+    "referrals": "Referrals",
+    "vip": "VIP Status"
+  },
+  "fields": {
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "username": "Username",
+    "email": "Email",
+    "phone": "Phone Number",
+    "avatar": "Profile Photo"
+  },
+  "placeholders": {
+    "firstName": "Your first name",
+    "lastName": "Your last name",
+    "phone": "+216 XX XXX XXX"
+  },
+  "avatar": {
+    "change": "Change Photo",
+    "upload": "Upload Photo",
+    "remove": "Remove Photo"
+  },
+  "password": {
+    "current": "Current Password",
+    "new": "New Password",
+    "confirm": "Confirm New Password",
+    "change": "Change Password",
+    "changing": "Changing…",
+    "success": "Password changed successfully"
+  },
+  "referral": {
+    "title": "Refer & Earn",
+    "description": "Earn 2 DT for every friend you refer",
+    "yourCode": "Your Referral Code",
+    "shareLink": "Share Link",
+    "totalEarned": "Total Earned",
+    "friendsReferred": "Friends Referred",
+    "howItWorks": "How it works",
+    "step1": "Share your referral code with friends",
+    "step2": "They register and make their first purchase",
+    "step3": "You earn 2 DT added to your wallet"
+  },
+  "vip": {
+    "title": "VIP Status",
+    "tier": "Current Tier",
+    "points": "Points",
+    "nextTier": "Next Tier",
+    "pointsToNext": "{{pts}} pts to reach {{tier}}",
+    "benefits": "Benefits",
+    "tiers": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "diamond": "Diamond"
+    }
+  },
+  "save": {
+    "label": "Save Changes",
+    "saving": "Saving…",
+    "saved": "Changes saved!"
+  },
+  "memberSince": "Member since",
+  "preferences": {
+    "title": "PREFERENCES",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "language": "Language"
+  }
+}

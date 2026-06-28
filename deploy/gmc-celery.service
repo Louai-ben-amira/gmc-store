@@ -1,0 +1,24 @@
+[Unit]
+Description=GMC Store — Celery worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/gmc-backend
+EnvironmentFile=/home/youruser/gmc-backend/.env
+ExecStart=/home/youruser/gmc-backend/venv/bin/celery \
+    -A config worker \
+    --loglevel=info \
+    --concurrency=2 \
+    -n worker@%%h
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gmc-celery
+
+[Install]
+WantedBy=multi-user.target

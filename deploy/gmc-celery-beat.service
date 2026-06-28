@@ -1,0 +1,23 @@
+[Unit]
+Description=GMC Store — Celery beat scheduler
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/gmc-backend
+EnvironmentFile=/home/youruser/gmc-backend/.env
+ExecStart=/home/youruser/gmc-backend/venv/bin/celery \
+    -A config beat \
+    --loglevel=info \
+    --scheduler django_celery_beat.schedulers:DatabaseScheduler
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gmc-celery-beat
+
+[Install]
+WantedBy=multi-user.target

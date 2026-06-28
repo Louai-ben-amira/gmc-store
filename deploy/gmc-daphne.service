@@ -1,0 +1,24 @@
+[Unit]
+Description=GMC Store — Daphne ASGI server
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/gmc-backend
+EnvironmentFile=/home/youruser/gmc-backend/.env
+ExecStart=/home/youruser/gmc-backend/venv/bin/daphne \
+    -b 127.0.0.1 \
+    -p 8000 \
+    --proxy-headers \
+    config.asgi:application
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gmc-daphne
+
+[Install]
+WantedBy=multi-user.target
