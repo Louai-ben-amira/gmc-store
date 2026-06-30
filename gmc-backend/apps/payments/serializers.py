@@ -1,5 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
+from . import hero
 from .models import RechargeRequest, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
 
 
@@ -113,6 +114,20 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model  = SiteSettings
         fields = ['id', 'key', 'value', 'label']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Hero-slide images are stored as relative keys; expose full URLs.
+        if data.get('key') == 'HERO_SLIDES':
+            data['value'] = hero.slides_to_urls(data.get('value', ''))
+        return data
+
+    def validate(self, attrs):
+        # Persist hero-slide images as relative storage keys, never full URLs.
+        key = attrs.get('key') or getattr(self.instance, 'key', None)
+        if key == 'HERO_SLIDES' and 'value' in attrs:
+            attrs['value'] = hero.slides_to_keys(attrs['value'])
+        return attrs
 
 
 class GiftCardSerializer(serializers.ModelSerializer):
