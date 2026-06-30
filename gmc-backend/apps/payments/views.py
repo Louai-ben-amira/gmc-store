@@ -473,10 +473,12 @@ def admin_crypto_action(request, pk):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def public_hero_slides(request):
+    from . import hero
     value = SiteSettings.get('HERO_SLIDES', '[]')
     try:
         import json
-        slides = json.loads(value)
+        # Stored as relative keys → resolve to full R2/media URLs for the client.
+        slides = json.loads(hero.slides_to_urls(value))
     except Exception:
         slides = []
     return Response({'slides': slides})

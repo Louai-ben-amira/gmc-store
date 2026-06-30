@@ -14,5 +14,7 @@ urlpatterns = [
     path('api/admin/', include('apps.users.admin_urls')),
 ]
 
-if settings.DEBUG:
+# Serve uploaded media locally only when R2 is not the active backend.
+# With R2, files live in the bucket and are served from its public/signed URLs.
+if settings.DEBUG and not settings.USE_R2:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,10 +1,6 @@
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
-try:
-    import sentry_sdk
-except ImportError:
-    sentry_sdk = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -52,6 +48,10 @@ INSTALLED_APPS = [
     'apps.orders',
     'apps.chat',
     'apps.payments',
+    # Auto-deletes old files from storage (R2) when a model row is deleted or
+    # its FileField/ImageField changes. MUST stay last so its signals are
+    # registered after every model is loaded.
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [
@@ -87,16 +87,40 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='gmc_store'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='password'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+_DATABASE_URL = config('DATABASE_URL', default='')
+if _DATABASE_URL:
+    from urllib.parse import urlparse, parse_qs
+
+    _u = urlparse(_DATABASE_URL)
+    _q = parse_qs(_u.query)
+    _opts = {}
+    if 'sslmode' in _q:
+        _opts['sslmode'] = _q['sslmode'][0]
+    if 'channel_binding' in _q:
+        _opts['channel_binding'] = _q['channel_binding'][0]
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _u.path.lstrip('/'),
+            'USER': _u.username,
+            'PASSWORD': _u.password,
+            'HOST': _u.hostname,
+            'PORT': _u.port or 5432,
+            'OPTIONS': _opts,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='gmc_store'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='password'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+            'OPTIONS': {'sslmode': config('DB_SSLMODE', default='prefer')},
+        }
+    }
 
 REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 
@@ -135,11 +159,13 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# In development: run tasks immediately without Redis/Celery worker
-# In production (DEBUG=False): tasks go through Redis queue normally
-if DEBUG:
-    CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = True
+# Run tasks inline in the web process so NO separate Celery worker service is
+# needed (emails / Telegram alerts send during the request — fine for low volume).
+# Flash-sale expiry is handled lazily in the model, so no Celery Beat is needed either.
+# If you later add a dedicated worker, set CELERY_TASK_ALWAYS_EAGER=False in its env
+# and run:  celery -A config worker -B -l info
+CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=True, cast=bool)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -155,10 +181,52 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Local fallback for media (used only when R2 is not configured — see below).
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── File storage: Cloudflare R2 (S3-compatible) ──────────────────────────────
+# Credentials come from the environment. We accept both the canonical names and
+# the legacy R2_*_ID / R2_S3_* names so existing .env files keep working.
+def _first(*names: str, default: str = '') -> str:
+    for name in names:
+        value = config(name, default='')
+        if value:
+            return value
+    return default
+
+
+R2_ACCESS_KEY   = _first('R2_ACCESS_KEY', 'R2_ACCESS_KEY_ID')
+R2_SECRET_KEY   = _first('R2_SECRET_KEY', 'R2_SECRET_ACCESS_KEY')
+R2_BUCKET_NAME  = _first('R2_BUCKET_NAME', 'R2_STORAGE_BUCKET_NAME')
+R2_ACCOUNT_ID   = config('R2_ACCOUNT_ID', default='')
+R2_ENDPOINT_URL = _first(
+    'R2_ENDPOINT_URL', 'R2_S3_ENDPOINT_URL',
+    default=(f'https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com' if R2_ACCOUNT_ID else ''),
+)
+# Public bucket URL (r2.dev or a custom domain). When set, files are served
+# unsigned through this domain; when empty, URLs are signed (querystring auth).
+R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
+if R2_PUBLIC_URL:
+    from urllib.parse import urlparse as _urlparse
+    R2_CUSTOM_DOMAIN = _urlparse(R2_PUBLIC_URL).netloc or R2_PUBLIC_URL.strip('/')
+else:
+    R2_CUSTOM_DOMAIN = ''
+R2_QUERYSTRING_AUTH = not bool(R2_CUSTOM_DOMAIN)
+
+# Use R2 only when fully configured; otherwise fall back to the local
+# filesystem so development works with no cloud credentials.
+USE_R2 = bool(R2_ACCESS_KEY and R2_SECRET_KEY and R2_BUCKET_NAME and R2_ENDPOINT_URL)
+
+_DEFAULT_STORAGE = (
+    'config.storage_backends.R2Storage' if USE_R2
+    else 'django.core.files.storage.FileSystemStorage'
+)
+STORAGES = {
+    'default': {'BACKEND': _DEFAULT_STORAGE},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
@@ -216,8 +284,6 @@ else:
 POINTS_RATE        = 1    # points earned per DT spent
 
 GOOGLE_CLIENT_ID    = config('GOOGLE_CLIENT_ID',    default='')
-FACEBOOK_APP_ID     = config('FACEBOOK_APP_ID',     default='')
-FACEBOOK_APP_SECRET = config('FACEBOOK_APP_SECRET', default='')
 LOW_STOCK_THRESHOLD = config('LOW_STOCK_THRESHOLD', default=3, cast=int)
 
 # ── Telegram alerts ──────────────────────────────────────────────────────────
@@ -229,37 +295,6 @@ CELERY_BEAT_SCHEDULE = {
     'expire-flash-sales-every-minute': {
         'task':     'apps.products.tasks.expire_flash_sales',
         'schedule': 60.0,
-    },
-}
-
-PAYMENT_DETAILS = {
-    'd17': {
-        'phone':        config('D17_PHONE', default='XX XXX XXX'),
-        'account_name': 'GMC Store',
-        'instructions': 'Ouvrez D17 → Envoyer → entrez ce numéro → uploadez le reçu.',
-    },
-    'baridimob': {
-        'rib':          config('BARIDIMOB_RIB', default='10 000 XXXX XXXX XXXX XXXX'),
-        'account_name': 'GMC Store',
-        'instructions': 'BaridiMob → Virement → RIB ci-dessus → uploadez le reçu.',
-    },
-    'dahabia': {
-        'rib':          config('DAHABIA_RIB', default='10 000 XXXX XXXX XXXX XXXX'),
-        'account_name': 'GMC Store',
-        'instructions': 'Carte Dahabia / E-DINAR → Virement vers ce RIB → uploadez le reçu.',
-    },
-    'bank': {
-        'bank':         'BIAT',
-        'rib':          config('BANK_RIB', default='08 XXX XXXX XXXX XXXX XXXX'),
-        'account_name': 'GMC Store',
-        'instructions': 'Virement bancaire vers ce RIB. Montant minimum 50 DT. Uploadez le reçu.',
-    },
-    'cash': {
-        'instructions': 'Contactez-nous via le chat pour organiser un paiement en espèces.',
-    },
-    'paypal': {
-        'email':        config('PAYPAL_EMAIL', default=''),
-        'instructions': 'PayPal Friends & Family uniquement. Uploadez la capture de confirmation.',
     },
 }
 
@@ -330,15 +365,3 @@ JAZZMIN_UI_TWEAKS = {
         'success': 'btn-success',
     },
 }
-
-# ── Sentry error monitoring ───────────────────────────────────────────────────
-_SENTRY_DSN = config('SENTRY_DSN', default='')
-if _SENTRY_DSN and sentry_sdk:
-    sentry_sdk.init(
-        dsn=_SENTRY_DSN,
-        environment='production' if not DEBUG else 'development',
-        traces_sample_rate=config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float),
-        profiles_sample_rate=0.1,
-        send_default_pii=False,
-        integrations=[],
-    )

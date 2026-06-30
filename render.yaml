@@ -1,0 +1,72 @@
+services:
+  - type: web
+    name: gmc-backend
+    runtime: python
+    plan: starter
+    region: frankfurt
+    rootDir: gmc-backend
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+    healthCheckPath: /admin/login/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "True"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: gmc-redis
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: LOW_STOCK_THRESHOLD
+        value: "3"
+
+  # ── Free Redis (Key Value): powers the live-chat channel layer ──────
+  #  NOTE: Render renamed "Redis" → "Key Value". If the Blueprint rejects
+  #  `type: redis`, change it to `type: keyvalue` (identical settings).
+  - type: redis
+    name: gmc-redis
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

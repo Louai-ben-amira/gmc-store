@@ -12,3 +12,4 @@ media/
 celerybeat-schedule
 celerybeat.pid
 .DS_Store
+*.dump
