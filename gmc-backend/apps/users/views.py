@@ -229,19 +229,20 @@ def referral_stats(request):
     bonuses = ReferralBonus.objects.filter(referrer=user).select_related('referred_user').order_by('-created_at')
     total_earned = bonuses.filter(was_eligible=True).aggregate(t=Sum('amount'))['t'] or 0
     history = []
+    pending_count = bonuses.filter(was_eligible=False).count()
     for b in bonuses:
         history.append({
-            'username':    b.referred_user.get_full_name() or b.referred_user.username,
-            'date':        b.created_at.isoformat(),
-            'was_eligible': b.was_eligible,
-            'amount':      str(b.amount),
-            'balance_at_signup': str(b.referrer_balance_at_signup),
+            'username': b.referred_user.get_full_name() or b.referred_user.username,
+            'date':     b.created_at.isoformat(),
+            'status':   'credited' if b.was_eligible else 'pending',
+            'amount':   str(b.amount),
         })
     return Response({
-        'referral_code':    user.referral_code,
-        'referrals_count':  bonuses.count(),
-        'total_earned':     str(total_earned),
-        'history':          history,
+        'referral_code':   user.referral_code,
+        'referrals_count': bonuses.count(),
+        'pending_count':   pending_count,
+        'total_earned':    str(total_earned),
+        'history':         history,
     })
 
 
@@ -456,13 +457,71 @@ def admin_orders(request):
     from apps.orders.serializers import OrderSerializer
     orders = Order.objects.select_related('user', 'product').order_by('-created_at')
     status_filter = request.query_params.get('status')
+    req_acc = request.query_params.get('requires_account')
     if status_filter:
         orders = orders.filter(status=status_filter)
+    if req_acc:
+        orders = orders.filter(requires_account=True)
     from rest_framework.pagination import PageNumberPagination
     paginator = PageNumberPagination()
     paginator.page_size = 12
     result = paginator.paginate_queryset(orders, request)
-    return paginator.get_paginated_response(OrderSerializer(result, many=True).data)
+    return paginator.get_paginated_response(
+        OrderSerializer(result, many=True, context={'request': request}).data
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_cancel_order(request, pk):
+    """Admin force-cancel: refunds client, returns code to pool. Works even if code was revealed."""
+    from apps.orders.models import Order, OrderCodeViewLog
+    from apps.orders.serializers import OrderSerializer
+    from apps.users.models import WalletTransaction
+    from django.db import transaction
+    from django.db import models as db_models
+
+    try:
+        order = Order.objects.select_related('code', 'user').get(pk=pk)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if order.status == Order.Status.CANCELLED:
+        return Response({'detail': 'Order is already cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not order.code and order.status != Order.Status.COMPLETED:
+        return Response({'detail': 'Only completed code orders can be cancelled here.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        locked = Order.objects.select_for_update().select_related('code', 'user').get(pk=order.pk)
+
+        code = locked.code
+        if code:
+            code.status = 'available'
+            code.save(update_fields=['status'])
+
+        user = locked.user
+        refund = locked.amount_paid
+        user.balance += refund
+        user.save(update_fields=['balance'])
+
+        WalletTransaction.objects.create(
+            user=user, type='credit', amount=refund,
+            method='refund',
+            note=f'Admin cancelled Order #{locked.id}'
+        )
+
+        locked.status = Order.Status.CANCELLED
+        locked.code   = None
+        locked.save(update_fields=['status', 'code'])
+
+        if locked.product:
+            from apps.products.models import Product
+            Product.objects.filter(pk=locked.product_id).update(
+                stock_count=db_models.F('stock_count') + 1
+            )
+
+    return Response(OrderSerializer(locked, context={'request': request}).data)
 
 
 @api_view(['GET'])

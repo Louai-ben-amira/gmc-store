@@ -154,7 +154,7 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
         return [IsAdmin()]
 
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAdmin])
 def bulk_upload_codes(request, pk):
     try:
@@ -162,26 +162,119 @@ def bulk_upload_codes(request, pk):
     except Product.DoesNotExist:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+    if request.method == 'GET':
+        qs = product.codes.all()
+        status_filter = request.query_params.get('status')
+        if status_filter in ('available', 'sold'):
+            qs = qs.filter(status=status_filter)
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(code__icontains=search)
+
+        available_count = product.codes.filter(status='available').count()
+        sold_count      = product.codes.filter(status='sold').count()
+        total_count     = available_count + sold_count
+
+        # Pagination
+        page      = max(1, int(request.query_params.get('page', 1)))
+        page_size = min(200, max(1, int(request.query_params.get('page_size', 50))))
+        offset    = (page - 1) * page_size
+        codes_qs  = qs.order_by('-created_at')[offset:offset + page_size]
+
+        return Response({
+            'total':     total_count,
+            'available': available_count,
+            'sold':      sold_count,
+            'count':     qs.count(),
+            'page':      page,
+            'page_size': page_size,
+            'codes':     CodeSerializer(codes_qs, many=True).data,
+        })
+
     serializer = BulkCodeUploadSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     codes_list = serializer.validated_data.get('codes', [])
     csv_text   = serializer.validated_data.get('csv_text', '')
+    platform   = serializer.validated_data.get('platform', 'other')
     if csv_text:
         codes_list += [c.strip() for c in csv_text.split('\n') if c.strip()]
 
+    # Deduplicate the incoming list itself
+    seen_in_batch = set()
+    codes_list_deduped = []
+    for c in codes_list:
+        if c and c not in seen_in_batch:
+            seen_in_batch.add(c)
+            codes_list_deduped.append(c)
+
+    # Filter out codes that already exist for this product
+    existing = set(
+        product.codes.filter(code__in=codes_list_deduped).values_list('code', flat=True)
+    )
+    new_codes  = [c for c in codes_list_deduped if c not in existing]
+    duplicates = len(codes_list_deduped) - len(new_codes)
+
     created = []
-    for code_val in codes_list:
-        code = Code.objects.create(product=product, code=code_val)
+    for code_val in new_codes:
+        code = Code.objects.create(product=product, code=code_val, platform=platform)
         created.append(code)
 
-    product.stock_count += len(created)
-    product.save()
+    # Always set stock_count = actual available count so it never drifts
+    product.stock_count = product.codes.filter(status='available').count()
+    product.save(update_fields=['stock_count'])
 
     return Response({
-        'created': len(created),
-        'codes': CodeSerializer(created, many=True).data
+        'created':    len(created),
+        'duplicates': duplicates,
+        'codes':      CodeSerializer(created, many=True).data,
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])
+def delete_code(request, pk, code_id):
+    """Delete a single code. Only available codes can be deleted."""
+    try:
+        code = Code.objects.get(pk=code_id, product_id=pk)
+    except Code.DoesNotExist:
+        return Response({'detail': 'Code not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if code.status != 'available':
+        return Response(
+            {'detail': 'Only available (unsold) codes can be deleted.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    code.delete()
+
+    # Sync stock_count to actual available count
+    product = Product.objects.get(pk=pk)
+    product.stock_count = product.codes.filter(status='available').count()
+    product.save(update_fields=['stock_count'])
+
+    return Response({'deleted': True, 'stock_count': product.stock_count})
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def sync_stock(request, pk):
+    """Set stock_count = number of actually-available codes for this product."""
+    try:
+        product = Product.objects.get(pk=pk)
+    except Product.DoesNotExist:
+        return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    available = product.codes.filter(status='available').count()
+    old       = product.stock_count
+    product.stock_count = available
+    product.save(update_fields=['stock_count'])
+
+    return Response({
+        'old_stock_count': old,
+        'new_stock_count': available,
+        'synced':          old != available,
+    })
 
 
 # ── Product Variants (admin) ────────────────────────────────────────────────

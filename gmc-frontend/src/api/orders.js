@@ -9,3 +9,5 @@ export const updateServiceStatus = (id, data) => api.patch(`/orders/${id}/servic
 export const confirmDelivery  = (id)     => api.post(`/orders/${id}/confirm/`)
 export const openDispute      = (id, data) => api.post(`/orders/${id}/dispute/`, data)
 export const revealCredentials = (id)   => api.get(`/orders/${id}/credentials/`)
+export const revealCode        = (id)   => api.post(`/orders/${id}/reveal-code/`)
+export const cancelOrder       = (id)   => api.post(`/orders/${id}/cancel/`)

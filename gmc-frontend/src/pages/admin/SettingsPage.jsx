@@ -5,7 +5,7 @@ import { useToast } from '../../hooks/useToast'
 import {
   Settings, Phone, MapPin, Percent, FileText,
   ChevronDown, ChevronUp, Save, Plus, Trash2, ToggleLeft, ToggleRight,
-  Image, Upload, X, Building2, Coins, Smartphone,
+  Image, Upload, X, Building2, Coins, Smartphone, Bitcoin,
 } from 'lucide-react'
 import { PageShell, T } from '../../components/admin/AdminUI'
 
@@ -238,6 +238,9 @@ export default function SettingsPage() {
         upsert('OOREDOO_INSTRUCTIONS',       get('OOREDOO_INSTRUCTIONS'),              'Ooredoo ticket instructions'),
         upsert('ORANGE_INSTRUCTIONS',        get('ORANGE_INSTRUCTIONS'),               'Orange ticket instructions'),
         upsert('HERO_SLIDES',                JSON.stringify(slides),                   'Hero carousel slides (JSON)'),
+        upsert('BINANCE_ADDRESS',            get('BINANCE_ADDRESS'),                   'Binance USDT (BEP-20) wallet address'),
+        upsert('BNB_ADDRESS',                get('BNB_ADDRESS'),                       'BNB (BEP-20) wallet address'),
+        upsert('CRYPTO_ENABLED',             get('CRYPTO_ENABLED', 'true'),            'Crypto payments enabled'),
       ])
       await qc.invalidateQueries({ queryKey: ['site-settings'] })
       toast.success('Settings saved.')
@@ -467,6 +470,32 @@ export default function SettingsPage() {
             onChange={e => set('ORANGE_INSTRUCTIONS', e.target.value)}
             placeholder="e.g. Buy an Orange recharge ticket, scratch to reveal the code, then enter it below."
             style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
+          />
+        </Field>
+      </Section>
+
+      {/* ── Crypto Wallets ── */}
+      <Section title="Crypto Wallets" icon={Bitcoin} color="#f7931a" defaultOpen={false}>
+        <Field label="Enabled">
+          <ToggleSwitch
+            value={get('CRYPTO_ENABLED', 'true') === 'true'}
+            onChange={v => set('CRYPTO_ENABLED', v ? 'true' : 'false')}
+          />
+        </Field>
+        <Field label="Binance USDT — Wallet Address (BEP-20)" hint="Users will send USDT on BNB Smart Chain (BSC) to this address">
+          <input
+            value={get('BINANCE_ADDRESS')}
+            onChange={e => set('BINANCE_ADDRESS', e.target.value)}
+            placeholder="0x..."
+            style={{ fontFamily: 'JetBrains Mono, monospace' }}
+          />
+        </Field>
+        <Field label="BNB — Wallet Address (BEP-20)" hint="Users will send BNB on BNB Smart Chain (BSC) to this address">
+          <input
+            value={get('BNB_ADDRESS')}
+            onChange={e => set('BNB_ADDRESS', e.target.value)}
+            placeholder="0x..."
+            style={{ fontFamily: 'JetBrains Mono, monospace' }}
           />
         </Field>
       </Section>

@@ -51,6 +51,7 @@ import FlashSalesPage   from './pages/admin/FlashSalesPage'
 import CryptoPage       from './pages/admin/CryptoPage'
 import SettingsPage     from './pages/admin/SettingsPage'
 import GiftCardsPage    from './pages/admin/GiftCardsPage'
+import CategoriesPage   from './pages/admin/CategoriesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
@@ -137,6 +138,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index                element={<DashboardPage />} />
               <Route path="products"      element={<AdminProductsPage />} />
+              <Route path="categories"    element={<CategoriesPage />} />
               <Route path="bundles"       element={<BundlesPage />} />
               <Route path="flash-sales"   element={<FlashSalesPage />} />
               <Route path="promo-codes"   element={<PromoCodesPage />} />

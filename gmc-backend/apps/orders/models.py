@@ -58,7 +58,7 @@ class Order(models.Model):
     ]
 
     user             = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
-    product          = models.ForeignKey('products.Product', null=True, blank=True, on_delete=models.PROTECT, related_name='orders')
+    product          = models.ForeignKey('products.Product', null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     variant          = models.ForeignKey('products.ProductVariant', null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     bundle           = models.ForeignKey('products.Bundle', null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     code             = models.OneToOneField(
@@ -80,6 +80,9 @@ class Order(models.Model):
                            default='pending', blank=True
                        )
     requires_account = models.BooleanField(default=False)
+    # Code reveal tracking — set on first client reveal
+    code_viewed_at   = models.DateTimeField(null=True, blank=True)
+    code_view_ip     = models.GenericIPAddressField(null=True, blank=True)
     created_at       = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -88,6 +91,33 @@ class Order(models.Model):
     def __str__(self):
         name = self.product.name if self.product else (self.bundle.name if self.bundle else 'N/A')
         return f"Order #{self.id} - {self.user.username} - {name}"
+
+    @property
+    def is_revealed(self):
+        return self.code_viewed_at is not None
+
+    @property
+    def is_refund_eligible(self):
+        """Client may cancel only if code has never been revealed."""
+        return (
+            self.code is not None
+            and self.status == self.Status.COMPLETED
+            and self.code_viewed_at is None
+        )
+
+
+class OrderCodeViewLog(models.Model):
+    """Immutable audit log — one row per reveal attempt (idempotent on first reveal)."""
+    order      = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='view_logs')
+    viewed_at  = models.DateTimeField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-viewed_at']
+
+    def __str__(self):
+        return f"CodeView Order#{self.order_id} @ {self.viewed_at}"
 
 
 class OrderCredentials(models.Model):

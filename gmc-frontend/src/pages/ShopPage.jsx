@@ -13,6 +13,7 @@ import {
   getRecommendations, getCategories, getBestSellers
 } from '../api/products'
 import { getPublicHeroSlides } from '../api/admin'
+import api from '../api/index'
 import { formatCurrency, mediaUrl } from '../utils/formatters'
 import Topbar from '../components/Topbar'
 import AnnouncementBar from '../components/AnnouncementBar'
@@ -62,6 +63,90 @@ function WishlistBtn({ product, isAuthenticated }) {
 }
 
 /* ProductCard is imported from components/ProductCard.jsx */
+
+/* ── GMC Gift Card Batch Card ────────────────────────────────────────── */
+function GmcGiftCardBatch({ batch }) {
+  const available = batch.cards_available ?? 0
+  const total     = batch.cards_total ?? batch.quantity ?? 0
+  const usedPct   = total > 0 ? Math.round(((total - available) / total) * 100) : 0
+  const expiry    = batch.expires_at ? new Date(batch.expires_at) : null
+  const expired   = expiry && expiry < new Date()
+
+  return (
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid rgba(124,58,237,0.2)',
+      borderRadius: 14,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'transform 0.15s, box-shadow 0.15s',
+    }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.25)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}
+    >
+      {/* Image */}
+      <div style={{ position: 'relative', height: 140, background: 'rgba(124,58,237,0.08)', overflow: 'hidden' }}>
+        {batch.image
+          ? <img src={mediaUrl(batch.image)} alt={batch.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>🎁</div>
+        }
+        {/* Amount badge */}
+        <div style={{
+          position: 'absolute', top: 10, right: 10,
+          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          border: '1px solid rgba(124,58,237,0.4)',
+          borderRadius: 8, padding: '4px 10px',
+          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', fontWeight: 700,
+          color: '#B57BFF',
+        }}>
+          {parseFloat(batch.amount).toFixed(2)} DT
+        </div>
+        {expired && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: '#F87171' }}>EXPIRED</span>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '0.875rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+          {batch.label || `GMC Gift Card ${parseFloat(batch.amount).toFixed(0)} DT`}
+        </p>
+
+        {/* Stock bar */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {available} available
+            </span>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {usedPct}% used
+            </span>
+          </div>
+          <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.08)' }}>
+            <div style={{ height: '100%', borderRadius: 99, width: `${usedPct}%`, background: usedPct > 80 ? '#F87171' : '#7C3AED', transition: 'width 0.4s' }} />
+          </div>
+        </div>
+
+        {expiry && (
+          <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: expired ? '#F87171' : 'var(--text-muted)' }}>
+            Expires {expiry.toLocaleDateString()}
+          </p>
+        )}
+
+        <div style={{
+          marginTop: 'auto', paddingTop: 8,
+          fontFamily: 'Inter, sans-serif', fontSize: '0.75rem',
+          color: 'var(--text-muted)', lineHeight: 1.5,
+        }}>
+          Redeem in <strong style={{ color: 'var(--text-primary)' }}>Wallet → Redeem Gift Card</strong>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /* ── Bundle Card ─────────────────────────────────────────────────────── */
 function BundleCard({ bundle, index = 0 }) {
@@ -688,8 +773,8 @@ function BestSellersStrip({ onViewAll }) {
 ══════════════════════════════════════════════════════════════════════ */
 function FloatingButtons() {
   const buttons = [
-    { Icon: TbBrandWhatsapp, label: 'WhatsApp', color: '#25d366', bg: '#1a3d2b', href: 'https://wa.me/21600000000' },
-    { Icon: TbBrandInstagram, label: 'Instagram', color: '#e1306c', bg: '#3d1520', href: 'https://instagram.com/gmcstore' },
+    { Icon: TbBrandWhatsapp, label: 'WhatsApp', color: '#25d366', bg: '#1a3d2b', href: 'https://wa.me/21624027209' },
+    { Icon: TbBrandInstagram, label: 'Instagram', color: '#e1306c', bg: '#3d1520', href: 'https://www.instagram.com/gmcvstorex' },
   ]
   return createPortal(
     <div style={{ position: 'fixed', right: 18, bottom: 24, zIndex: 9000, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -948,6 +1033,7 @@ export default function ShopPage() {
     const flash = searchParams.get('flash')
     if (flash) { setActiveTab('flash'); setActiveSlug(null) }
     else if (cat) { setActiveSlug(cat); setActiveTab('shop') }
+    else { setActiveSlug(null); setActiveTab('shop') }
   }, [searchParams])
 
   const handleCategorySelect = (cat) => {
@@ -975,6 +1061,14 @@ export default function ShopPage() {
     queryKey: ['bundles'],
     queryFn: () => getBundles().then(r => r.data),
     enabled: activeTab === 'bundles',
+  })
+
+  const isGmcGiftCards = activeSlug === 'gmc-gift-card'
+
+  const { data: gmcGiftCards = [], isLoading: giftCardsLoading } = useQuery({
+    queryKey: ['public-gift-cards'],
+    queryFn: () => api.get('/payments/gift-cards/').then(r => r.data),
+    enabled: isGmcGiftCards,
   })
 
   const allProducts = data?.results || data || []
@@ -1033,19 +1127,34 @@ export default function ShopPage() {
                       : <><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}><span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{bundles.length} bundles</span></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>{bundles.map((b, i) => <BundleCard key={b.id} bundle={b} index={i} />)}</div></>
                 )}
                 {activeTab !== 'bundles' && (
-                  isLoading
-                    ? <div className="product-grid">{Array(9).fill(0).map((_, i) => <div key={i} className="skeleton" style={{ height: 300, borderRadius: 12 }} />)}</div>
-                    : products.length === 0
-                      ? <EmptyState icon={TbShoppingBag} title={activeTab === 'flash' ? t('empty.noFlashSales') : t('empty.noProducts')} sub={activeTab === 'flash' ? t('empty.noFlashSalesHint') : t('empty.tryDifferentSearch')} />
-                      : <>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{products.length} product{products.length !== 1 ? 's' : ''}{activeSlug ? ` in ${activeSlug.replace(/-/g, ' ')}` : ''}</span>
-                            <SortDropdown value={sort} onChange={setSort} />
-                          </div>
-                          <div id="product-grid" className="product-grid">
-                            {products.map((p, i) => <ProductCard key={p.id} product={p} index={i} isAuthenticated={authenticated} />)}
-                          </div>
-                        </>
+                  isGmcGiftCards
+                    ? giftCardsLoading
+                        ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>{Array(4).fill(0).map((_, i) => <div key={i} className="skeleton" style={{ height: 280, borderRadius: 12 }} />)}</div>
+                        : gmcGiftCards.length === 0
+                          ? <EmptyState icon={TbShoppingBag} title="No GMC Gift Cards available" sub="Check back soon for new gift cards." />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{gmcGiftCards.length} gift card{gmcGiftCards.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem' }}>
+                                {gmcGiftCards.map(batch => (
+                                  <GmcGiftCardBatch key={batch.id} batch={batch} />
+                                ))}
+                              </div>
+                            </>
+                    : isLoading
+                        ? <div className="product-grid">{Array(9).fill(0).map((_, i) => <div key={i} className="skeleton" style={{ height: 300, borderRadius: 12 }} />)}</div>
+                        : products.length === 0
+                          ? <EmptyState icon={TbShoppingBag} title={activeTab === 'flash' ? t('empty.noFlashSales') : t('empty.noProducts')} sub={activeTab === 'flash' ? t('empty.noFlashSalesHint') : t('empty.tryDifferentSearch')} />
+                          : <>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{products.length} product{products.length !== 1 ? 's' : ''}{activeSlug ? ` in ${activeSlug.replace(/-/g, ' ')}` : ''}</span>
+                                <SortDropdown value={sort} onChange={setSort} />
+                              </div>
+                              <div id="product-grid" className="product-grid">
+                                {products.map((p, i) => <ProductCard key={p.id} product={p} index={i} isAuthenticated={authenticated} />)}
+                              </div>
+                            </>
                 )}
               </div>
             </div>

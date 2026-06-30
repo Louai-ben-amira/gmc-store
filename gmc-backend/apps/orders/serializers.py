@@ -15,15 +15,17 @@ class PromoCodeSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    product_detail   = ProductSerializer(source='product', read_only=True)
-    code_value       = serializers.SerializerMethodField()
-    bundle_name      = serializers.SerializerMethodField()
-    product_name     = serializers.SerializerMethodField()
-    user_username    = serializers.CharField(source='user.username', read_only=True)
-    promo_code_str   = serializers.SerializerMethodField()
-    has_credentials  = serializers.SerializerMethodField()
-    conversation_id  = serializers.SerializerMethodField()
-    variant_label    = serializers.SerializerMethodField()
+    product_detail     = ProductSerializer(source='product', read_only=True)
+    code_value         = serializers.SerializerMethodField()
+    bundle_name        = serializers.SerializerMethodField()
+    product_name       = serializers.SerializerMethodField()
+    user_username      = serializers.CharField(source='user.username', read_only=True)
+    promo_code_str     = serializers.SerializerMethodField()
+    has_credentials    = serializers.SerializerMethodField()
+    conversation_id    = serializers.SerializerMethodField()
+    variant_label      = serializers.SerializerMethodField()
+    is_revealed        = serializers.SerializerMethodField()
+    is_refund_eligible = serializers.SerializerMethodField()
 
     class Meta:
         model  = Order
@@ -34,7 +36,9 @@ class OrderSerializer(serializers.ModelSerializer):
             'variant', 'variant_label',
             'amount_paid', 'service_fee', 'discount_amount', 'points_earned', 'points_used',
             'status', 'service_status', 'requires_account',
-            'code_value', 'promo_code_str', 'has_credentials',
+            'code_value', 'is_revealed', 'is_refund_eligible',
+            'code_viewed_at', 'code_view_ip',
+            'promo_code_str', 'has_credentials',
             'conversation_id', 'created_at',
         ]
         read_only_fields = [
@@ -42,8 +46,23 @@ class OrderSerializer(serializers.ModelSerializer):
             'status', 'service_status', 'created_at',
         ]
 
+    def _is_admin_request(self):
+        request = self.context.get('request')
+        return request and hasattr(request.user, 'role') and request.user.role == 'admin'
+
     def get_code_value(self, obj):
-        return obj.code.code if obj.code else None
+        if not obj.code:
+            return None
+        # Admins always see the code; clients only after reveal
+        if self._is_admin_request() or obj.code_viewed_at is not None:
+            return obj.code.code
+        return None
+
+    def get_is_revealed(self, obj):
+        return obj.code_viewed_at is not None
+
+    def get_is_refund_eligible(self, obj):
+        return obj.is_refund_eligible
 
     def get_bundle_name(self, obj):
         return obj.bundle.name if obj.bundle else None

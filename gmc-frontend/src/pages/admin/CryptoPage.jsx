@@ -7,7 +7,8 @@ import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, StatusPill, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
 
 const WALLET_KEYS = [
-  { key: 'BINANCE_ADDRESS', label: 'Binance Address', icon: '🟡' },
+  { key: 'BINANCE_ADDRESS', label: 'Binance Address (USDT)', icon: '🟡' },
+  { key: 'BNB_ADDRESS',     label: 'BNB Address',            icon: '🔶' },
 ]
 
 const STATUS_STYLE = {
@@ -123,19 +124,27 @@ function DetailModal({ payment, onClose, onAction }) {
           </div>
         </div>
 
-        {/* TX Hash */}
+        {/* TX Hash / Order ID */}
         <div style={{ ...DETAIL_BOX, marginBottom: '1rem' }}>
-          <p style={LABEL}>TX Hash {payment.status === 'pending' && <span style={{ color: '#d97706', fontWeight: 400 }}>(not submitted yet)</span>}</p>
+          <p style={LABEL}>
+            {payment.currency === 'BINANCE' ? 'Binance Order ID' : 'TX Hash (BSC)'}
+            {payment.status === 'pending' && <span style={{ color: '#d97706', fontWeight: 400 }}> (not submitted yet)</span>}
+          </p>
           {payment.tx_hash ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--aurora)', wordBreak: 'break-all' }}>{payment.tx_hash}</span>
               <CopyButton text={payment.tx_hash} />
+              {payment.currency === 'BNB' && payment.tx_hash.startsWith('0x') && (
+                <a href={`https://bscscan.com/tx/${payment.tx_hash}`} target="_blank" rel="noopener noreferrer" title="View on BSCScan" style={{ color: 'var(--muted)', display: 'flex' }}>
+                  <ExternalLink size={12} />
+                </a>
+              )}
             </div>
           ) : canAct ? (
             <input
               value={txHashInput}
               onChange={e => setTxHashInput(e.target.value)}
-              placeholder="Paste TX hash manually (optional)"
+              placeholder={payment.currency === 'BINANCE' ? 'Paste Binance Order ID manually (optional)' : 'Paste TX hash manually (optional)'}
               style={{ width: '100%', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', background: '#0d0d14', border: '1px solid #2a2a3e', color: 'var(--white-primary)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
             />
           ) : (

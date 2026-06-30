@@ -2,7 +2,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getProducts, createProduct, updateProduct, deleteProduct,
-  uploadCodes, setProductStock, getCategories,
+  uploadCodes, getCodes, deleteCode, syncProductStock,
+  setProductStock, getCategories,
   getVariants, createVariant, updateVariant, deleteVariant,
 } from '../../api/admin'
 import Modal, { ConfirmModal } from '../../components/Modal'
@@ -203,24 +204,56 @@ function RequiredFieldsEditor({ fields, onChange }) {
         </button>
       </div>
       {fields.length === 0 && (
-        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>No required fields — buyers won't be asked for extra info.</p>
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+          No required fields — buyers won't be asked for extra info.
+        </p>
       )}
       {fields.map((f, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-          <input value={f.key} onChange={e => setF(i, 'key', e.target.value)}
-            placeholder="key (e.g. game_id)" style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
-          <input value={f.label} onChange={e => setF(i, 'label', e.target.value)}
-            placeholder="Label shown to buyer" style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
-          <select value={f.type} onChange={e => setF(i, 'type', e.target.value)}
-            style={{ ...INP, height: 32, fontSize: '0.8rem' }}>
-            <option value="text">Text</option>
-            <option value="number">Number</option>
-            <option value="email">Email</option>
-          </select>
-          <button type="button" onClick={() => remove(i)}
-            style={{ width: 28, height: 28, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
-            x
-          </button>
+        <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '10px', marginBottom: 8 }}>
+          {/* Row 1: key + label + type */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 110px', gap: 6, marginBottom: 6 }}>
+            <div>
+              <label style={{ ...LBL, marginBottom: 2 }}>Key</label>
+              <input value={f.key} onChange={e => setF(i, 'key', e.target.value)}
+                placeholder="e.g. phone" style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
+            </div>
+            <div>
+              <label style={{ ...LBL, marginBottom: 2 }}>Label (shown to buyer)</label>
+              <input value={f.label} onChange={e => setF(i, 'label', e.target.value)}
+                placeholder="e.g. Phone Number" style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
+            </div>
+            <div>
+              <label style={{ ...LBL, marginBottom: 2 }}>Type</label>
+              <select value={f.type} onChange={e => setF(i, 'type', e.target.value)}
+                style={{ ...INP, height: 32, fontSize: '0.8rem' }}>
+                <option value="text">Text</option>
+                <option value="tel">📱 Phone (tel)</option>
+                <option value="number">Number</option>
+                <option value="email">Email</option>
+                <option value="password">Password</option>
+                <option value="textarea">Textarea</option>
+              </select>
+            </div>
+          </div>
+          {/* Row 2: placeholder + required toggle + remove */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 6, alignItems: 'center' }}>
+            <input value={f.placeholder || ''} onChange={e => setF(i, 'placeholder', e.target.value)}
+              placeholder="Placeholder text (optional)" style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={!!f.required} onChange={e => setF(i, 'required', e.target.checked)}
+                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }} />
+              Required
+            </label>
+            <button type="button" onClick={() => remove(i)}
+              style={{ width: 28, height: 28, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+              ×
+            </button>
+          </div>
+          {f.type === 'tel' && (
+            <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#34D399' }}>
+              📱 Phone field — buyers will see the topup waiting screen after purchase instead of a code.
+            </p>
+          )}
         </div>
       ))}
     </div>
@@ -564,7 +597,14 @@ export default function ProductsPage() {
   const [form,     setForm]     = useState(EMPTY_FORM)
   const [imageFile,    setImageFile]    = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
-  const [codesText, setCodesText] = useState('')
+  const [codesText, setCodesText]         = useState('')
+  const [codesPlatform, setCodesPlatform] = useState('other')
+  const [codesFilter, setCodesFilter]     = useState('all')
+  const [codesSearch, setCodesSearch]     = useState('')
+  const [codesPage, setCodesPage]         = useState(1)
+  const [codesProductId, setCodesProductId] = useState(null)
+  const [deletingCodeId, setDeletingCodeId] = useState(null)
+  const [syncingStock, setSyncingStock]     = useState(false)
   const [loading,   setLoading]  = useState(false)
   const [stockLoading, setStockLoading] = useState({})
   const [variantProduct, setVariantProduct] = useState(null)
@@ -578,6 +618,19 @@ export default function ProductsPage() {
     queryKey: ['admin-categories'],
     queryFn:  () => getCategories({ ordering: 'name' }).then(r => r.data),
     staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: codesData, isLoading: codesLoading } = useQuery({
+    queryKey: ['admin-codes', codesProductId, codesFilter, codesSearch, codesPage],
+    queryFn:  () => {
+      const params = { page: codesPage, page_size: 50 }
+      if (codesFilter !== 'all') params.status = codesFilter
+      if (codesSearch.trim()) params.search = codesSearch.trim()
+      return getCodes(codesProductId, params).then(r => r.data)
+    },
+    enabled:       !!codesProductId && modal === 'view-codes',
+    refetchOnMount: true,
+    staleTime:      0,
   })
 
   const products = productsData?.results || productsData || []
@@ -621,7 +674,15 @@ export default function ProductsPage() {
     setModal('edit')
   }
 
-  const openCodes   = (p) => { setSelected(p); setCodesText(''); setModal('codes') }
+  const openCodes     = (p) => { setSelected(p); setCodesText(''); setCodesPlatform('other'); setModal('codes') }
+  const openViewCodes = (p) => {
+    setSelected(p)
+    setCodesProductId(p.id)
+    setCodesFilter('all')
+    setCodesSearch('')
+    setCodesPage(1)
+    setModal('view-codes')
+  }
   const openDelete  = (p) => { setSelected(p); setModal('delete') }
   const closeModal  = () => { setModal(null); setSelected(null) }
 
@@ -686,12 +747,46 @@ export default function ProductsPage() {
     if (!codesText.trim()) return toast.error('Paste at least one code.')
     setLoading(true)
     try {
-      const { data } = await uploadCodes(selected.id, { csv_text: codesText })
-      toast.success(`${data.created} codes added.`)
+      const { data } = await uploadCodes(selected.id, { csv_text: codesText, platform: codesPlatform })
+      const msg = data.duplicates > 0
+        ? `${data.created} codes added (${data.duplicates} duplicates skipped).`
+        : `${data.created} codes added.`
+      toast.success(msg)
       qc.invalidateQueries({ queryKey: ['admin-products'] })
+      qc.invalidateQueries({ queryKey: ['admin-codes'] })
       closeModal()
     } catch { toast.error('Upload failed.') }
     setLoading(false)
+  }
+
+  const handleDeleteCode = async (codeId) => {
+    if (!window.confirm('Delete this code? This cannot be undone.')) return
+    setDeletingCodeId(codeId)
+    try {
+      await deleteCode(codesProductId, codeId)
+      toast.success('Code deleted.')
+      qc.invalidateQueries({ queryKey: ['admin-codes', codesProductId] })
+      qc.invalidateQueries({ queryKey: ['admin-products'] })
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Delete failed.')
+    }
+    setDeletingCodeId(null)
+  }
+
+  const handleSyncStock = async () => {
+    setSyncingStock(true)
+    try {
+      const { data } = await syncProductStock(codesProductId)
+      if (data.synced) {
+        toast.success(`Stock synced: ${data.old_stock_count} → ${data.new_stock_count}`)
+      } else {
+        toast.success(`Stock already in sync (${data.new_stock_count} available).`)
+      }
+      qc.invalidateQueries({ queryKey: ['admin-products'] })
+    } catch {
+      toast.error('Sync failed.')
+    }
+    setSyncingStock(false)
   }
 
   const handleStockChange = async (product, delta) => {
@@ -817,6 +912,7 @@ export default function ProductsPage() {
                   <div style={{ display: 'flex', gap: '0.375rem' }}>
                     <IconBtn onClick={() => openEdit(p)} title="Edit"><Edit2 size={14} /></IconBtn>
                     <IconBtn onClick={() => openCodes(p)} title="Upload Codes" color={T.success} bg={T.successDim} border={T.successBorder}><Upload size={14} /></IconBtn>
+                    <IconBtn onClick={() => openViewCodes(p)} title="View Codes" color="#60A5FA" bg="rgba(96,165,250,0.08)" border="rgba(96,165,250,0.25)"><Eye size={14} /></IconBtn>
                     <IconBtn onClick={() => openDelete(p)} title="Delete" color={T.danger} bg={T.dangerDim} border={T.dangerBorder}><Trash2 size={14} /></IconBtn>
                   </div>
                 </td>
@@ -849,6 +945,23 @@ export default function ProductsPage() {
         <p style={{ color: T.textSub, fontSize: '0.875rem', marginTop: 0 }}>
           One code per line. Duplicates are added as-is.
         </p>
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={LBL}>Platform</label>
+          <select
+            value={codesPlatform} onChange={e => setCodesPlatform(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box' }}
+          >
+            <option value="steam">Steam</option>
+            <option value="epic">Epic Games</option>
+            <option value="gog">GOG</option>
+            <option value="xbox">Xbox</option>
+            <option value="psn">PlayStation</option>
+            <option value="battlenet">Battle.net</option>
+            <option value="ubisoft">Ubisoft Connect</option>
+            <option value="ea">EA App</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
         <textarea
           value={codesText} onChange={e => setCodesText(e.target.value)}
           rows={10} placeholder={'CODE001\nCODE002\nCODE003'}
@@ -863,6 +976,156 @@ export default function ProductsPage() {
         </div>
       </Modal>
 
+      <Modal isOpen={modal === 'view-codes'} onClose={closeModal} title={`Codes — ${selected?.name}`} size="lg">
+        {/* summary pills + sync button */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'stretch' }}>
+          {[
+            { label: 'Total',     value: codesData?.total,     color: '#B57BFF', bg: 'rgba(181,123,255,0.1)' },
+            { label: 'Available', value: codesData?.available, color: '#34D399', bg: 'rgba(52,211,153,0.1)'  },
+            { label: 'Sold',      value: codesData?.sold,      color: '#F87171', bg: 'rgba(248,113,113,0.1)' },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} style={{ flex: 1, textAlign: 'center', padding: '0.5rem', borderRadius: 8, background: bg, border: `1px solid ${color}33` }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color }}>{codesLoading ? '…' : (value ?? 0)}</div>
+              <div style={{ fontSize: '0.75rem', color: T.textMuted, marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+          <button
+            onClick={handleSyncStock}
+            disabled={syncingStock}
+            title="Sync product stock_count to match actual available codes"
+            style={{
+              alignSelf: 'stretch', padding: '0 14px', borderRadius: 8, border: '1px solid rgba(52,211,153,0.3)',
+              background: 'rgba(52,211,153,0.06)', color: '#34D399', cursor: 'pointer',
+              fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap',
+            }}
+          >
+            {syncingStock ? '…' : '⟳ Sync Stock'}
+          </button>
+        </div>
+
+        {/* stock mismatch warning */}
+        {codesData && selected && codesData.available !== selected.stock_count && (
+          <div style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.3)', borderRadius: 8, padding: '0.5rem 0.875rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#F5A623' }}>
+            ⚠️ Stock count mismatch — product shows <b>{selected.stock_count}</b> in stock but there are <b>{codesData.available}</b> available codes.{' '}
+            Click <b>⟳ Sync Stock</b> to fix.
+          </div>
+        )}
+
+        {/* filter tabs + search */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {['all', 'available', 'sold'].map(f => (
+            <button
+              key={f}
+              onClick={() => { setCodesFilter(f); setCodesPage(1) }}
+              style={{
+                padding: '0.25rem 0.875rem', borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontSize: '0.8125rem', fontWeight: 600, textTransform: 'capitalize',
+                background: codesFilter === f ? '#7C3AED' : 'rgba(255,255,255,0.06)',
+                color: codesFilter === f ? '#fff' : T.textSub,
+                transition: 'all 0.15s',
+              }}
+            >{f}</button>
+          ))}
+          <div style={{ flex: 1, position: 'relative', minWidth: 160 }}>
+            <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
+            <input
+              value={codesSearch}
+              onChange={e => { setCodesSearch(e.target.value); setCodesPage(1) }}
+              placeholder="Search code…"
+              style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 26, height: 30, fontSize: '0.8rem', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: T.textPrimary, outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        {/* codes table */}
+        <div style={{ maxHeight: 340, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(139,79,219,0.15)' }}>
+          {codesLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: T.textMuted }}>Loading…</div>
+          ) : !codesData?.codes?.length ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: T.textMuted }}>
+              {codesSearch ? `No codes matching "${codesSearch}".` : 'No codes found.'}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Platform', 'Code', 'Status', 'Added', ''].map((h, i) => (
+                    <th key={i} style={{ ...TH_STYLE, background: 'rgba(0,0,0,0.2)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {codesData.codes.map(c => (
+                  <tr key={c.id}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={TD_STYLE}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#B57BFF', textTransform: 'capitalize' }}>
+                        {PLATFORM_LABELS[c.platform] || c.platform}
+                      </span>
+                    </td>
+                    <td style={{ ...TD_STYLE, fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all', maxWidth: 260 }}>{c.code}</td>
+                    <td style={TD_STYLE}>
+                      <span style={{
+                        display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: 99,
+                        fontSize: '0.75rem', fontWeight: 600,
+                        background: c.status === 'available' ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)',
+                        color:      c.status === 'available' ? '#34D399' : '#F87171',
+                        border: `1px solid ${c.status === 'available' ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                      }}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td style={{ ...TD_STYLE, whiteSpace: 'nowrap', color: T.textMuted }}>
+                      {new Date(c.created_at).toLocaleDateString()}
+                    </td>
+                    <td style={{ ...TD_STYLE, textAlign: 'right' }}>
+                      {c.status === 'available' && (
+                        <button
+                          onClick={() => handleDeleteCode(c.id)}
+                          disabled={deletingCodeId === c.id}
+                          title="Delete this code"
+                          style={{ width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}
+                        >
+                          {deletingCodeId === c.id ? '…' : <Trash2 size={12} />}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* pagination */}
+        {codesData && codesData.count > 50 && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', marginTop: '0.75rem' }}>
+            <button
+              disabled={codesPage <= 1}
+              onClick={() => setCodesPage(p => p - 1)}
+              style={{ padding: '3px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: T.textSub, cursor: codesPage > 1 ? 'pointer' : 'not-allowed', opacity: codesPage <= 1 ? 0.4 : 1 }}
+            >←</button>
+            <span style={{ fontSize: '0.8rem', color: T.textMuted }}>
+              Page {codesPage} · {codesData.count} results
+            </span>
+            <button
+              disabled={codesPage * 50 >= codesData.count}
+              onClick={() => setCodesPage(p => p + 1)}
+              style={{ padding: '3px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: T.textSub, cursor: codesPage * 50 < codesData.count ? 'pointer' : 'not-allowed', opacity: codesPage * 50 >= codesData.count ? 0.4 : 1 }}
+            >→</button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+          <span style={{ fontSize: '0.8rem', color: T.textMuted }}>
+            {codesData?.total > 0 && `${codesData.available} available · ${codesData.sold} sold`}
+          </span>
+          <button className="btn-secondary" onClick={closeModal}>Close</button>
+        </div>
+      </Modal>
+
       <ConfirmModal
         isOpen={modal === 'delete'} onClose={closeModal} onConfirm={handleDelete}
         title="Delete Product" confirmText="Delete" loading={loading}
@@ -873,6 +1136,10 @@ export default function ProductsPage() {
 }
 
 /* ── style constants ──────────────────────────────────────────────────── */
+const PLATFORM_LABELS = {
+  steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox',
+  psn: 'PlayStation', battlenet: 'Battle.net', ubisoft: 'Ubisoft Connect', ea: 'EA App', other: 'Other',
+}
 const LBL      = { display: 'block', color: '#B3A4D4', fontSize: '0.8125rem', marginBottom: '0.375rem', fontWeight: 500 }
 const INP      = { width: '100%', boxSizing: 'border-box' }
 const STOCK_BTN = { width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.375rem', border: '1px solid', background: 'transparent', cursor: 'pointer', fontSize: '1rem', fontWeight: 700, lineHeight: 1, padding: 0, transition: 'all 0.15s' }

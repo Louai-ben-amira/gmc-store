@@ -2,13 +2,14 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users,
-  Wallet, MessageCircle, LogOut, Store, ChevronRight, Tag, Flame, Bitcoin, Settings, Gift, Menu, X,
+  Wallet, MessageCircle, LogOut, Store, ChevronRight, Tag, Flame, Bitcoin, Settings, Gift, Menu, X, FolderOpen,
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 
 const nav = [
   { to: '/admin',               icon: LayoutDashboard, label: 'Dashboard',   exact: true },
   { to: '/admin/products',      icon: Package,         label: 'Products'     },
+  { to: '/admin/categories',    icon: FolderOpen,      label: 'Categories'   },
   { to: '/admin/bundles',       icon: Store,           label: 'Bundles'      },
   { to: '/admin/flash-sales',   icon: Flame,           label: 'Flash Sales'  },
   { to: '/admin/promo-codes',   icon: Tag,             label: 'Promo Codes'  },

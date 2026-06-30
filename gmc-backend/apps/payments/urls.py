@@ -24,6 +24,7 @@ urlpatterns = [
 
     # Public
     path('hero-slides/',           views.public_hero_slides,               name='public_hero_slides'),
+    path('gift-cards/',            views.public_gift_card_batches,         name='public_gift_card_batches'),
 
     # Admin — site settings
     path('settings/',              views.SiteSettingsListView.as_view(),   name='site_settings'),

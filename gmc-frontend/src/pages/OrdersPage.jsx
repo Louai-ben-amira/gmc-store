@@ -1,8 +1,8 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getOrders, reorder } from '../api/orders'
+import { getOrders, reorder, revealCode, cancelOrder } from '../api/orders'
 import { StatusBadge } from '../components/Badge'
 import Modal from '../components/Modal'
 import Topbar from '../components/Topbar'
@@ -12,7 +12,7 @@ import { useToast } from '../hooks/useToast'
 import {
   TbPackage, TbCopy, TbCheck, TbShoppingBag, TbRefresh,
   TbMessageCircle, TbBolt, TbClock, TbCircleCheck, TbX,
-  TbReceipt, TbChevronDown, TbChevronUp, TbStar,
+  TbReceipt, TbChevronDown, TbChevronUp, TbStar, TbLock, TbEye,
 } from 'react-icons/tb'
 
 /* ── Status configs ──────────────────────────────────────────────────── */
@@ -59,11 +59,56 @@ function CodeBox({ code }) {
 }
 
 /* ── View Code Modal ─────────────────────────────────────────────────── */
-function ViewCodeModal({ isOpen, onClose, order }) {
-  const { t } = useTranslation('orders')
+function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
+  const { t }    = useTranslation('orders')
+  const toast    = useToast()
+  const qc       = useQueryClient()
+  const [revealStep,    setRevealStep]    = useState('idle')   // idle | warn | revealed
+  const [revealedCode,  setRevealedCode]  = useState(null)
+  const [revealLoading, setRevealLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) { setRevealStep('idle'); setRevealedCode(null) }
+  }, [isOpen, order?.id])
+
   if (!order) return null
   const cfg = STATUS_CFG[order.status] || STATUS_CFG.pending
   const StatusIcon = cfg.Icon
+
+  const displayCode = revealedCode || order.code_value
+  const hasCode = order.status === 'completed' && !order.requires_account
+
+  const handleReveal = async () => {
+    setRevealLoading(true)
+    try {
+      const { data } = await revealCode(order.id)
+      setRevealedCode(data.code)
+      setRevealStep('revealed')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      onOrderUpdated?.()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not reveal code.')
+    } finally {
+      setRevealLoading(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!window.confirm('Cancel this order? Your balance will be refunded.')) return
+    setCancelLoading(true)
+    try {
+      await cancelOrder(order.id)
+      toast.success('Order cancelled. Balance refunded.')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      onClose()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not cancel order.')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('modal.orderDetails')} size="md">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -100,7 +145,50 @@ function ViewCodeModal({ isOpen, onClose, order }) {
           ))}
         </div>
 
-        {order.code_value && <CodeBox code={order.code_value} />}
+        {/* Code section */}
+        {hasCode && (
+          displayCode ? (
+            <CodeBox code={displayCode} />
+          ) : revealStep === 'warn' ? (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '0.875rem', marginBottom: '0.875rem' }}>
+                <p style={{ margin: '0 0 4px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: '#f87171' }}>⚠️ Read before revealing</p>
+                <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'rgba(248,113,113,0.85)', lineHeight: 1.55 }}>
+                  Once revealed, <strong>this order cannot be cancelled or refunded</strong>.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.625rem' }}>
+                <button className="btn-secondary" onClick={() => setRevealStep('idle')} style={{ flex: 1, fontSize: '0.8125rem' }}>Back</button>
+                <button className="btn-primary" onClick={handleReveal} disabled={revealLoading} style={{ flex: 1, justifyContent: 'center', fontSize: '0.8125rem' }}>
+                  {revealLoading ? 'Revealing…' : 'Confirm & Reveal'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                className="btn-primary"
+                onClick={() => setRevealStep('warn')}
+                style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
+              >
+                <TbEye size={15} /> Reveal Code
+              </button>
+              {order.is_refund_eligible && (
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelLoading}
+                  style={{
+                    width: '100%', padding: '0.625rem', borderRadius: 10, cursor: 'pointer',
+                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                    color: '#f87171', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: 600,
+                  }}
+                >
+                  {cancelLoading ? 'Cancelling…' : '✕ Cancel Order & Get Refund'}
+                </button>
+              )}
+            </div>
+          )
+        )}
       </div>
     </Modal>
   )
@@ -120,7 +208,9 @@ function ReorderSuccessModal({ isOpen, onClose, order }) {
           {formatCurrency(order.amount_paid)} deducted · <span style={{ color: '#f59e0b' }}>+{order.points_earned} pts earned</span>
         </p>
       </div>
-      {order.code_value && <CodeBox code={order.code_value} />}
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0.75rem 0 0' }}>
+        Go to <span style={{ color: 'var(--accent)', fontWeight: 600 }}>My Orders</span> to reveal your code.
+      </p>
     </Modal>
   )
 }
@@ -261,10 +351,15 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
               <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{value}</p>
             </div>
           ))}
-          {order.code_value && (
+          {order.status === 'completed' && !order.requires_account && (
             <div style={{ flex: '1 1 100%' }}>
-              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>Code</p>
-              <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{order.code_value}</code>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Code</p>
+              {order.code_value
+                ? <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{order.code_value}</code>
+                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '3px 8px' }}>
+                    <TbLock size={11} /> Not yet revealed — tap to view
+                  </span>
+              }
             </div>
           )}
         </div>
@@ -425,7 +520,12 @@ export default function OrdersPage() {
         <Footer />
       </div>
 
-      <ViewCodeModal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} order={selectedOrder} />
+      <ViewCodeModal
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        order={selectedOrder}
+        onOrderUpdated={() => setSelectedOrder(null)}
+      />
       <ReorderSuccessModal isOpen={!!reorderResult} onClose={() => setReorderResult(null)} order={reorderResult} />
 
       <style>{`

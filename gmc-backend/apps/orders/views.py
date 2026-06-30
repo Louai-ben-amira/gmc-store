@@ -1,11 +1,11 @@
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from django.db import transaction
+from django.db import transaction, models
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
-from .models import Order, PromoCode, OrderCredentials
+from .models import Order, PromoCode, OrderCredentials, OrderCodeViewLog
 from .serializers import OrderSerializer, PlaceOrderSerializer, PromoCodeSerializer, OrderCredentialsSerializer
 from apps.products.models import Product, Code, Bundle, ProductVariant
 from apps.users.models import WalletTransaction
@@ -272,7 +272,11 @@ class OrderListCreateView(generics.ListCreateAPIView):
         except Product.DoesNotExist:
             return Response({'detail': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        needs_credentials = product.requires_account or (
+        has_phone_field = any(
+            f.get('type') == 'tel' or f.get('key') == 'phone'
+            for f in (product.required_fields or [])
+        )
+        needs_credentials = product.requires_account or has_phone_field or (
             product.category and product.category.requires_account
         )
         if needs_credentials and not credentials:
@@ -440,6 +444,12 @@ class OrderListCreateView(generics.ListCreateAPIView):
                     f"⚠️ <b>Low Stock: {product.name}</b>\n"
                     f"Only <b>{product.stock_count}</b> left!"
                 )
+        except Exception:
+            pass
+
+        try:
+            from apps.users.referral import handle_referral_first_purchase
+            _fire(handle_referral_first_purchase, user)
         except Exception:
             pass
 
@@ -671,6 +681,114 @@ def open_dispute(request, pk):
         pass
 
     return Response(OrderSerializer(order).data)
+
+
+# ── Reveal code (client) ──────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def reveal_code(request, pk):
+    """
+    First call: records reveal time/IP, returns the code.
+    Subsequent calls: idempotent — returns code again with already_revealed=True.
+    Code is never sent in the standard list/detail response; only via this endpoint.
+    """
+    try:
+        order = Order.objects.select_related('code').get(pk=pk, user=request.user)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not order.code:
+        return Response({'detail': 'No code available for this order.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if order.status != Order.Status.COMPLETED:
+        return Response({'detail': 'Order is not in a completed state.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    ip = _get_client_ip(request)
+    already = order.code_viewed_at is not None
+
+    if not already:
+        with transaction.atomic():
+            locked = Order.objects.select_for_update().get(pk=order.pk)
+            if locked.code_viewed_at is None:
+                now = timezone.now()
+                locked.code_viewed_at = now
+                locked.code_view_ip   = ip
+                locked.save(update_fields=['code_viewed_at', 'code_view_ip'])
+                OrderCodeViewLog.objects.create(
+                    order=locked, viewed_at=now, ip_address=ip
+                )
+                order.code_viewed_at = now  # sync local obj for serializer
+
+    return Response({
+        'code':             order.code.code,
+        'already_revealed': already,
+        'viewed_at':        order.code_viewed_at,
+    })
+
+
+# ── Cancel order (client) ─────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cancel_order(request, pk):
+    """
+    Client self-cancel. Only allowed before the code has been revealed.
+    Refunds balance, returns code to available pool, cancels the order.
+    """
+    try:
+        order = Order.objects.select_related('code', 'user').get(pk=pk, user=request.user)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not order.is_refund_eligible:
+        if order.code_viewed_at is not None:
+            return Response(
+                {'detail': 'Code has already been revealed. This order cannot be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {'detail': 'This order cannot be cancelled.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with transaction.atomic():
+        locked = Order.objects.select_for_update().select_related('code', 'user').get(pk=order.pk)
+
+        # Double-check after lock
+        if locked.code_viewed_at is not None or locked.status != Order.Status.COMPLETED:
+            return Response(
+                {'detail': 'Order state changed. Cannot cancel.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        code = locked.code
+        if code:
+            code.status = 'available'
+            code.save(update_fields=['status'])
+
+        user = locked.user
+        refund = locked.amount_paid
+        user.balance += refund
+        user.save(update_fields=['balance'])
+
+        WalletTransaction.objects.create(
+            user=user, type='credit', amount=refund,
+            method='refund', note=f'Cancelled Order #{locked.id} — code not revealed'
+        )
+
+        locked.status = Order.Status.CANCELLED
+        locked.code   = None
+        locked.save(update_fields=['status', 'code'])
+
+        # Update stock count
+        if locked.product:
+            from apps.products.models import Product
+            Product.objects.filter(pk=locked.product_id).update(
+                stock_count=models.F('stock_count') + 1
+            )
+
+    return Response(OrderSerializer(locked, context={'request': request}).data)
 
 
 # ── Promo ────────────────────────────────────────────────────────────────────

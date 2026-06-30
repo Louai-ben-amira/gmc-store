@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAdminOrders, getOrderCredentials, updateServiceStatus } from '../../api/admin'
+import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder } from '../../api/admin'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Eye, EyeOff, MessageCircle } from 'lucide-react'
+import { Eye, EyeOff, MessageCircle, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, DataTable, StatusPill, Pagination, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
@@ -113,6 +113,41 @@ function ServiceStatusControl({ order, onUpdated }) {
   )
 }
 
+function AdminCancelButton({ order, onDone }) {
+  const [loading, setLoading] = useState(false)
+  const toast = useToast()
+
+  const handle = async () => {
+    if (!window.confirm(`Cancel order #${order.id} and refund ${order.user_username}?`)) return
+    setLoading(true)
+    try {
+      await adminCancelOrder(order.id)
+      toast.success(`Order #${order.id} cancelled. Balance refunded.`)
+      onDone()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not cancel.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); handle() }}
+      disabled={loading}
+      title="Cancel & Refund"
+      style={{
+        display: 'flex', alignItems: 'center', gap: '4px',
+        background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+        color: '#f87171', borderRadius: '0.375rem', padding: '4px 8px',
+        cursor: 'pointer', fontSize: '0.6875rem', fontWeight: 600,
+      }}
+    >
+      <Ban size={11} /> {loading ? '…' : 'Cancel'}
+    </button>
+  )
+}
+
 export default function OrdersPage() {
   const [page,         setPage]       = useState(1)
   const [status,       setStatus]     = useState('')
@@ -182,10 +217,11 @@ export default function OrdersPage() {
               <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No orders found.</td></tr>
             ) : orders.map(o => {
               const expanded = expandedId === o.id
+              const canExpand = o.requires_account || (o.code_value && o.is_revealed)
               return [
                 <tr key={o.id}
-                  onClick={() => o.requires_account && setExpandedId(expanded ? null : o.id)}
-                  style={{ cursor: o.requires_account ? 'pointer' : 'default' }}
+                  onClick={() => canExpand && setExpandedId(expanded ? null : o.id)}
+                  style={{ cursor: canExpand ? 'pointer' : 'default' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,79,219,0.04)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
@@ -198,14 +234,25 @@ export default function OrdersPage() {
                   <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(o.amount_paid)}</td>
                   <td style={{ ...TD_STYLE, color: T.purpleText }}>{o.points_earned ?? 0} pts</td>
                   <td style={TD_STYLE}>{formatDate(o.created_at)}</td>
-                  <td style={TD_STYLE}><StatusPill status={o.status} /></td>
+                  <td style={TD_STYLE}>
+                    <StatusPill status={o.status} />
+                    {/* Code reveal indicator */}
+                    {o.code_value && !o.requires_account && (
+                      <div style={{ marginTop: 3 }}>
+                        {o.is_revealed
+                          ? <span style={{ fontSize: '0.5625rem', color: '#22C55E', fontFamily: 'JetBrains Mono, monospace' }}>👁 Revealed {o.code_viewed_at ? formatDate(o.code_viewed_at) : ''}</span>
+                          : <span style={{ fontSize: '0.5625rem', color: '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>🔒 Not revealed</span>
+                        }
+                      </div>
+                    )}
+                  </td>
                   <td style={TD_STYLE}>
                     {o.requires_account
                       ? <ServiceStatusControl order={o} onUpdated={() => qc.invalidateQueries({ queryKey: ['admin-orders'] })} />
                       : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>—</span>
                     }
                   </td>
-                  <td style={TD_STYLE}>
+                  <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                     {o.requires_account && o.conversation_id && (
                       <button
                         onClick={e => { e.stopPropagation(); navigate('/admin/inbox') }}
@@ -215,14 +262,35 @@ export default function OrdersPage() {
                         <MessageCircle size={12} /> Chat
                       </button>
                     )}
+                    {o.status === 'completed' && (
+                      <AdminCancelButton
+                        order={o}
+                        onDone={() => qc.invalidateQueries({ queryKey: ['admin-orders'] })}
+                      />
+                    )}
                   </td>
                 </tr>,
 
-                expanded && o.requires_account && (
-                  <tr key={`creds-${o.id}`}>
+                expanded && (
+                  <tr key={`detail-${o.id}`}>
                     <td colSpan={9} style={{ padding: '0 1rem 1rem 2.5rem', background: T.warningDim, borderBottom: `1px solid ${T.border}` }}>
-                      <p style={{ color: T.textMuted, fontSize: '0.75rem', margin: '0.5rem 0 0.25rem', fontWeight: 600 }}>CLIENT CREDENTIALS</p>
-                      <CredentialCard orderId={o.id} />
+                      {o.requires_account && (
+                        <>
+                          <p style={{ color: T.textMuted, fontSize: '0.75rem', margin: '0.5rem 0 0.25rem', fontWeight: 600 }}>CLIENT CREDENTIALS</p>
+                          <CredentialCard orderId={o.id} />
+                        </>
+                      )}
+                      {o.code_value && !o.requires_account && (
+                        <div style={{ paddingTop: '0.5rem' }}>
+                          <p style={{ color: T.textMuted, fontSize: '0.6875rem', margin: '0 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Code (admin view)</p>
+                          <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: '#22C55E' }}>{o.code_value}</code>
+                          {o.is_revealed && (
+                            <p style={{ margin: '6px 0 0', fontSize: '0.6875rem', color: T.textMuted }}>
+                              Revealed: {formatDate(o.code_viewed_at)} · IP: {o.code_view_ip || '—'}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )

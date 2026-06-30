@@ -2,12 +2,13 @@
 import { X, ChevronRight } from 'lucide-react'
 
 const MESSAGES = [
-  { icon: '🔥', text: 'NEW FC 26 ACCOUNTS AVAILABLE' },
   { icon: '🎁', text: 'STEAM GIFT CARDS RESTOCKED' },
   { icon: '⚡', text: 'INSTANT DELIVERY ON ALL TOP-UPS' },
   { icon: '🎮', text: 'FREE FIRE DIAMONDS — UP TO 30% OFF TODAY' },
   { icon: '💎', text: 'VALORANT VP PACKS BACK IN STOCK' },
-  { icon: '🏆', text: 'FC 26 ACCOUNTS FROM 45.000 TND' },
+  { icon: '🔥', text: 'LIMITED TIME OFFER — UP TO 50% OFF' },
+  { icon: '🎉', text: 'NEW ARRIVALS — CHECK OUT OUR LATEST GAMES' },
+  { icon: '💰', text: 'EARN REWARDS POINTS ON EVERY PURCHASE' },
 ]
 
 export default function AnnouncementBar() {

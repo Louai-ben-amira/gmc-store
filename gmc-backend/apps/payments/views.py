@@ -283,7 +283,7 @@ def initiate_crypto(request):
 
     rate          = MOCK_RATES_DT.get(currency, Decimal('1'))
     amount_crypto = (amount_dt / rate).quantize(Decimal('0.00000001'))
-    expires_at    = timezone.now() + timedelta(minutes=30)
+    expires_at    = timezone.now() + timedelta(minutes=15)
 
     recharge = RechargeRequest.objects.create(
         user=request.user,
@@ -502,6 +502,19 @@ class SiteSettingsDetailView(generics.RetrieveUpdateDestroyAPIView):
 import os
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def public_gift_card_batches(request):
+    """Public list of available (non-expired, has stock) GMC gift card batches."""
+    from django.utils import timezone
+    batches = GiftCardBatch.objects.filter(
+        cards__redeemed_by__isnull=True
+    ).distinct()
+    # exclude fully expired
+    batches = [b for b in batches if not b.expires_at or b.expires_at > timezone.now()]
+    return Response(GiftCardBatchSerializer(batches, many=True, context={'request': request}).data)
+
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])

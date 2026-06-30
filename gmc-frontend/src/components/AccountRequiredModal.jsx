@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Lock, X, AlertTriangle } from 'lucide-react'
+import { Lock, Phone, X, AlertTriangle } from 'lucide-react'
 
 const fieldStyle = {
   width: '100%', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
@@ -39,8 +39,8 @@ export default function AccountRequiredModal({ product, onConfirm, onCancel }) {
   const [agreed, setAgreed] = useState(false)
   const [error,  setError]  = useState('')
 
-  // Use product.required_fields if present, otherwise empty (no fields needed)
-  const fields = product?.required_fields || []
+  const fields  = product?.required_fields || []
+  const isTopup = fields.some(f => f.type === 'tel' || f.key === 'phone')
 
   const upd = (key, val) => setValues(prev => ({ ...prev, [key]: val }))
 
@@ -88,14 +88,18 @@ export default function AccountRequiredModal({ product, onConfirm, onCancel }) {
         }}>
           <div style={{
             width: 36, height: 36, borderRadius: 9,
-            background: 'var(--accent-dim)', border: '1px solid var(--accent-border)',
+            background: isTopup ? 'rgba(52,211,153,0.12)' : 'var(--accent-dim)',
+            border: isTopup ? '1px solid rgba(52,211,153,0.3)' : '1px solid var(--accent-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <Lock size={16} color="var(--accent)" />
+            {isTopup
+              ? <Phone size={16} color="#34D399" />
+              : <Lock size={16} color="var(--accent)" />
+            }
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-              Account Details Required
+              {isTopup ? 'Enter Your Phone Number' : 'Account Details Required'}
             </p>
             <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {product?.name}
@@ -116,16 +120,29 @@ export default function AccountRequiredModal({ product, onConfirm, onCancel }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           {/* Trust notice */}
-          <div style={{
-            background: 'var(--accent-dim)', border: '1px solid var(--accent-border)',
-            borderRadius: 8, padding: '10px 12px',
-            display: 'flex', gap: 10, alignItems: 'flex-start',
-          }}>
-            <Lock size={13} color="var(--accent)" style={{ flexShrink: 0, marginTop: 2 }} />
-            <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
-              Your information is <strong style={{ color: 'var(--accent)' }}>end-to-end encrypted</strong>, used only for this order, and <strong style={{ color: 'var(--accent)' }}>permanently deleted</strong> after service completion.
-            </p>
-          </div>
+          {isTopup ? (
+            <div style={{
+              background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)',
+              borderRadius: 8, padding: '10px 12px',
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+            }}>
+              <Phone size={13} color="#34D399" style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                Enter the phone number you want to recharge. Your forfait will be sent <strong style={{ color: '#34D399' }}>directly to this number</strong> after your order is confirmed.
+              </p>
+            </div>
+          ) : (
+            <div style={{
+              background: 'var(--accent-dim)', border: '1px solid var(--accent-border)',
+              borderRadius: 8, padding: '10px 12px',
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+            }}>
+              <Lock size={13} color="var(--accent)" style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                Your information is <strong style={{ color: 'var(--accent)' }}>end-to-end encrypted</strong>, used only for this order, and <strong style={{ color: 'var(--accent)' }}>permanently deleted</strong> after service completion.
+              </p>
+            </div>
+          )}
 
           {fields.length === 0 && (
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', textAlign: 'center' }}>
@@ -155,9 +172,12 @@ export default function AccountRequiredModal({ product, onConfirm, onCancel }) {
                 style={{ marginTop: 3, width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0 }}
               />
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                I confirm these details are correct and agree that they will be used{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>only for this order</strong>{' '}
-                and deleted upon completion.
+                {isTopup
+                  ? <>I confirm this is the correct number and I want to recharge it.</>
+                  : <>I confirm these details are correct and agree that they will be used{' '}
+                      <strong style={{ color: 'var(--text-primary)' }}>only for this order</strong>{' '}
+                      and deleted upon completion.</>
+                }
               </span>
             </label>
           )}

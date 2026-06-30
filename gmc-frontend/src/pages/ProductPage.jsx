@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getProduct, getReviews, submitReview, getReviewEligibility } from '../api/products'
-import { placeOrder, validatePromo } from '../api/orders'
+import { placeOrder, validatePromo, revealCode } from '../api/orders'
 import Topbar from '../components/Topbar'
 import Modal from '../components/Modal'
 import AccountRequiredModal from '../components/AccountRequiredModal'
@@ -37,40 +37,125 @@ function useCountdown(endTime) {
 }
 
 /* ── Code modal ──────────────────────────────────────────────────────── */
-function CodeModal({ isOpen, onClose, code, orderData }) {
-  const { t } = useTranslation('shop')
-  const [copied, setCopied] = useState(false)
+function CodeModal({ isOpen, onClose, orderId, orderData }) {
+  const { t }    = useTranslation('shop')
+  const toast    = useToast()
+  const qc       = useQueryClient()
+  const [step,    setStep]    = useState('locked')  // locked | warn | revealed
+  const [code,    setCode]    = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [copied,  setCopied]  = useState(false)
+
+  // Reset when modal opens
+  useEffect(() => {
+    if (isOpen) { setStep('locked'); setCode(null); setCopied(false) }
+  }, [isOpen])
+
+  const handleReveal = async () => {
+    setLoading(true)
+    try {
+      const { data } = await revealCode(orderId)
+      setCode(data.code)
+      setStep('revealed')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not reveal code.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const copy = () => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('product.codeReady')} size="md">
       <div style={{ textAlign: 'center' }}>
-        <TicketStub
-          top={
-            <div>
-              <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{t('product.digitalCode')}</p>
-              <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', wordBreak: 'break-all', display: 'block', letterSpacing: '0.06em' }}>
-                {code}
-              </code>
+
+        {step !== 'revealed' ? (
+          /* ─ Pre-reveal ─ */
+          <div>
+            {/* Lock icon */}
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%', margin: '0.5rem auto 1.25rem',
+              background: 'rgba(124,58,237,0.1)', border: '2px solid rgba(124,58,237,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <TbLock size={32} color="var(--accent)" />
             </div>
-          }
-          bottom={
-            orderData && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{t('product.paid')}</p>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1rem', color: 'var(--accent)' }}>{formatCurrency(orderData.amount_paid)}</span>
+            <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.0625rem', color: 'var(--text-primary)', margin: '0 0 6px' }}>
+              Your code is ready
+            </p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              {orderData && <><span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatCurrency(orderData.amount_paid)}</span> paid · </>}
+              Code is locked until you reveal it.
+            </p>
+
+            {step === 'warn' ? (
+              /* Confirmation step */
+              <div>
+                <div style={{
+                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: 12, padding: '1rem', marginBottom: '1.25rem', textAlign: 'left',
+                }}>
+                  <p style={{ margin: '0 0 6px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: '#f87171' }}>
+                    ⚠️ Read before revealing
+                  </p>
+                  <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'rgba(248,113,113,0.85)', lineHeight: 1.55 }}>
+                    Once you reveal the code, <strong>this order cannot be cancelled or refunded</strong>.
+                    Make sure you are ready to use it now.
+                  </p>
                 </div>
-                <Badge variant="accent">{t('product.delivered')}</Badge>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button className="btn-secondary" onClick={() => setStep('locked')} style={{ flex: 1 }}>
+                    Go Back
+                  </button>
+                  <button className="btn-primary" onClick={handleReveal} disabled={loading} style={{ flex: 1, justifyContent: 'center', background: '#7C3AED' }}>
+                    {loading ? 'Revealing…' : 'Confirm & Reveal'}
+                  </button>
+                </div>
               </div>
-            )
-          }
-        />
-        <button className="btn-primary" onClick={copy} style={{ width: '100%', justifyContent: 'center', marginTop: '1.25rem', marginBottom: '0.75rem', padding: '0.75rem' }}>
-          {copied ? <><TbCheck size={15} /> {t('product.copied')}</> : <><TbCopy size={15} /> {t('product.copyCode')}</>}
-        </button>
-        <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', margin: 0 }}>
-          {t('product.alsoIn')} <span style={{ color: 'var(--accent)' }}>{t('product.myOrders')}</span>.
-        </p>
+            ) : (
+              <button
+                className="btn-primary"
+                onClick={() => setStep('warn')}
+                style={{ width: '100%', justifyContent: 'center', padding: '0.875rem' }}
+              >
+                <TbLock size={15} /> Reveal Code
+              </button>
+            )}
+          </div>
+        ) : (
+          /* ─ Post-reveal ─ */
+          <div>
+            <TicketStub
+              top={
+                <div>
+                  <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{t('product.digitalCode')}</p>
+                  <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', wordBreak: 'break-all', display: 'block', letterSpacing: '0.06em' }}>
+                    {code}
+                  </code>
+                </div>
+              }
+              bottom={
+                orderData && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{t('product.paid')}</p>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1rem', color: 'var(--accent)' }}>{formatCurrency(orderData.amount_paid)}</span>
+                    </div>
+                    <Badge variant="accent">{t('product.delivered')}</Badge>
+                  </div>
+                )
+              }
+            />
+            <button className="btn-primary" onClick={copy} style={{ width: '100%', justifyContent: 'center', marginTop: '1.25rem', marginBottom: '0.75rem', padding: '0.75rem' }}>
+              {copied ? <><TbCheck size={15} /> {t('product.copied')}</> : <><TbCopy size={15} /> {t('product.copyCode')}</>}
+            </button>
+            <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', margin: 0 }}>
+              {t('product.alsoIn')} <span style={{ color: 'var(--accent)' }}>{t('product.myOrders')}</span>.
+            </p>
+          </div>
+        )}
       </div>
     </Modal>
   )
@@ -98,12 +183,13 @@ export default function ProductPage() {
   const [pointsToUse,       setPointsToUse]       = useState(0)
   const [confirmOpen,       setConfirmOpen]       = useState(false)
   const [loading,           setLoading]           = useState(false)
-  const [codeModal,         setCodeModal]         = useState({ open: false, code: '', order: null })
+  const [codeModal,         setCodeModal]         = useState({ open: false, orderId: null, order: null })
   const [promoInput,        setPromoInput]        = useState('')
   const [promoResult,       setPromoResult]       = useState(null)
   const [promoLoading,      setPromoLoading]      = useState(false)
   const [credModalOpen,     setCredModalOpen]     = useState(false)
   const [pendingCredentials, setPendingCredentials] = useState(null)
+  const [topupModal,        setTopupModal]         = useState({ open: false, phone: '', product: '' })
   const [selectedVariant,   setSelectedVariant]   = useState(null)
   const [reviewRating,      setReviewRating]      = useState(0)
   const [reviewBody,        setReviewBody]        = useState('')
@@ -218,9 +304,16 @@ export default function ProductPage() {
         promo_code:    promoResult ? promoResult.code : '',
         credentials:   pendingCredentials || {},
       })
+      const phoneField  = product?.required_fields?.find(f => f.type === 'tel' || f.key === 'phone')
+      const phoneNumber = phoneField ? (pendingCredentials?.[phoneField.key] || '') : ''
       setConfirmOpen(false); setPendingCredentials(null)
-      if (orderData.requires_account) { toast.success('Order placed! Check your chat.'); navigate('/orders') }
-      else { setCodeModal({ open: true, code: orderData.code_value, order: orderData }); toast.success('Order placed!') }
+      if (phoneField) {
+        setTopupModal({ open: true, phone: phoneNumber, product: product.name })
+      } else if (orderData.requires_account) {
+        toast.success('Order placed! Check your chat.'); navigate('/orders')
+      } else {
+        setCodeModal({ open: true, orderId: orderData.id, order: orderData }); toast.success('Order placed!')
+      }
     } catch (err) {
       const msg = err.response?.data?.detail
         || (typeof err.response?.data === 'string' ? err.response.data : null)
@@ -618,13 +711,89 @@ export default function ProductPage() {
 
       <CodeModal
         isOpen={codeModal.open}
-        onClose={() => { setCodeModal({ open: false, code: '', order: null }); navigate('/orders') }}
-        code={codeModal.code}
+        onClose={() => { setCodeModal({ open: false, orderId: null, order: null }); navigate('/orders') }}
+        orderId={codeModal.orderId}
         orderData={codeModal.order}
       />
 
       {credModalOpen && (
         <AccountRequiredModal product={product} onConfirm={handleCredentialsConfirm} onCancel={() => setCredModalOpen(false)} />
+      )}
+
+      {/* Topup success modal */}
+      {topupModal.open && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem',
+          background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 420,
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(52,211,153,0.25)',
+            borderTop: '3px solid #34D399',
+            borderRadius: 16,
+            padding: '2rem 1.75rem',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem',
+            animation: 'fadeSlideUp 0.28s ease both',
+            textAlign: 'center',
+          }}>
+            {/* Animated check icon */}
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(52,211,153,0.12)',
+              border: '2px solid rgba(52,211,153,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <TbCircleCheck size={36} color="#34D399" />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1.125rem', color: 'var(--text-primary)' }}>
+                Order Confirmed!
+              </p>
+              <p style={{ margin: '4px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                {topupModal.product}
+              </p>
+            </div>
+
+            {/* Phone number display */}
+            <div style={{
+              background: 'rgba(52,211,153,0.08)',
+              border: '1px solid rgba(52,211,153,0.2)',
+              borderRadius: 10, padding: '0.75rem 1.25rem',
+              width: '100%',
+            }}>
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#34D399', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Sending to
+              </p>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
+                {topupModal.phone || '—'}
+              </p>
+            </div>
+
+            {/* Waiting message */}
+            <div style={{
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: 10, padding: '0.875rem 1rem',
+              width: '100%',
+            }}>
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.65 }}>
+                Your forfait will be sent to your number <strong style={{ color: 'var(--text-primary)' }}>very soon</strong>.
+                Please wait a few minutes — do not re-order.
+              </p>
+            </div>
+
+            <button
+              className="btn-primary"
+              style={{ width: '100%', justifyContent: 'center', marginTop: '0.25rem' }}
+              onClick={() => { setTopupModal({ open: false, phone: '', product: '' }); navigate('/orders') }}
+            >
+              View My Orders
+            </button>
+          </div>
+        </div>
       )}
 
       <style>{`

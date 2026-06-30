@@ -46,9 +46,10 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Code)
 class CodeAdmin(admin.ModelAdmin):
-    list_display  = ['product', 'code', 'status', 'created_at']
-    list_filter   = ['status', 'product']
-    search_fields = ['code', 'product__name']
+    list_display    = ['product', 'platform', 'code', 'status', 'created_at']
+    list_filter     = ['status', 'platform', 'product']
+    list_editable   = ['platform']
+    search_fields   = ['code', 'product__name']
     readonly_fields = ['created_at']
 
 

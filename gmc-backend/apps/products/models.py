@@ -171,8 +171,20 @@ class Wishlist(models.Model):
 
 class Code(models.Model):
     STATUS_CHOICES = [('available', 'Available'), ('sold', 'Sold')]
+    PLATFORM_CHOICES = [
+        ('steam',     'Steam'),
+        ('epic',      'Epic Games'),
+        ('gog',       'GOG'),
+        ('xbox',      'Xbox'),
+        ('psn',       'PlayStation'),
+        ('battlenet', 'Battle.net'),
+        ('ubisoft',   'Ubisoft Connect'),
+        ('ea',        'EA App'),
+        ('other',     'Other'),
+    ]
     product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='codes')
     code       = models.CharField(max_length=500)
+    platform   = models.CharField(max_length=20, choices=PLATFORM_CHOICES, default='other', blank=True)
     status     = models.CharField(max_length=10, choices=STATUS_CHOICES, default='available')
     order      = models.ForeignKey('orders.Order', null=True, blank=True, on_delete=models.SET_NULL, related_name='codes')
     created_at = models.DateTimeField(auto_now_add=True)

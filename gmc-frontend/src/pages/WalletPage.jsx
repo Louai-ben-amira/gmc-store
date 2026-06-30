@@ -77,7 +77,7 @@ function CryptoPaymentSection({ onSuccess, onClose }) {
   }
 
   const handleSubmitTx = async () => {
-    if (!txHash.trim()) { toast.error('Please enter the transaction hash.'); return }
+    if (!txHash.trim()) { toast.error(currency === 'BINANCE' ? 'Please enter your Binance Order ID.' : 'Please enter the transaction hash.'); return }
     setLoading(true)
     try {
       await submitTxHash(crypto.id, { tx_hash: txHash.trim() })
@@ -130,7 +130,7 @@ function CryptoPaymentSection({ onSuccess, onClose }) {
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <img
           src={currency === 'BNB' ? '/QRbnb.jpeg' : '/QRbinance.jpeg'}
-          alt={`${currency} Wallet QR`}
+          alt="Wallet QR"
           style={{ width: 180, height: 180, borderRadius: 12, border: '2px solid rgba(255,255,255,0.08)' }}
         />
       </div>
@@ -142,9 +142,18 @@ function CryptoPaymentSection({ onSuccess, onClose }) {
         </div>
       </div>
       <div>
-        <MonoLabel>Transaction Hash / TX ID</MonoLabel>
-        <input value={txHash} onChange={e => setTxHash(e.target.value)} placeholder="Paste your blockchain TX hash here" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem' }} />
-        <p style={{ margin: '4px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Found in your wallet app after sending.</p>
+        <MonoLabel>{currency === 'BINANCE' ? 'Binance Order ID' : 'Transaction Hash (TX Hash)'}</MonoLabel>
+        <input
+          value={txHash}
+          onChange={e => setTxHash(e.target.value)}
+          placeholder={currency === 'BINANCE' ? 'Paste your Binance Order ID (e.g. 123456789)' : 'Paste your BSC TX hash (0x...)'}
+          style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem' }}
+        />
+        <p style={{ margin: '4px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {currency === 'BINANCE'
+            ? 'Found in Binance app → Wallet → Transaction History → Order ID.'
+            : 'Found in your wallet app after sending — starts with 0x.'}
+        </p>
       </div>
       <button className="btn-primary" onClick={handleSubmitTx} disabled={loading || !txHash.trim()} style={{ width: '100%', justifyContent: 'center' }}>
         {loading ? 'Submitting…' : '⚡ I Sent the Payment'}

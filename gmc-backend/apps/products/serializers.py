@@ -39,7 +39,7 @@ class CategoryBreadcrumbSerializer(serializers.ModelSerializer):
 class CodeSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Code
-        fields = ['id', 'code', 'status', 'created_at']
+        fields = ['id', 'code', 'platform', 'status', 'created_at']
         read_only_fields = ['id', 'status', 'created_at']
 
 
@@ -157,6 +157,11 @@ class BundleSerializer(serializers.ModelSerializer):
 class BulkCodeUploadSerializer(serializers.Serializer):
     codes    = serializers.ListField(child=serializers.CharField(), required=False)
     csv_text = serializers.CharField(required=False)
+    platform = serializers.ChoiceField(
+        choices=[c[0] for c in Code.PLATFORM_CHOICES],
+        default='other',
+        required=False,
+    )
 
     def validate(self, data):
         if not data.get('codes') and not data.get('csv_text'):

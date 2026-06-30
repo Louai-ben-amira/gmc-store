@@ -15,8 +15,8 @@ import {
 } from 'react-icons/pi'
 import {
   SiValorant, SiRoblox, SiSteam, SiPlaystation,
-  SiNetflix, SiSpotify, SiYoutube, SiGooglepay, SiApple, SiRiotgames,
-  SiEpicgames,
+  SiNetflix, SiSpotify, SiYoutube, SiApple,
+  SiLeagueoflegends, SiEpicgames,
 } from 'react-icons/si'
 import { BsXbox } from 'react-icons/bs'
 import { useQuery } from '@tanstack/react-query'
@@ -91,6 +91,7 @@ export const NAV_ITEMS = [
 
   {
     labelKey: 'nav.giftCards', label: 'Gift Cards', NavIcon: PiGiftBold, color: '#7C3AED',
+    maxCols: 3,
     groups: [
       {
         label: 'Steam', color: '#7C3AED',
@@ -98,14 +99,12 @@ export const NAV_ITEMS = [
           { label: 'Global', to: '/?cat=steam-global', Icon: SiSteam, color: '#66C0F4' },
           { label: 'USA',    to: '/?cat=steam-usa',    Icon: SiSteam, color: '#66C0F4' },
           { label: 'Europe', to: '/?cat=steam-europe', Icon: SiSteam, color: '#66C0F4' },
-          { label: 'Turkey', to: '/?cat=steam-turkey', Icon: SiSteam, color: '#66C0F4' },
         ],
       },
       {
         label: 'PlayStation', color: '#7C3AED',
         items: [
           { label: 'USA',    to: '/?cat=psn-usa',    Icon: SiPlaystation, color: '#0070d1' },
-          { label: 'UK',     to: '/?cat=psn-uk',     Icon: SiPlaystation, color: '#0070d1' },
           { label: 'France', to: '/?cat=psn-france', Icon: SiPlaystation, color: '#0070d1' },
           { label: 'Turkey', to: '/?cat=psn-turkey', Icon: SiPlaystation, color: '#0070d1' },
         ],
@@ -114,17 +113,33 @@ export const NAV_ITEMS = [
         label: 'Xbox', color: '#7C3AED',
         items: [
           { label: 'USA',    to: '/?cat=xbox-usa',    Icon: BsXbox, color: '#107C10' },
-          { label: 'UK',     to: '/?cat=xbox-uk',     Icon: BsXbox, color: '#107C10' },
           { label: 'Turkey', to: '/?cat=xbox-turkey', Icon: BsXbox, color: '#107C10' },
           { label: 'Other',  to: '/?cat=xbox-other',  Icon: BsXbox, color: '#107C10' },
         ],
       },
       {
+        label: 'Valorant', color: '#FF4655',
+        items: [
+          { label: 'Europe', to: '/?cat=valorant-europe', Icon: SiValorant, color: '#FF4655' },
+          { label: 'Turkey', to: '/?cat=valorant-turkey', Icon: SiValorant, color: '#FF4655' },
+        ],
+      },
+      {
+        label: 'iTunes', color: '#A2AAAD',
+        items: [
+          { label: 'USA',     to: '/?cat=itunes-usa',     Icon: SiApple, color: '#A2AAAD' },
+          { label: 'France',  to: '/?cat=itunes-france',  Icon: SiApple, color: '#A2AAAD' },
+          { label: 'Turkey',  to: '/?cat=itunes-turkey',  Icon: SiApple, color: '#A2AAAD' },
+          { label: 'Allemagne', to: '/?cat=itunes-allemagne', Icon: SiApple, color: '#A2AAAD' },
+        ],
+      },
+      {
         label: 'Other', color: '#7C3AED',
         items: [
-          { label: 'Google Play', to: '/?cat=google-play',     Icon: SiGooglepay, color: '#4285F4' },
-          { label: 'Apple',       to: '/?cat=apple-gift-card', Icon: SiApple,     color: '#A2AAAD' },
-          { label: 'Riot',        to: '/?cat=riot-gift-card',  Icon: SiRiotgames, color: '#D7303B' },
+          { label: 'GMC Gift',          to: '/?cat=gmc-gift-card',      Icon: PiGiftBold,        color: '#7C3AED' },
+          { label: 'Roblox',            to: '/?cat=roblox-gift-card',   Icon: SiRoblox,          color: '#E2231A' },
+          { label: 'League of Legends', to: '/?cat=lol-gift-card',      Icon: SiLeagueoflegends, color: '#C89B3C' },
+          { label: 'Valorant',          to: '/?cat=valorant-gift-card',  Icon: SiValorant,        color: '#FF4655' },
         ],
       },
     ],
@@ -242,8 +257,17 @@ function FlatDropdown({ item, onClose }) {
 ═══════════════════════════════════════════════════════════════════════ */
 function MegaDropdown({ item, onClose }) {
   const { t } = useTranslation('common')
-  const groups = item.groups || []
-  const totalCols = groups.length
+  const groups   = item.groups || []
+  const maxCols  = item.maxCols || groups.length
+
+  // Split groups into rows of maxCols
+  const rows = []
+  for (let i = 0; i < groups.length; i += maxCols) {
+    rows.push(groups.slice(i, i + maxCols))
+  }
+
+  const colWidth = 160
+  const dropWidth = Math.max(380, maxCols * colWidth)
 
   return (
     <div style={{
@@ -257,7 +281,8 @@ function MegaDropdown({ item, onClose }) {
       padding: '14px',
       boxShadow: `0 28px 72px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04)`,
       animation: 'navDropIn 0.18s ease both',
-      minWidth: Math.max(380, totalCols * 155),
+      width: dropWidth,
+      maxWidth: 'calc(100vw - 32px)',
     }}>
       {/* Header row */}
       <div style={{
@@ -295,70 +320,75 @@ function MegaDropdown({ item, onClose }) {
         )}
       </div>
 
-      {/* Groups grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${totalCols}, 1fr)`,
-        gap: '12px',
-      }}>
-        {groups.map((group, gi) => (
-          <div key={gi}>
-            {/* Group label */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              marginBottom: '6px', paddingBottom: '5px',
-              borderBottom: `1px solid ${group.color}20`,
-            }}>
-              <div style={{ width: 3, height: 10, borderRadius: 2, background: group.color }} />
-              <span style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem',
-                fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: `${group.color}bb`,
-              }}>
-                {group.labelKey ? t(group.labelKey) : group.label}
-              </span>
-            </div>
+      {/* Groups — rendered as rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {rows.map((row, ri) => (
+          <div key={ri} style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${maxCols}, 1fr)`,
+            gap: '12px',
+            ...(ri > 0 ? { paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' } : {}),
+          }}>
+            {row.map((group, gi) => (
+              <div key={gi}>
+                {/* Group label */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  marginBottom: '6px', paddingBottom: '5px',
+                  borderBottom: `1px solid ${group.color}20`,
+                }}>
+                  <div style={{ width: 3, height: 10, borderRadius: 2, background: group.color }} />
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem',
+                    fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: `${group.color}bb`,
+                  }}>
+                    {group.labelKey ? t(group.labelKey) : group.label}
+                  </span>
+                </div>
 
-            {/* Sub items */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {group.items.map((sub, si) => {
-                const Icon = sub.Icon
-                return (
-                  <Link
-                    key={si}
-                    to={sub.to}
-                    onClick={onClose}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 7,
-                      padding: '6px 7px', borderRadius: 8,
-                      fontFamily: 'Inter, sans-serif', fontSize: '0.78rem',
-                      color: 'var(--text-muted)',
-                      textDecoration: 'none',
-                      transition: 'background 0.1s, color 0.1s',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = `${sub.color}15`
-                      e.currentTarget.style.color = '#fff'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'transparent'
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
-                    }}
-                  >
-                    {Icon && (
-                      <span style={{
-                        width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                        background: `${sub.color}18`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Icon size={12} color={sub.color} />
-                      </span>
-                    )}
-                    {sub.label}
-                  </Link>
-                )
-              })}
-            </div>
+                {/* Sub items */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {group.items.map((sub, si) => {
+                    const Icon = sub.Icon
+                    return (
+                      <Link
+                        key={si}
+                        to={sub.to}
+                        onClick={onClose}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 7,
+                          padding: '6px 7px', borderRadius: 8,
+                          fontFamily: 'Inter, sans-serif', fontSize: '0.78rem',
+                          color: 'var(--text-muted)',
+                          textDecoration: 'none',
+                          transition: 'background 0.1s, color 0.1s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = `${sub.color}15`
+                          e.currentTarget.style.color = '#fff'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
+                        }}
+                      >
+                        {Icon && (
+                          <span style={{
+                            width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                            background: `${sub.color}18`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <Icon size={12} color={sub.color} />
+                          </span>
+                        )}
+                        {sub.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>
