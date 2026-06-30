@@ -9,6 +9,38 @@ from __future__ import annotations
 
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
+from whitenoise.storage import CompressedManifestStaticFilesStorage
+
+
+class TolerantManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
+    """WhiteNoise manifest storage that doesn't choke on broken references.
+
+    Some third-party packages (notably jazzmin) ship minified JS/CSS whose
+    ``sourceMappingURL`` / ``url()`` references point at files that were never
+    included in the distribution — e.g. ``bootstrap.bundle.min.js`` references
+    ``bootstrap.bundle.min.js.map`` but only ``bootstrap.min.js.map`` is shipped.
+
+    Django's manifest storage tries to rewrite every such reference at
+    ``collectstatic`` time and raises ``MissingFileError`` when the target
+    can't be found, breaking the whole build. We can't fix the upstream package
+    (it's reinstalled on every deploy), so instead we leave unresolved
+    references untouched and keep hashing everything else. The broken source
+    map was never going to resolve anyway; this just stops it from aborting the
+    build.
+    """
+
+    def url_converter(self, name, hashed_files, template=None):
+        converter = super().url_converter(name, hashed_files, template)
+
+        def tolerant_converter(matchobj):
+            try:
+                return converter(matchobj)
+            except ValueError:
+                # Referenced file is missing on disk / absent from the manifest;
+                # leave the original reference as-is rather than failing the build.
+                return matchobj.group(0)
+
+        return tolerant_converter
 
 
 class R2Storage(S3Boto3Storage):
