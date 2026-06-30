@@ -225,7 +225,7 @@ _DEFAULT_STORAGE = (
 )
 STORAGES = {
     'default': {'BACKEND': _DEFAULT_STORAGE},
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    'staticfiles': {'BACKEND': 'config.storage_backends.TolerantManifestStaticFilesStorage'},
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
