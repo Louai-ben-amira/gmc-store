@@ -3,7 +3,7 @@
 Cloudflare R2 is S3-compatible, so we reuse django-storages' battle-tested
 ``S3Boto3Storage`` and only override the handful of attributes that differ for
 R2. All credentials and endpoints come from Django settings (which in turn read
-environment variables) — nothing is hardcoded here.
+environment variables) - nothing is hardcoded here.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class TolerantManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
 
     Some third-party packages (notably jazzmin) ship minified JS/CSS whose
     ``sourceMappingURL`` / ``url()`` references point at files that were never
-    included in the distribution — e.g. ``bootstrap.bundle.min.js`` references
+    included in the distribution - e.g. ``bootstrap.bundle.min.js`` references
     ``bootstrap.bundle.min.js.map`` but only ``bootstrap.min.js.map`` is shipped.
 
     Django's manifest storage tries to rewrite every such reference at
@@ -49,10 +49,10 @@ class R2Storage(S3Boto3Storage):
     Differences from plain S3 that matter for R2:
 
     * ``endpoint_url`` points at the per-account R2 endpoint.
-    * ``region_name = "auto"`` — R2 ignores regions.
-    * ACLs are disabled — R2 has no ACL support. Objects are private by default
+    * ``region_name = "auto"`` - R2 ignores regions.
+    * ACLs are disabled - R2 has no ACL support. Objects are private by default
       and exposed publicly via the bucket's public URL / a custom domain.
-    * ``addressing_style = "path"`` — R2 expects path-style addressing.
+    * ``addressing_style = "path"`` - R2 expects path-style addressing.
 
     Whether URLs are signed is driven by settings: if a public URL / custom
     domain is configured the bucket is treated as public and URLs are served

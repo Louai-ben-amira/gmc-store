@@ -17,7 +17,7 @@
     "seconds": "ث",
     "ended": "انتهى العرض",
     "save": "وفّر {{pct}}%",
-    "timeLimited": "عروض مضية — محدودة الوقت فقط",
+    "timeLimited": "عروض مضية - محدودة الوقت فقط",
     "autoRevert": "تعود الأسعار تلقائياً عند انتهاء العداد."
   },
   "product": {
@@ -62,7 +62,7 @@
     "total": "الإجمالي",
     "cancel": "إلغاء",
     "reviews": "التقييمات",
-    "verifiedPurchase": "مشتري موثق — شاركنا تجربتك",
+    "verifiedPurchase": "مشتري موثق - شاركنا تجربتك",
     "reviewPlaceholder": "ما رأيك في هذا المنتج؟",
     "submitReview": "إرسال التقييم",
     "submitting": "جارٍ الإرسال…",

@@ -38,7 +38,7 @@ api.interceptors.response.use(
           window.dispatchEvent(new CustomEvent('gmc:open-auth', { detail: { tab: 'login' } }))
         }
       }
-      // No refresh token — visitor is unauthenticated, just reject normally
+      // No refresh token - visitor is unauthenticated, just reject normally
     }
     return Promise.reject(error)
   }

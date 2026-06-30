@@ -1,4 +1,4 @@
-# GMC Store — VPS Production Setup
+# GMC Store - VPS Production Setup
 
 Run these commands once on a fresh Ubuntu 22.04 / 24.04 server.
 Replace `youruser` and `yourdomain.com` everywhere.
@@ -58,7 +58,7 @@ venv/bin/python manage.py createsuperuser
 
 ```bash
 cd /home/youruser/gmc-frontend
-# Edit .env — set VITE_API_URL=https://yourdomain.com/api
+# Edit .env - set VITE_API_URL=https://yourdomain.com/api
 #             and VITE_WS_URL=wss://yourdomain.com
 npm ci
 npm run build
@@ -110,7 +110,7 @@ sudo systemctl restart redis
 curl -I https://yourdomain.com/api/auth/me/
 # Should get 401 (not 500, not connection refused)
 
-# WebSocket — install wscat once: npm install -g wscat
+# WebSocket - install wscat once: npm install -g wscat
 wscat -c "wss://yourdomain.com/ws/chat/1/?token=YOURTOKEN"
 
 # Email

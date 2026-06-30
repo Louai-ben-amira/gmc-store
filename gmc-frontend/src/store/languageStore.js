@@ -37,7 +37,7 @@ const useLanguageStore = create((set, get) => ({
     } catch (_) {}
   },
 
-  // Called after login — DB preference wins over localStorage
+  // Called after login - DB preference wins over localStorage
   syncFromUser(userLang) {
     if (userLang && userLang !== get().language) {
       applyLanguage(userLang)

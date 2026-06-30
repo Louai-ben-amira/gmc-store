@@ -12,7 +12,7 @@ def _order_email(order):
     item_name = order.bundle.name if is_bundle else (order.product.name if order.product else 'Product')
     item_type = 'Bundle' if is_bundle else 'Product'
 
-    subject   = f'✅ Order Confirmed — {item_name}'
+    subject   = f'✅ Order Confirmed - {item_name}'
 
     # ── Dynamic rows ────────────────────────────────────────────────────────
     code_row = ''
@@ -49,7 +49,7 @@ def _order_email(order):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Order Confirmed — GMC Store</title>
+  <title>Order Confirmed - GMC Store</title>
 </head>
 <body style="margin:0;padding:0;background:#08081a;font-family:'Helvetica Neue',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#08081a;padding:48px 20px;">
@@ -115,7 +115,7 @@ def _order_email(order):
         <!-- ── Footer ── -->
         <tr><td style="padding:24px 36px;background:#0c0c22;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
           <p style="color:#3d3d5c;font-size:12px;margin:0 0 6px;line-height:1.6;">You received this because you made a purchase at <strong style="color:#5a5a7a;">GMC Store</strong>.</p>
-          <p style="color:#3d3d5c;font-size:12px;margin:0;">© 2025 GMC Store — All rights reserved.</p>
+          <p style="color:#3d3d5c;font-size:12px;margin:0;">© 2025 GMC Store - All rights reserved.</p>
         </td></tr>
 
       </table>
@@ -163,7 +163,7 @@ def schedule_credentials_deletion(order_id):
     """
     Purge the encrypted credential payload for a closed/completed order.
     Keeps the OrderCredentials row intact for audit (access_log, revealed_at, etc.).
-    Only purges if the order is in a terminal state — prevents early deletion
+    Only purges if the order is in a terminal state - prevents early deletion
     if the task fires before the buyer has confirmed.
     """
     from apps.orders.models import Order, OrderCredentials

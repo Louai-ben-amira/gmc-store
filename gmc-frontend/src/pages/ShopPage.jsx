@@ -193,7 +193,7 @@ const HERO_SLIDES = [
     id: 1,
     tag: '🎉 SUMMER SALE 2025',
     title: 'Top Up.\nPlay More.',
-    sub: 'Best prices in Tunisia — Instant delivery on all digital products',
+    sub: 'Best prices in Tunisia - Instant delivery on all digital products',
     badge: 'UP TO 67% OFF',
     cta: 'Shop Now',
     ctaSecondary: 'Flash Deals',
@@ -221,7 +221,7 @@ const HERO_SLIDES = [
     id: 3,
     tag: '🎁 GIFT CARDS',
     title: 'Steam · PSN · Xbox\nAll Platforms',
-    sub: 'Global · USA · Europe · Turkey — Every region covered',
+    sub: 'Global · USA · Europe · Turkey - Every region covered',
     badge: 'IN STOCK NOW',
     cta: 'Buy Gift Cards',
     ctaSecondary: 'View Bundles',
@@ -235,7 +235,7 @@ const HERO_SLIDES = [
     id: 4,
     tag: '📶 TELECOM',
     title: 'Internet Packages\nAll Operators',
-    sub: 'Ooredoo · Orange · Tunisie Telecom — Activate in seconds',
+    sub: 'Ooredoo · Orange · Tunisie Telecom - Activate in seconds',
     badge: 'INSTANT ACTIVATION',
     cta: 'Get Package',
     ctaSecondary: 'Compare Plans',
@@ -343,7 +343,7 @@ function HeroSlider({ onFlashClick, onBundlesClick }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   CATEGORY SECTION — dynamic from API
+   CATEGORY SECTION - dynamic from API
 ══════════════════════════════════════════════════════════════════════ */
 
 /* fallback palette when category has no color set */
@@ -467,7 +467,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
             )
           })}
 
-          {/* Flash Sales card — always last */}
+          {/* Flash Sales card - always last */}
           <div
             onClick={onFlashClick}
             style={{
@@ -516,7 +516,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
         </div>
       )}
 
-      {/* Empty — no categories seeded yet */}
+      {/* Empty - no categories seeded yet */}
       {!isLoading && rootCats.length === 0 && (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.875rem', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.08)' }}>
           No categories yet. Run <code style={{ color: 'var(--accent)' }}>python manage.py seed_categories</code> to populate.
@@ -526,7 +526,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
   )
 }
 
-/* ── Strip card — Best Sellers (large=true) + generic usage ─────────── */
+/* ── Strip card - Best Sellers (large=true) + generic usage ─────────── */
 function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false }) {
   const navigate = useNavigate()
   const { t } = useTranslation('shop')

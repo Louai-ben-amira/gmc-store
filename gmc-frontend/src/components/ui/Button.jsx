@@ -1,5 +1,5 @@
 /**
- * Button — design-system button.
+ * Button - design-system button.
  * variant: 'primary' | 'secondary' | 'ghost'
  * confirm: adds '> ' prefix (purchase / confirm actions only)
  */

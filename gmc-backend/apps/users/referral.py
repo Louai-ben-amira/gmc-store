@@ -6,7 +6,7 @@ BONUS_AMOUNT = Decimal('2.00')
 
 def handle_referral_signup(new_user, referral_code_used):
     """
-    Record the referral on signup. No money moves yet — bonus is pending
+    Record the referral on signup. No money moves yet - bonus is pending
     until the referred user places their first order.
     """
     from .models import User, ReferralBonus
@@ -61,7 +61,7 @@ def handle_referral_first_purchase(buyer):
             amount        = BONUS_AMOUNT,
             balance_after = referrer.balance,
             method        = 'referral',
-            note          = f"Referral bonus — {buyer.get_full_name() or buyer.username} placed their first order",
+            note          = f"Referral bonus - {buyer.get_full_name() or buyer.username} placed their first order",
         )
 
         bonus.was_eligible = True
@@ -79,7 +79,7 @@ def _send_referral_notification(referrer, buyer):
         Message.objects.create(
             conversation = conv,
             sender       = referrer,
-            body         = f"Referral Bonus! +2.00 DT — {display} placed their first order with your code!",
+            body         = f"Referral Bonus! +2.00 DT - {display} placed their first order with your code!",
             msg_type     = 'text',
         )
     except Exception:

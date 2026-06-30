@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='order',
             name='status',
-            field=models.CharField(choices=[('pending_credentials', 'Pending Credentials'), ('paid_escrow', 'Paid — In Escrow'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('disputed', 'Disputed'), ('closed', 'Closed'), ('pending', 'Pending (legacy)'), ('cancelled', 'Cancelled')], default='pending', max_length=25),
+            field=models.CharField(choices=[('pending_credentials', 'Pending Credentials'), ('paid_escrow', 'Paid - In Escrow'), ('in_progress', 'In Progress'), ('completed', 'Completed'), ('disputed', 'Disputed'), ('closed', 'Closed'), ('pending', 'Pending (legacy)'), ('cancelled', 'Cancelled')], default='pending', max_length=25),
         ),
         migrations.AlterField(
             model_name='ordercredentials',

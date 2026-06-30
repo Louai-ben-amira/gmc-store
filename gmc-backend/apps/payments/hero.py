@@ -2,7 +2,7 @@
 
 Hero slides live in the ``HERO_SLIDES`` site setting as a JSON list. Each
 slide's ``image`` is persisted as a *relative storage key* (e.g.
-``hero_slides/foo.png``) — never a full URL — so it is independent of the
+``hero_slides/foo.png``) - never a full URL - so it is independent of the
 storage backend and public domain, exactly like a Django ``ImageField``.
 
 Full URLs are resolved at the API boundary through the active storage backend
@@ -23,7 +23,7 @@ def to_key(image: str) -> str:
 
     The canonical key is *decoded* (matches the real object key, e.g. with
     literal spaces). When given a full URL we unquote its path so the storage
-    backend can re-encode exactly once when building the URL — avoiding the
+    backend can re-encode exactly once when building the URL - avoiding the
     ``%20`` → ``%2520`` double-encoding trap.
     """
     if not image:

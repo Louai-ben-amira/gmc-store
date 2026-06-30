@@ -253,7 +253,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _save_message(self, body):
         from apps.chat.models import Conversation, Message
-        # Truncate to 2000 chars — matches frontend limit
+        # Truncate to 2000 chars - matches frontend limit
         body = body[:2000]
         conv = Conversation.objects.get(pk=self.conversation_id)
         msg  = Message.objects.create(
@@ -263,7 +263,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             msg_type='text',
             status='sent',
         )
-        # Atomic update — no read-then-write race condition
+        # Atomic update - no read-then-write race condition
         Conversation.objects.filter(pk=self.conversation_id).update(
             last_message_at=timezone.now(),
             unread_count=F('unread_count') + 1,

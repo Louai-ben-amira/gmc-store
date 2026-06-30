@@ -249,7 +249,7 @@ export default function OrdersPage() {
                   <td style={TD_STYLE}>
                     {o.requires_account
                       ? <ServiceStatusControl order={o} onUpdated={() => qc.invalidateQueries({ queryKey: ['admin-orders'] })} />
-                      : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>—</span>
+                      : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>-</span>
                     }
                   </td>
                   <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
@@ -286,7 +286,7 @@ export default function OrdersPage() {
                           <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: '#22C55E' }}>{o.code_value}</code>
                           {o.is_revealed && (
                             <p style={{ margin: '6px 0 0', fontSize: '0.6875rem', color: T.textMuted }}>
-                              Revealed: {formatDate(o.code_viewed_at)} · IP: {o.code_view_ip || '—'}
+                              Revealed: {formatDate(o.code_viewed_at)} · IP: {o.code_view_ip || '-'}
                             </p>
                           )}
                         </div>

@@ -1,5 +1,5 @@
 /**
- * Badge — bracketed monospace tag.
+ * Badge - bracketed monospace tag.
  * variant: 'accent' | 'urgent' | 'muted'
  *
  * Renders as: [LABEL]

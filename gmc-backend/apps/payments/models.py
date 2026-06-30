@@ -43,7 +43,7 @@ class RechargeRequest(models.Model):
         ('bank_transfer',  'Bank Transfer (Bancaire)'),
         ('edinar',         'E-Dinar'),
         ('flouci',         'Flouci'),
-        # Legacy methods — kept so historical records remain valid
+        # Legacy methods - kept so historical records remain valid
         ('d17',             'D17 (legacy)'),
         ('baridimob',       'BaridiMob'),
         ('dahabia',         'Dahabia / E-DINAR'),
@@ -77,7 +77,7 @@ class RechargeRequest(models.Model):
         help_text='Amount the client sent via D17',
     )
 
-    # Server-calculated — never set by client
+    # Server-calculated - never set by client
     tax_rate = models.DecimalField(
         max_digits=5, decimal_places=4, default=Decimal('0'),
         help_text='0.11 for ticket methods, 0 for D17',
@@ -171,7 +171,7 @@ class GiftCardBatch(models.Model):
         verbose_name_plural = 'Gift Card Batches'
 
     def __str__(self):
-        return f"Batch #{self.id} — {self.amount} DT × {self.quantity}"
+        return f"Batch #{self.id} - {self.amount} DT × {self.quantity}"
 
 
 class GiftCard(models.Model):

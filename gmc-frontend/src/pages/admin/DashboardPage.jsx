@@ -102,7 +102,7 @@ export default function DashboardPage() {
   const pulseItems = [
     recentOrders[0] && {
       dot: 'green',
-      text: `Order #${recentOrders[0].id} — ${recentOrders[0].product_name || recentOrders[0].bundle_name || 'product'} · ${formatCurrency(recentOrders[0].amount_paid)}`
+      text: `Order #${recentOrders[0].id} - ${recentOrders[0].product_name || recentOrders[0].bundle_name || 'product'} · ${formatCurrency(recentOrders[0].amount_paid)}`
     },
     pendingCharges[0] && {
       dot: 'green',
@@ -155,7 +155,7 @@ export default function DashboardPage() {
               <div>
                 <div style={HERO_LABEL}>Monthly Revenue</div>
                 <div style={HERO_VAL}>
-                  {rev ? parseFloat(rev.this_month).toFixed(2) : '—'}
+                  {rev ? parseFloat(rev.this_month).toFixed(2) : '-'}
                   <span style={{ fontSize: 18, color: '#C39CF5', marginLeft: 4 }}>DT</span>
                 </div>
               </div>
@@ -178,9 +178,9 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div style={{ display: 'flex', gap: 22, marginTop: 14, position: 'relative', zIndex: 1 }}>
-              <div style={HERO_FOOT_ITEM}>This week <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.this_week) : '—'}</b></div>
-              <div style={HERO_FOOT_ITEM}>Yesterday <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.yesterday) : '—'}</b></div>
-              <div style={HERO_FOOT_ITEM}>Today <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.today) : '—'}</b></div>
+              <div style={HERO_FOOT_ITEM}>This week <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.this_week) : '-'}</b></div>
+              <div style={HERO_FOOT_ITEM}>Yesterday <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.yesterday) : '-'}</b></div>
+              <div style={HERO_FOOT_ITEM}>Today <b style={{ color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{rev ? formatCurrency(rev.today) : '-'}</b></div>
             </div>
           </div>
 
@@ -190,7 +190,7 @@ export default function DashboardPage() {
               <div style={{ ...MINI_ICON, background: 'rgba(155,79,237,0.14)' }}>🛒</div>
               <div>
                 <div style={MINI_LABEL}>Total Orders</div>
-                <div style={MINI_VAL}>{stats?.total_orders ?? '—'}</div>
+                <div style={MINI_VAL}>{stats?.total_orders ?? '-'}</div>
               </div>
             </div>
             <div style={MINI_STAT}>
@@ -207,7 +207,7 @@ export default function DashboardPage() {
               <div style={{ ...MINI_ICON, background: 'rgba(54,255,192,0.10)' }}>👥</div>
               <div>
                 <div style={MINI_LABEL}>Active Users</div>
-                <div style={MINI_VAL}>{stats?.active_users ?? '—'}</div>
+                <div style={MINI_VAL}>{stats?.active_users ?? '-'}</div>
               </div>
             </div>
           </div>
@@ -424,7 +424,7 @@ export default function DashboardPage() {
                       <td style={TD}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Avatar name={o.user_username || '?'} size={22} gradient={GRAD[i % GRAD.length]} />
-                          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 500 }}>{o.user_username || '—'}</span>
+                          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 500 }}>{o.user_username || '-'}</span>
                         </div>
                       </td>
                       <td style={{ ...TD, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#B3A4D4' }}>
@@ -433,7 +433,7 @@ export default function DashboardPage() {
                       <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: '#36FFC0' }}>{formatCurrency(o.amount_paid)}</td>
                       <td style={TD}>
                         <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: o.status === 'completed' ? 'rgba(54,255,192,0.12)' : 'rgba(255,184,0,0.12)', border: `1px solid ${o.status === 'completed' ? 'rgba(54,255,192,0.35)' : 'rgba(255,184,0,0.35)'}`, color: o.status === 'completed' ? '#36FFC0' : '#FFC84D', whiteSpace: 'nowrap' }}>
-                          {o.status?.charAt(0).toUpperCase() + o.status?.slice(1) || '—'}
+                          {o.status?.charAt(0).toUpperCase() + o.status?.slice(1) || '-'}
                         </span>
                       </td>
                     </tr>

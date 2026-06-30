@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════
-#  GMC Store — Root .gitignore
-#  NEVER commit .env files — they contain real secrets
+#  GMC Store - Root .gitignore
+#  NEVER commit .env files - they contain real secrets
 # ══════════════════════════════════════════════════════
 
 # ── Environment / Secrets ──────────────────────────────

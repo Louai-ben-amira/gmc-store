@@ -61,8 +61,8 @@ def _push_chat_message(conv_id, msg):
 def _auto_open_order_chat(order):
     """
     Ensure a Conversation exists for the user, then auto-send:
-      1. order_card        — order summary
-      2. credentials_card  — locked card (no plaintext)
+      1. order_card        - order summary
+      2. credentials_card  - locked card (no plaintext)
     Returns the conversation.
     """
     from apps.chat.models import Conversation, Message
@@ -81,7 +81,7 @@ def _auto_open_order_chat(order):
     order_msg = Message.objects.create(
         conversation=conv,
         sender=sender,
-        body=f'New order #{order.id} — {product_name}',
+        body=f'New order #{order.id} - {product_name}',
         msg_type='order_card',
         metadata={
             'order_id':     order.id,
@@ -93,7 +93,7 @@ def _auto_open_order_chat(order):
     )
     _push_chat_message(conv.id, order_msg)
 
-    # 2. Credentials card (reference only — no plaintext ever sent)
+    # 2. Credentials card (reference only - no plaintext ever sent)
     if hasattr(order, 'credentials'):
         cred_msg = Message.objects.create(
             conversation=conv,
@@ -139,7 +139,7 @@ def _auto_open_order_chat(order):
 def _post_status_chat_message(order, new_status, note=''):
     """Post a status_update message to the order's chat thread and broadcast it."""
     STATUS_MESSAGES = {
-        'in_progress': '🔄 Service started — we are working on your order.',
+        'in_progress': '🔄 Service started - we are working on your order.',
         'completed':   '✅ Service completed! Please verify and confirm delivery below.',
     }
     body = STATUS_MESSAGES.get(new_status, f'Status updated to {new_status}.')
@@ -316,7 +316,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
         with transaction.atomic():
             if needs_credentials:
-                # Service orders use stock_count — no Code row needed
+                # Service orders use stock_count - no Code row needed
                 code = None
                 if product.stock_count <= 0:
                     return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -416,7 +416,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
             except Exception:
                 pass
 
-            # Fallback deletion scheduled at 24h — confirm/close will trigger sooner
+            # Fallback deletion scheduled at 24h - confirm/close will trigger sooner
             try:
                 from apps.orders.tasks import schedule_credentials_deletion
                 _fire(schedule_credentials_deletion.apply_async, args=[order.id], countdown=86400)
@@ -520,7 +520,7 @@ def update_service_status(request, pk):
         order.status = Order.Status.IN_PROGRESS
     elif new_status == 'completed':
         order.status = Order.Status.COMPLETED
-        # Seller has completed — buyer must still confirm to release escrow.
+        # Seller has completed - buyer must still confirm to release escrow.
         # Do NOT release here.
 
     order.save()
@@ -690,7 +690,7 @@ def open_dispute(request, pk):
 def reveal_code(request, pk):
     """
     First call: records reveal time/IP, returns the code.
-    Subsequent calls: idempotent — returns code again with already_revealed=True.
+    Subsequent calls: idempotent - returns code again with already_revealed=True.
     Code is never sent in the standard list/detail response; only via this endpoint.
     """
     try:
@@ -774,7 +774,7 @@ def cancel_order(request, pk):
 
         WalletTransaction.objects.create(
             user=user, type='credit', amount=refund,
-            method='refund', note=f'Cancelled Order #{locked.id} — code not revealed'
+            method='refund', note=f'Cancelled Order #{locked.id} - code not revealed'
         )
 
         locked.status = Order.Status.CANCELLED

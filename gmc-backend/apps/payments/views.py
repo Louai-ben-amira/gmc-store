@@ -54,7 +54,7 @@ def payment_methods(request):
             'instructions': SiteSettings.get('ORANGE_INSTRUCTIONS'),
         },
         'd17_number': {
-            'label':    'D17 — Phone',
+            'label':    'D17 - Phone',
             'type':     'transfer',
             'enabled':  phone_enabled,
             'value':    SiteSettings.get('D17_PHONE_NUMBER'),
@@ -67,7 +67,7 @@ def payment_methods(request):
             'flat_fee': 0,
         },
         'd17_address': {
-            'label':         'D17 — Address/RIB',
+            'label':         'D17 - Address/RIB',
             'type':          'transfer',
             'enabled':       address_enabled,
             'value':         SiteSettings.get('D17_ADDRESS'),
@@ -102,7 +102,7 @@ def payment_methods(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def recharge_preview(request):
-    """Return live credit preview — no DB write, pure calculation."""
+    """Return live credit preview - no DB write, pure calculation."""
     serializer = RechargePreviewSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data   = serializer.validated_data
@@ -235,7 +235,7 @@ def admin_recharge_approve(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def admin_recharge_reject(request, pk):
-    """Reject a recharge — admin_note is required to explain why."""
+    """Reject a recharge - admin_note is required to explain why."""
     try:
         recharge = RechargeRequest.objects.get(pk=pk)
     except RechargeRequest.DoesNotExist:
@@ -371,7 +371,7 @@ def submit_tx_hash(request, pk):
             from apps.payments.tasks import send_telegram_alert
             send_telegram_alert.delay(
                 f"🔔 <b>Crypto TX submitted #{rid}</b>\n"
-                f"👤 {uname}\n💰 {adt} DT — {cur}\n"
+                f"👤 {uname}\n💰 {adt} DT - {cur}\n"
                 f"🔗 TX: <code>{txh}</code>"
             )
         except Exception:
@@ -441,7 +441,7 @@ def admin_crypto_action(request, pk):
                 user=user, type='credit', amount=recharge.wallet_credit,
                 balance_after=user.balance,
                 method='crypto',
-                note=f'Crypto recharge #{recharge.id} approved — {crypto.currency}',
+                note=f'Crypto recharge #{recharge.id} approved - {crypto.currency}',
             )
 
         try:
@@ -521,7 +521,7 @@ def public_gift_card_batches(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def redeem_gift_card(request):
-    """Client redeems a gift card code — instantly credits wallet."""
+    """Client redeems a gift card code - instantly credits wallet."""
     code_str = request.data.get('code', '').strip().upper()
     if not code_str:
         return Response({'detail': 'code is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -557,7 +557,7 @@ def redeem_gift_card(request):
             amount        = amount,
             balance_after = user.balance,
             method        = 'gift_card',
-            note          = f'GMC Gift Card redeemed — {code_str}',
+            note          = f'GMC Gift Card redeemed - {code_str}',
         )
 
     return Response({
@@ -637,7 +637,7 @@ def admin_gift_card_batch_detail(request, pk):
         batch.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # PATCH — update label and/or image, keep linked product in sync
+    # PATCH - update label and/or image, keep linked product in sync
     if 'label' in request.data:
         batch.label = request.data['label']
     if 'image' in request.FILES:

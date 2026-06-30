@@ -187,7 +187,7 @@ function CategoryModal({ isOpen, onClose, editing, allCategories, onSave }) {
           <div>
             <label style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Parent Category</label>
             <select value={form.parent || ''} onChange={e => set('parent', e.target.value ? parseInt(e.target.value) : '')} style={{ width: '100%' }}>
-              <option value="">— No parent (top level) —</option>
+              <option value="">- No parent (top level) -</option>
               {flatCats.map(c => (
                 <option key={c.id} value={c.id}>{'  '.repeat(c._depth)}{c._depth > 0 ? '└ ' : ''}{c.icon} {c.name}</option>
               ))}
@@ -265,7 +265,7 @@ export default function CategoriesPage() {
       toast.success(`"${cat.name}" deleted.`)
       refresh()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Delete failed — category may have products.')
+      toast.error(err.response?.data?.detail || 'Delete failed - category may have products.')
     }
   }
 

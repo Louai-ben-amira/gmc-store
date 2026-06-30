@@ -64,7 +64,7 @@ class Product(models.Model):
     # When True, buyers choose from ProductVariant options instead of a fixed price
     has_variants     = models.BooleanField(default=False)
     created_at       = models.DateTimeField(auto_now_add=True)
-    # Points redemption — only products where admin enables this can be bought with points
+    # Points redemption - only products where admin enables this can be bought with points
     points_purchasable = models.BooleanField(default=False)
     # How many loyalty points the buyer earns per purchase (0 = use global POINTS_RATE)
     points_earned      = models.IntegerField(default=0)
@@ -115,7 +115,7 @@ class ProductVariant(models.Model):
         ordering = ['order', 'amount_value']
 
     def __str__(self):
-        return f"{self.product.name} — {self.label}"
+        return f"{self.product.name} - {self.label}"
 
 
 class Bundle(models.Model):

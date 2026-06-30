@@ -152,7 +152,7 @@ function CryptoPaymentSection({ onSuccess, onClose }) {
         <p style={{ margin: '4px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {currency === 'BINANCE'
             ? 'Found in Binance app → Wallet → Transaction History → Order ID.'
-            : 'Found in your wallet app after sending — starts with 0x.'}
+            : 'Found in your wallet app after sending - starts with 0x.'}
         </p>
       </div>
       <button className="btn-primary" onClick={handleSubmitTx} disabled={loading || !txHash.trim()} style={{ width: '100%', justifyContent: 'center' }}>
@@ -235,7 +235,7 @@ function CreditPreview({ method, ticketValue, amountSent }) {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: '#f59e0b' }}>
-                Service fee ({(preview.tax_rate * 100).toFixed(0)}%) — add to transfer
+                Service fee ({(preview.tax_rate * 100).toFixed(0)}%) - add to transfer
               </span>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: '#f59e0b' }}>+{preview.tax_amount.toFixed(2)} DT</span>
             </div>
@@ -401,7 +401,7 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
       return
     }
 
-    // Transfer — single submit
+    // Transfer - single submit
     try {
       const fd = new FormData()
       fd.append('method', method)
@@ -490,12 +490,12 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
           {submitProgress?.failed > 0 && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.2)', borderRadius: 8, padding: '5px 12px', marginBottom: 10 }}>
               <TbAlertCircle size={13} color="#ff4d6d" />
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#ff4d6d' }}>{submitProgress.failed} ticket(s) failed — contact support</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#ff4d6d' }}>{submitProgress.failed} ticket(s) failed - contact support</span>
             </div>
           )}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: '5px 12px', marginBottom: 20 }}>
             <TbAlertCircle size={13} color="#f59e0b" />
-            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#f59e0b' }}>⏳ Pending review — usually within a few hours</span>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#f59e0b' }}>⏳ Pending review - usually within a few hours</span>
           </div>
           <button className="btn-primary" onClick={handleClose} style={{ width: '100%', justifyContent: 'center' }}>Done</button>
         </div>
@@ -604,7 +604,7 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
               {/* Live total preview */}
               {totalFaceVal > 0 && (
                 <div style={{ background: 'rgba(61,220,132,0.05)', border: '1px solid rgba(61,220,132,0.18)', borderRadius: 12, padding: '1rem' }}>
-                  <MonoLabel>Total Preview — {tickets.length} ticket{tickets.length > 1 ? 's' : ''}</MonoLabel>
+                  <MonoLabel>Total Preview - {tickets.length} ticket{tickets.length > 1 ? 's' : ''}</MonoLabel>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Total face value</span>
@@ -670,7 +670,7 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
                   <MonoLabel>
                     {method === 'd17_number'   ? 'Send to D17 Number' :
                      method === 'd17_address'  ? (methodInfo.address_label || 'D17 Address / RIB') :
-                     method === 'bank_transfer' ? (methodInfo.bank_name ? `Bank Account — ${methodInfo.bank_name}` : 'Bank Account Number') :
+                     method === 'bank_transfer' ? (methodInfo.bank_name ? `Bank Account - ${methodInfo.bank_name}` : 'Bank Account Number') :
                      'Flouci Phone Number'}
                   </MonoLabel>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -868,7 +868,7 @@ export default function WalletPage() {
                 <p style={{ margin: '0 0 6px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(61,220,132,0.6)', textTransform: 'uppercase' }}>{t('balance.label')}</p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 900, fontSize: 'clamp(1.75rem, 8vw, 3rem)', color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                    {isLoading ? '—' : balance.toFixed(2)}
+                    {isLoading ? '-' : balance.toFixed(2)}
                   </span>
                   <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '1.25rem', color: '#3DDC84' }}>DT</span>
                 </div>
@@ -893,7 +893,7 @@ export default function WalletPage() {
                   <p style={{ margin: '0 0 2px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.12em', color: 'rgba(167,139,250,0.6)', textTransform: 'uppercase' }}>{t('balance.points')}</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <TbStar size={14} color="#f59e0b" />
-                    <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.375rem', color: 'var(--text-primary)' }}>{isLoading ? '—' : points}</span>
+                    <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.375rem', color: 'var(--text-primary)' }}>{isLoading ? '-' : points}</span>
                     <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>pts</span>
                   </div>
                 </div>

@@ -111,7 +111,7 @@ function SlideImageUpload({ value, onChange }) {
         >
           <Upload size={18} color="#A78BFA" />
           <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>{uploading ? 'Uploading…' : 'Click to upload image'}</span>
-          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>JPG, PNG, WebP — any size</span>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>JPG, PNG, WebP - any size</span>
         </button>
       )}
       <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
@@ -138,7 +138,7 @@ function HeroSlidesEditor({ slides, onChange }) {
             </button>
           </div>
 
-          {/* Image upload — full width */}
+          {/* Image upload - full width */}
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Background Image</label>
             <SlideImageUpload value={slide.image} onChange={val => update(i, 'image', val)} />
@@ -283,7 +283,7 @@ export default function SettingsPage() {
 
       {/* ── Ticket fee ── */}
       <Section title="Ticket Fee Rate" icon={Percent} color="#f59e0b">
-        <Field label={`Tax rate — currently ${taxPct}%`} hint="Decimal value: 0.11 = 11%. Applies to Ooredoo and Orange tickets.">
+        <Field label={`Tax rate - currently ${taxPct}%`} hint="Decimal value: 0.11 = 11%. Applies to Ooredoo and Orange tickets.">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <input
               type="number" min="0" max="1" step="0.01"
@@ -301,14 +301,14 @@ export default function SettingsPage() {
       </Section>
 
       {/* ── D17 Phone ── */}
-      <Section title="D17 — Phone Numbers" icon={Phone} color="#7C3AED">
+      <Section title="D17 - Phone Numbers" icon={Phone} color="#7C3AED">
         <Field label="Enabled">
           <ToggleSwitch
             value={get('D17_PHONE_ENABLED', 'true') === 'true'}
             onChange={v => set('D17_PHONE_ENABLED', v ? 'true' : 'false')}
           />
         </Field>
-        <Field label="D17 Number 1" hint="Primary number — always shown to users">
+        <Field label="D17 Number 1" hint="Primary number - always shown to users">
           <input
             type="text"
             value={get('D17_PHONE_NUMBER')}
@@ -338,7 +338,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ── D17 Address ── */}
-      <Section title="D17 — Address / RIB" icon={MapPin} color="#3b82f6">
+      <Section title="D17 - Address / RIB" icon={MapPin} color="#3b82f6">
         <Field label="Enabled">
           <ToggleSwitch
             value={get('D17_ADDRESS_ENABLED', 'true') === 'true'}
@@ -482,7 +482,7 @@ export default function SettingsPage() {
             onChange={v => set('CRYPTO_ENABLED', v ? 'true' : 'false')}
           />
         </Field>
-        <Field label="Binance USDT — Wallet Address (BEP-20)" hint="Users will send USDT on BNB Smart Chain (BSC) to this address">
+        <Field label="Binance USDT - Wallet Address (BEP-20)" hint="Users will send USDT on BNB Smart Chain (BSC) to this address">
           <input
             value={get('BINANCE_ADDRESS')}
             onChange={e => set('BINANCE_ADDRESS', e.target.value)}
@@ -490,7 +490,7 @@ export default function SettingsPage() {
             style={{ fontFamily: 'JetBrains Mono, monospace' }}
           />
         </Field>
-        <Field label="BNB — Wallet Address (BEP-20)" hint="Users will send BNB on BNB Smart Chain (BSC) to this address">
+        <Field label="BNB - Wallet Address (BEP-20)" hint="Users will send BNB on BNB Smart Chain (BSC) to this address">
           <input
             value={get('BNB_ADDRESS')}
             onChange={e => set('BNB_ADDRESS', e.target.value)}

@@ -357,7 +357,7 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
               {order.code_value
                 ? <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{order.code_value}</code>
                 : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '3px 8px' }}>
-                    <TbLock size={11} /> Not yet revealed — tap to view
+                    <TbLock size={11} /> Not yet revealed - tap to view
                   </span>
               }
             </div>
@@ -490,7 +490,7 @@ export default function OrdersPage() {
                 <TbPackage size={34} color="rgba(124,58,237,0.4)" />
               </div>
               <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-secondary)', margin: '0 0 6px' }}>
-                {filter === 'all' ? t('empty.title') : `${t('status.' + filter)} — ${t('empty.title')}`}
+                {filter === 'all' ? t('empty.title') : `${t('status.' + filter)} - ${t('empty.title')}`}
               </p>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 20px' }}>
                 {filter === 'all' ? t('empty.subtitle') : t('empty.subtitle')}

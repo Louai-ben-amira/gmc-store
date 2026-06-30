@@ -109,7 +109,7 @@ function EmptyState({ platform }) {
         fontFamily: 'Inter, sans-serif', fontSize: '0.875rem',
         color: 'rgba(255,255,255,0.28)', margin: 0, textAlign: 'center', maxWidth: 320,
       }}>
-        Check back soon — we're adding new titles regularly.
+        Check back soon - we're adding new titles regularly.
       </p>
     </div>
   )

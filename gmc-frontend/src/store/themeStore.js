@@ -29,7 +29,7 @@ const useThemeStore = create((set, get) => ({
     } catch (_) {}
   },
 
-  // Called after login — apply DB preference (DB wins over localStorage)
+  // Called after login - apply DB preference (DB wins over localStorage)
   syncFromUser(userTheme) {
     if (userTheme && userTheme !== get().theme) {
       applyTheme(userTheme)

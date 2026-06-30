@@ -160,7 +160,7 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Run tasks inline in the web process so NO separate Celery worker service is
-# needed (emails / Telegram alerts send during the request — fine for low volume).
+# needed (emails / Telegram alerts send during the request - fine for low volume).
 # Flash-sale expiry is handled lazily in the model, so no Celery Beat is needed either.
 # If you later add a dedicated worker, set CELERY_TASK_ALWAYS_EAGER=False in its env
 # and run:  celery -A config worker -B -l info
@@ -182,7 +182,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Local fallback for media (used only when R2 is not configured — see below).
+# Local fallback for media (used only when R2 is not configured - see below).
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

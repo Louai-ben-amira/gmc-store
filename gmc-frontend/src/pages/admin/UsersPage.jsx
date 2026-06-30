@@ -78,7 +78,7 @@ export default function UsersPage() {
                 <td style={TD_STYLE}>
                   {u.referral_code
                     ? <span style={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.purpleText, background: 'rgba(139,79,219,0.12)', padding: '2px 7px', borderRadius: 5 }}>{u.referral_code}</span>
-                    : <span style={{ color: T.textMuted }}>—</span>
+                    : <span style={{ color: T.textMuted }}>-</span>
                   }
                 </td>
                 <td style={TD_STYLE}><StatusPill status={u.is_active ? 'active' : 'inactive'} /></td>
@@ -102,7 +102,7 @@ export default function UsersPage() {
         </table>
       </div>
 
-      <Modal isOpen={!!selected} onClose={closeEdit} title={`Edit — ${selected?.username}`} size="sm">
+      <Modal isOpen={!!selected} onClose={closeEdit} title={`Edit - ${selected?.username}`} size="sm">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <label style={LBL}>Current Balance</label>

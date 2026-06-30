@@ -11,13 +11,13 @@ export default function TicketStub({ top, bottom, className = '' }) {
         {top}
       </div>
 
-      {/* Dashed divider — full width, no margin */}
+      {/* Dashed divider - full width, no margin */}
       <div style={{
         borderTop: '1px dashed var(--border-strong)',
         margin: '0 1.125rem',
         position: 'relative',
       }}>
-        {/* Notch circles rendered as pure CSS — bleed left/right */}
+        {/* Notch circles rendered as pure CSS - bleed left/right */}
         <span style={{
           position: 'absolute', left: -28, top: '50%', transform: 'translateY(-50%)',
           width: 16, height: 16, borderRadius: '50%',

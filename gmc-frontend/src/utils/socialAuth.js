@@ -1,9 +1,9 @@
-/* Social OAuth helpers — no npm SDK needed, pure browser APIs */
+/* Social OAuth helpers - no npm SDK needed, pure browser APIs */
 
 const GOOGLE_CLIENT_ID  = import.meta.env.VITE_GOOGLE_CLIENT_ID  || ''
 const FACEBOOK_APP_ID   = import.meta.env.VITE_FACEBOOK_APP_ID   || ''
 
-/* ── Google (GSI — id_token via One-Tap / button callback) ─────────── */
+/* ── Google (GSI - id_token via One-Tap / button callback) ─────────── */
 let googleResolve = null
 let googleReject  = null
 let gsiLoaded     = false

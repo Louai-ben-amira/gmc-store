@@ -85,7 +85,7 @@ export default function MaintenancePage() {
           lineHeight: 1.65,
         }}>
           GMC Store is undergoing scheduled maintenance to improve your experience.
-          We expect to be back shortly — thank you for your patience.
+          We expect to be back shortly - thank you for your patience.
         </p>
 
         {/* Animated progress bar */}
