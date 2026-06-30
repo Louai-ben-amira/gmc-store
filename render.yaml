@@ -2,7 +2,7 @@ services:
   - type: web
     name: gmc-backend
     runtime: python
-    plan: free
+    plan: starter
     region: frankfurt
     rootDir: gmc-backend
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
