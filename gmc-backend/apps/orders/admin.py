@@ -9,6 +9,11 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields  = ['user__username', 'product__name']
     readonly_fields = ['created_at', 'amount_paid', 'points_earned', 'points_used']
 
+    def get_queryset(self, request):
+        # list_display renders user + product per row; join them up-front to
+        # avoid 2 extra queries per order in the changelist.
+        return super().get_queryset(request).select_related('user', 'product')
+
 
 @admin.register(OrderCredentials)
 class OrderCredentialsAdmin(admin.ModelAdmin):

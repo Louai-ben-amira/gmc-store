@@ -222,6 +222,11 @@ class Code(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            # Hot path: picking an available code for a product on checkout
+            # (Code.objects.filter(product=..., status='available')).
+            models.Index(fields=['product', 'status']),
+        ]
 
     def __str__(self):
         return f"{self.product.name} - {self.code[:20]}"

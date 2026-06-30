@@ -338,17 +338,18 @@ class BundleListView(generics.ListCreateAPIView):
         return [permissions.AllowAny()]
 
     def get_queryset(self):
+        base = Bundle.objects.prefetch_related('products__category')
         if self.request.method == 'GET' and not (
             hasattr(self.request, 'user') and
             self.request.user.is_authenticated and
             getattr(self.request.user, 'role', '') == 'admin'
         ):
-            return Bundle.objects.filter(is_active=True)
-        return Bundle.objects.all()
+            return base.filter(is_active=True)
+        return base
 
 
 class BundleDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset         = Bundle.objects.all()
+    queryset         = Bundle.objects.prefetch_related('products__category')
     serializer_class = BundleSerializer
 
     def get_permissions(self):

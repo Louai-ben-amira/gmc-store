@@ -25,9 +25,11 @@ class MessageListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if user.role == 'admin':
             conv_id = self.request.query_params.get('conversation_id')
-            return Message.objects.filter(conversation_id=conv_id) if conv_id else Message.objects.none()
+            if not conv_id:
+                return Message.objects.none()
+            return Message.objects.filter(conversation_id=conv_id).select_related('sender')
         conv, _ = Conversation.objects.get_or_create(client=user)
-        return Message.objects.filter(conversation=conv)
+        return Message.objects.filter(conversation=conv).select_related('sender')
 
     def perform_create(self, serializer):
         from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -140,7 +142,7 @@ def user_context(request, user_id):
     from apps.users.models import User
     from apps.orders.models import Order
     from apps.orders.serializers import OrderSerializer
-    from django.db.models import Sum
+    from django.db.models import Sum, Count
     from django.utils.timesince import timesince
 
     try:
@@ -148,15 +150,13 @@ def user_context(request, user_id):
     except User.DoesNotExist:
         return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    orders = Order.objects.filter(
-        user=client, status='completed'
-    ).select_related('product', 'bundle').order_by('-created_at')[:5]
+    completed = Order.objects.filter(user=client, status='completed')
 
-    total_spent = Order.objects.filter(
-        user=client, status='completed'
-    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+    orders = completed.select_related('product', 'bundle').order_by('-created_at')[:5]
 
-    order_count = Order.objects.filter(user=client, status='completed').count()
+    stats = completed.aggregate(total=Sum('amount_paid'), count=Count('id'))
+    total_spent = stats['total'] or 0
+    order_count = stats['count']
 
     # Presence from cache
     presence = 'offline'
