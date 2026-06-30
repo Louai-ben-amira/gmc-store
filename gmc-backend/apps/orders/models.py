@@ -87,6 +87,11 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at']),
+            # User order history is the most common per-user query.
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         name = self.product.name if self.product else (self.bundle.name if self.bundle else 'N/A')

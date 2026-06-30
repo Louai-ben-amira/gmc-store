@@ -29,39 +29,56 @@ from apps.users.permissions import IsAdmin
 @permission_classes([permissions.IsAuthenticated])
 def payment_methods(request):
     """Return all available payment methods with their current config from SiteSettings."""
-    tax_rate_str = SiteSettings.get('TICKET_TAX_RATE', '0.11')
+    # Fetch every setting this view needs in a single query, then read from
+    # the dict — avoids ~18 separate SELECTs (one per SiteSettings.get call).
+    keys = [
+        'TICKET_TAX_RATE', 'D17_PHONE_ENABLED', 'D17_ADDRESS_ENABLED',
+        'BANK_TRANSFER_ENABLED', 'FLOUCI_ENABLED', 'OOREDOO_INSTRUCTIONS',
+        'ORANGE_INSTRUCTIONS', 'D17_PHONE_NUMBER', 'D17_PHONE_NUMBER_2',
+        'D17_PHONE_NUMBER_3', 'D17_ADDRESS', 'D17_ADDRESS_LABEL',
+        'BANK_ACCOUNT_NUMBER', 'BANK_ACCOUNT_NAME', 'BANK_TRANSFER_INSTRUCTIONS',
+        'FLOUCI_PHONE_NUMBER', 'FLOUCI_INSTRUCTIONS',
+    ]
+    stored = dict(
+        SiteSettings.objects.filter(key__in=keys).values_list('key', 'value')
+    )
+
+    def s(key, default=''):
+        return stored.get(key, default)
+
+    tax_rate_str = s('TICKET_TAX_RATE', '0.11')
     try:
         tax_rate = float(tax_rate_str)
     except ValueError:
         tax_rate = 0.11
 
-    phone_enabled        = SiteSettings.get('D17_PHONE_ENABLED',        'true').lower() == 'true'
-    address_enabled      = SiteSettings.get('D17_ADDRESS_ENABLED',      'true').lower() == 'true'
-    bank_enabled         = SiteSettings.get('BANK_TRANSFER_ENABLED',    'true').lower() == 'true'
-    flouci_enabled       = SiteSettings.get('FLOUCI_ENABLED',           'true').lower() == 'true'
+    phone_enabled        = s('D17_PHONE_ENABLED',     'true').lower() == 'true'
+    address_enabled      = s('D17_ADDRESS_ENABLED',   'true').lower() == 'true'
+    bank_enabled         = s('BANK_TRANSFER_ENABLED', 'true').lower() == 'true'
+    flouci_enabled       = s('FLOUCI_ENABLED',        'true').lower() == 'true'
 
     return Response({
         'ooredoo_ticket': {
             'label':        'Ooredoo Ticket',
             'type':         'ticket',
             'tax_rate':     tax_rate,
-            'instructions': SiteSettings.get('OOREDOO_INSTRUCTIONS'),
+            'instructions': s('OOREDOO_INSTRUCTIONS'),
         },
         'orange_ticket': {
             'label':        'Orange Ticket',
             'type':         'ticket',
             'tax_rate':     tax_rate,
-            'instructions': SiteSettings.get('ORANGE_INSTRUCTIONS'),
+            'instructions': s('ORANGE_INSTRUCTIONS'),
         },
         'd17_number': {
             'label':    'D17 - Phone',
             'type':     'transfer',
             'enabled':  phone_enabled,
-            'value':    SiteSettings.get('D17_PHONE_NUMBER'),
+            'value':    s('D17_PHONE_NUMBER'),
             'numbers':  [n for n in [
-                SiteSettings.get('D17_PHONE_NUMBER'),
-                SiteSettings.get('D17_PHONE_NUMBER_2'),
-                SiteSettings.get('D17_PHONE_NUMBER_3'),
+                s('D17_PHONE_NUMBER'),
+                s('D17_PHONE_NUMBER_2'),
+                s('D17_PHONE_NUMBER_3'),
             ] if n],
             'tax_rate': 0.01,
             'flat_fee': 0,
@@ -70,8 +87,8 @@ def payment_methods(request):
             'label':         'D17 - Address/RIB',
             'type':          'transfer',
             'enabled':       address_enabled,
-            'value':         SiteSettings.get('D17_ADDRESS'),
-            'address_label': SiteSettings.get('D17_ADDRESS_LABEL', 'D17 Account Address'),
+            'value':         s('D17_ADDRESS'),
+            'address_label': s('D17_ADDRESS_LABEL', 'D17 Account Address'),
             'tax_rate':      0,
             'flat_fee':      0,
         },
@@ -79,9 +96,9 @@ def payment_methods(request):
             'label':        'Bank Transfer',
             'type':         'transfer',
             'enabled':      bank_enabled,
-            'value':        SiteSettings.get('BANK_ACCOUNT_NUMBER'),
-            'bank_name':    SiteSettings.get('BANK_ACCOUNT_NAME'),
-            'instructions': SiteSettings.get('BANK_TRANSFER_INSTRUCTIONS'),
+            'value':        s('BANK_ACCOUNT_NUMBER'),
+            'bank_name':    s('BANK_ACCOUNT_NAME'),
+            'instructions': s('BANK_TRANSFER_INSTRUCTIONS'),
             'tax_rate':     0,
             'flat_fee':     2.5,
         },
@@ -89,8 +106,8 @@ def payment_methods(request):
             'label':        'Flouci',
             'type':         'transfer',
             'enabled':      flouci_enabled,
-            'value':        SiteSettings.get('FLOUCI_PHONE_NUMBER'),
-            'instructions': SiteSettings.get('FLOUCI_INSTRUCTIONS'),
+            'value':        s('FLOUCI_PHONE_NUMBER'),
+            'instructions': s('FLOUCI_INSTRUCTIONS'),
             'tax_rate':     0,
             'flat_fee':     0,
         },
@@ -510,11 +527,19 @@ from django.core.files.base import ContentFile
 def public_gift_card_batches(request):
     """Public list of available (non-expired, has stock) GMC gift card batches."""
     from django.utils import timezone
-    batches = GiftCardBatch.objects.filter(
-        cards__redeemed_by__isnull=True
-    ).distinct()
-    # exclude fully expired
-    batches = [b for b in batches if not b.expires_at or b.expires_at > timezone.now()]
+    from django.db.models import Count, Q
+    # Single query: compute used/available counts via conditional aggregation,
+    # keep only batches with stock, and drop expired ones in SQL. exclude()
+    # preserves rows with a NULL expires_at (never-expiring batches).
+    batches = (
+        GiftCardBatch.objects
+        .exclude(expires_at__lt=timezone.now())
+        .annotate(
+            used_count=Count('cards', filter=Q(cards__redeemed_by__isnull=False)),
+            available_count=Count('cards', filter=Q(cards__redeemed_by__isnull=True)),
+        )
+        .filter(available_count__gt=0)
+    )
     return Response(GiftCardBatchSerializer(batches, many=True, context={'request': request}).data)
 
 
@@ -574,7 +599,11 @@ def redeem_gift_card(request):
 def admin_gift_card_batches(request):
     import secrets
     if request.method == 'GET':
-        batches = GiftCardBatch.objects.all()
+        from django.db.models import Count, Q
+        batches = GiftCardBatch.objects.annotate(
+            used_count=Count('cards', filter=Q(cards__redeemed_by__isnull=False)),
+            available_count=Count('cards', filter=Q(cards__redeemed_by__isnull=True)),
+        )
         return Response(GiftCardBatchSerializer(batches, many=True, context={'request': request}).data)
 
     serializer = CreateGiftCardBatchSerializer(data=request.data)

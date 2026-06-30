@@ -153,9 +153,17 @@ class GiftCardBatchSerializer(serializers.ModelSerializer):
                   'cards_total', 'cards_used', 'cards_available', 'image']
 
     def get_cards_used(self, obj):
+        # Prefer a value annotated on the queryset (single grouped query);
+        # fall back to a per-object count only when not annotated.
+        val = getattr(obj, 'used_count', None)
+        if val is not None:
+            return val
         return obj.cards.filter(redeemed_by__isnull=False).count()
 
     def get_cards_available(self, obj):
+        val = getattr(obj, 'available_count', None)
+        if val is not None:
+            return val
         return obj.cards.filter(redeemed_by__isnull=True).count()
 
 

@@ -224,22 +224,28 @@ class WalletView(generics.GenericAPIView):
 @permission_classes([permissions.IsAuthenticated])
 def referral_stats(request):
     from .models import ReferralBonus
-    from django.db.models import Sum
     user = request.user
     bonuses = ReferralBonus.objects.filter(referrer=user).select_related('referred_user').order_by('-created_at')
-    total_earned = bonuses.filter(was_eligible=True).aggregate(t=Sum('amount'))['t'] or 0
-    history = []
-    pending_count = bonuses.filter(was_eligible=False).count()
-    for b in bonuses:
-        history.append({
+
+    # One pass over the evaluated queryset for the history rows...
+    bonus_list = list(bonuses)
+    history = [
+        {
             'username': b.referred_user.get_full_name() or b.referred_user.username,
             'date':     b.created_at.isoformat(),
             'status':   'credited' if b.was_eligible else 'pending',
             'amount':   str(b.amount),
-        })
+        }
+        for b in bonus_list
+    ]
+    # ...and a single aggregate query for the totals/counts.
+    total_count = len(bonus_list)
+    pending_count = sum(1 for b in bonus_list if not b.was_eligible)
+    total_earned = sum((b.amount for b in bonus_list if b.was_eligible), 0)
+
     return Response({
         'referral_code':   user.referral_code,
-        'referrals_count': bonuses.count(),
+        'referrals_count': total_count,
         'pending_count':   pending_count,
         'total_earned':    str(total_earned),
         'history':         history,
@@ -260,7 +266,12 @@ class AdminUsersListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
-        return User.objects.annotate(orders_count=Count('orders')).order_by('-created_at')
+        return (
+            User.objects
+            .select_related('referred_by')
+            .annotate(orders_count=Count('orders'))
+            .order_by('-created_at')
+        )
 
 
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
@@ -344,12 +355,18 @@ class AdminRechargeApproveView(generics.GenericAPIView):
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_analytics(request):
-    from django.db.models import Sum, Count
+    from django.db.models import Sum, Count, Q
     from django.db.models.functions import ExtractHour
     from django.utils import timezone
+    from django.core.cache import cache
     from datetime import timedelta
     from apps.orders.models import Order
-    from apps.products.models import Category
+
+    # Dashboard data does not need to be real-time; serve a cached snapshot.
+    CACHE_KEY = 'admin_analytics_v1'
+    cached = cache.get(CACHE_KEY)
+    if cached is not None:
+        return Response(cached)
 
     now          = timezone.now()
     today_start  = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -358,30 +375,47 @@ def admin_analytics(request):
     month_start  = today_start.replace(day=1)
     last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
-    def rev(qs):
-        return float(qs.aggregate(t=Sum('amount_paid'))['t'] or 0)
-
     completed = Order.objects.filter(status='completed')
 
-    # ── Revenue periods ────────────────────────────────────────────────────
+    # ── Revenue periods (single pass via conditional aggregation) ──────────
+    def rev_between(start, end=None):
+        cond = Q(created_at__gte=start)
+        if end is not None:
+            cond &= Q(created_at__lt=end)
+        return Sum('amount_paid', filter=cond)
+
+    agg = completed.aggregate(
+        today=rev_between(today_start),
+        yesterday=rev_between(yesterday, today_start),
+        this_week=rev_between(week_ago),
+        last_week=rev_between(week_ago - timedelta(days=7), week_ago),
+        this_month=rev_between(month_start),
+        last_month=rev_between(last_month_start, month_start),
+        orders_today=Count('id', filter=Q(created_at__gte=today_start)),
+    )
     revenue = {
-        'today':       rev(completed.filter(created_at__gte=today_start)),
-        'yesterday':   rev(completed.filter(created_at__gte=yesterday, created_at__lt=today_start)),
-        'this_week':   rev(completed.filter(created_at__gte=week_ago)),
-        'last_week':   rev(completed.filter(created_at__gte=week_ago - timedelta(days=7), created_at__lt=week_ago)),
-        'this_month':  rev(completed.filter(created_at__gte=month_start)),
-        'last_month':  rev(completed.filter(created_at__gte=last_month_start, created_at__lt=month_start)),
-        'orders_today': completed.filter(created_at__gte=today_start).count(),
+        'today':        float(agg['today'] or 0),
+        'yesterday':    float(agg['yesterday'] or 0),
+        'this_week':    float(agg['this_week'] or 0),
+        'last_week':    float(agg['last_week'] or 0),
+        'this_month':   float(agg['this_month'] or 0),
+        'last_month':   float(agg['last_month'] or 0),
+        'orders_today': agg['orders_today'],
     }
 
-    # ── Revenue by category (Category is a ForeignKey) ─────────────────────
-    by_category = []
-    for cat in Category.objects.filter(is_active=True):
-        r = rev(completed.filter(product__category=cat))
-        c = completed.filter(product__category=cat).count()
-        if r > 0:
-            by_category.append({'category': cat.name, 'code': cat.slug, 'revenue': r, 'orders': c})
-    by_category.sort(key=lambda x: -x['revenue'])
+    # ── Revenue by category (single grouped query) ─────────────────────────
+    by_category = [
+        {'category': r['product__category__name'], 'code': r['product__category__slug'],
+         'revenue': float(r['revenue'] or 0), 'orders': r['orders']}
+        for r in (
+            completed
+            .filter(product__category__is_active=True)
+            .values('product__category__name', 'product__category__slug')
+            .annotate(revenue=Sum('amount_paid'), orders=Count('id'))
+            .filter(revenue__gt=0)
+            .order_by('-revenue')
+        )
+    ]
 
     # ── Peak hours (last 30 days) ──────────────────────────────────────────
     peak_qs = (
@@ -395,38 +429,38 @@ def admin_analytics(request):
     peak_hours = [{'hour': h, 'orders': peak_map.get(h, 0)} for h in range(24)]
 
     # ── Best sellers ───────────────────────────────────────────────────────
-    best_sellers = list(
-        completed
-        .filter(product__isnull=False)
-        .values('product__name')
-        .annotate(units=Count('id'), revenue=Sum('amount_paid'))
-        .order_by('-revenue')[:8]
-    )
     best_sellers = [
         {'product': r['product__name'], 'units': r['units'], 'revenue': float(r['revenue'] or 0)}
-        for r in best_sellers
+        for r in (
+            completed
+            .filter(product__isnull=False)
+            .values('product__name')
+            .annotate(units=Count('id'), revenue=Sum('amount_paid'))
+            .order_by('-revenue')[:8]
+        )
     ]
 
     # ── Top clients by lifetime value ──────────────────────────────────────
-    top_clients = list(
-        completed
-        .values('user__username', 'user__email')
-        .annotate(total_spent=Sum('amount_paid'), orders=Count('id'))
-        .order_by('-total_spent')[:8]
-    )
     top_clients = [
         {'username': r['user__username'], 'email': r['user__email'],
          'total_spent': float(r['total_spent'] or 0), 'orders': r['orders']}
-        for r in top_clients
+        for r in (
+            completed
+            .values('user__username', 'user__email')
+            .annotate(total_spent=Sum('amount_paid'), orders=Count('id'))
+            .order_by('-total_spent')[:8]
+        )
     ]
 
-    return Response({
+    payload = {
         'revenue':      revenue,
         'by_category':  by_category,
         'peak_hours':   peak_hours,
         'best_sellers': best_sellers,
         'top_clients':  top_clients,
-    })
+    }
+    cache.set(CACHE_KEY, payload, 120)  # 2-minute TTL
+    return Response(payload)
 
 
 @api_view(['GET'])
