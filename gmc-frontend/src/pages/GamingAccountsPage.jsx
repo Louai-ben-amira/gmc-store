@@ -134,7 +134,7 @@ export default function GamingAccountsPage() {
     enabled:  !!activePlatform,
   })
 
-  const products = data?.results || data || []
+  const products = data?.products || data?.results || []
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--bg-base, #09090F)' }}>
