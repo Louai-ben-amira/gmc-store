@@ -63,7 +63,10 @@ def category_products(request, slug):
         return ids
 
     cat_ids  = collect_ids(category)
-    qs       = Product.objects.filter(visible=True, category_id__in=cat_ids)
+    qs       = (
+        Product.objects.filter(visible=True, category_id__in=cat_ids)
+        .select_related('category').with_card_data()
+    )
 
     in_stock = request.query_params.get('in_stock')
     if in_stock == 'true':
@@ -101,7 +104,7 @@ class ProductListView(generics.ListCreateAPIView):
     def get_queryset(self):
         user     = self.request.user
         is_admin = user.is_authenticated and getattr(user, 'role', '') == 'admin'
-        qs       = Product.objects.select_related('category').prefetch_related('variants', 'codes')
+        qs       = Product.objects.select_related('category').with_card_data()
         if not is_admin:
             qs = qs.filter(visible=True)
         category = self.request.query_params.get('category')
@@ -145,7 +148,7 @@ class ProductListView(generics.ListCreateAPIView):
 
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset         = Product.objects.select_related('category')
+    queryset         = Product.objects.select_related('category').with_card_data()
     serializer_class = ProductSerializer
 
     def get_permissions(self):
@@ -415,7 +418,7 @@ def wishlist_toggle(request, pk):
 @permission_classes([permissions.IsAuthenticated])
 def wishlist_list(request):
     ids      = set(Wishlist.objects.filter(user=request.user).values_list('product_id', flat=True))
-    products = Product.objects.filter(id__in=ids, visible=True).select_related('category')
+    products = Product.objects.filter(id__in=ids, visible=True).select_related('category').with_card_data()
     ctx      = {'request': request, 'wishlist_ids': ids}
     return Response(ProductSerializer(products, many=True, context=ctx).data)
 
@@ -452,7 +455,7 @@ def recommendations(request):
     else:
         qs = Product.objects.filter(visible=True, stock_count__gt=0).exclude(id__in=purchased_ids)
 
-    products = qs.select_related('category')[:8]
+    products = qs.select_related('category').with_card_data()[:8]
     ctx      = {'request': request, 'wishlist_ids': wishlist_ids}
     return Response(ProductSerializer(products, many=True, context=ctx).data)
 
@@ -475,7 +478,7 @@ def best_sellers(request):
     )
 
     # Preserve order
-    products = list(Product.objects.filter(id__in=top_ids, visible=True).select_related('category'))
+    products = list(Product.objects.filter(id__in=top_ids, visible=True).select_related('category').with_card_data())
     id_order = list(top_ids)
     products.sort(key=lambda p: id_order.index(p.id) if p.id in id_order else 999)
 

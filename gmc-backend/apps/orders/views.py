@@ -2,6 +2,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.db import transaction, models
+from django.db.models import Prefetch
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
@@ -14,6 +15,25 @@ from config.throttles import OrderRateThrottle
 
 
 SERVICE_FEE_RATE = Decimal('0.01')  # 1% service fee on all purchases
+
+
+def _order_list_queryset():
+    """
+    Base queryset for serializing lists of orders with OrderSerializer.
+
+    Pulls every relation the serializer touches in a constant number of
+    queries: select_related for the forward FK / reverse one-to-one fields
+    (code, bundle, promo_code, variant, user->conversation, credentials), and
+    a Prefetch for the embedded product card so the nested ProductSerializer
+    reuses the annotated/variant-prefetched product instead of firing its own
+    ~5 queries per order.
+    """
+    return Order.objects.select_related(
+        'code', 'bundle', 'promo_code', 'variant',
+        'user__conversation', 'credentials',
+    ).prefetch_related(
+        Prefetch('product', queryset=Product.objects.select_related('category').with_card_data())
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -181,9 +201,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
         return OrderSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).select_related(
-            'product', 'product__category', 'code', 'bundle', 'promo_code'
-        )
+        return _order_list_queryset().filter(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
         serializer = PlaceOrderSerializer(data=request.data)
@@ -461,9 +479,7 @@ class OrderDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).select_related(
-            'product', 'product__category', 'code', 'bundle', 'promo_code'
-        )
+        return _order_list_queryset().filter(user=self.request.user)
 
 
 # ── Credentials reveal (admin only) ───────────────────────────────────────

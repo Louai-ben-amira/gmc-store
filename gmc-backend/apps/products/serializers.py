@@ -101,10 +101,17 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.flash_sale_active
 
     def get_avg_rating(self, obj):
-        result = obj.reviews.aggregate(avg=Avg('rating'))['avg']
+        # Prefer the annotation from Product.objects.with_card_data();
+        # fall back to a query when serializing a bare instance.
+        if hasattr(obj, '_avg_rating'):
+            result = obj._avg_rating
+        else:
+            result = obj.reviews.aggregate(avg=Avg('rating'))['avg']
         return round(result, 1) if result else None
 
     def get_review_count(self, obj):
+        if hasattr(obj, '_review_count'):
+            return obj._review_count
         return obj.reviews.count()
 
     def get_is_wishlisted(self, obj):
@@ -117,12 +124,18 @@ class ProductSerializer(serializers.ModelSerializer):
         return Wishlist.objects.filter(user=request.user, product=obj).exists()
 
     def get_min_price(self, obj):
-        if obj.has_variants:
-            p = obj.min_variant_price()
-            return str(p) if p is not None else None
-        return None
+        if not obj.has_variants:
+            return None
+        # Use prefetched variants (from with_card_data) to avoid extra queries.
+        if 'variants' in getattr(obj, '_prefetched_objects_cache', {}):
+            prices = [v.price for v in obj.variants.all() if v.is_active]
+            return str(min(prices)) if prices else None
+        p = obj.min_variant_price()
+        return str(p) if p is not None else None
 
     def get_code_count(self, obj):
+        if hasattr(obj, '_code_count'):
+            return obj._code_count
         return obj.codes.count()
 
     def validate_required_fields(self, value):
