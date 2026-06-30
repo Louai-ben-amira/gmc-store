@@ -1,6 +1,35 @@
 from django.db import models
+from django.db.models import Avg, Count, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
+
+
+class ProductQuerySet(models.QuerySet):
+    def with_card_data(self):
+        """
+        Annotate the per-card aggregates the ProductSerializer needs
+        (avg rating, review count, code count) and prefetch variants, so a
+        product list serializes in a constant number of queries instead of
+        ~5 per product. Each aggregate is its own correlated subquery -
+        combining them in a single .annotate() would multiply the JOINs and
+        return inflated counts.
+        """
+        reviews = (
+            Review.objects.filter(product=OuterRef('pk')).order_by().values('product')
+        )
+        codes = (
+            Code.objects.filter(product=OuterRef('pk')).order_by().values('product')
+        )
+        return self.annotate(
+            _avg_rating=Subquery(reviews.annotate(a=Avg('rating')).values('a')[:1]),
+            _review_count=Coalesce(
+                Subquery(reviews.annotate(c=Count('id')).values('c')[:1]), 0
+            ),
+            _code_count=Coalesce(
+                Subquery(codes.annotate(c=Count('id')).values('c')[:1]), 0
+            ),
+        ).prefetch_related('variants')
 
 
 class Category(models.Model):
@@ -72,6 +101,8 @@ class Product(models.Model):
     is_flash_sale    = models.BooleanField(default=False)
     flash_sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     flash_sale_end   = models.DateTimeField(null=True, blank=True)
+
+    objects = ProductQuerySet.as_manager()
 
     class Meta:
         ordering = ['-created_at']

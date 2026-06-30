@@ -122,6 +122,22 @@ else:
         }
     }
 
+# ── Connection tuning ────────────────────────────────────────────────────────
+# Persist connections instead of opening a fresh TLS handshake to Postgres on
+# every request (Django's default CONN_MAX_AGE=0). On a remote DB this removes
+# ~50-200ms/request. CONN_HEALTH_CHECKS validates a reused connection before use
+# so a dropped idle connection (Neon closes idle ones) doesn't surface as a 500.
+#
+# DISABLE_SERVER_SIDE_CURSORS must be True when connecting through a
+# transaction-mode pooler (Neon pooled endpoint / Supabase / PgBouncer): the
+# pooler can hand each transaction a different backend, which breaks the named
+# server-side cursors Django uses for .iterator(). Defaults on in production.
+DATABASES['default']['CONN_MAX_AGE'] = config('CONN_MAX_AGE', default=60, cast=int)
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = config(
+    'DISABLE_SERVER_SIDE_CURSORS', default=not DEBUG, cast=bool
+)
+
 REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 
 # Use in-memory cache in dev so Redis is not required to run the server.

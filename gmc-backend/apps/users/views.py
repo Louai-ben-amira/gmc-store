@@ -453,9 +453,9 @@ def admin_stats(request):
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_orders(request):
-    from apps.orders.models import Order
     from apps.orders.serializers import OrderSerializer
-    orders = Order.objects.select_related('user', 'product').order_by('-created_at')
+    from apps.orders.views import _order_list_queryset
+    orders = _order_list_queryset().order_by('-created_at')
     status_filter = request.query_params.get('status')
     req_acc = request.query_params.get('requires_account')
     if status_filter:
