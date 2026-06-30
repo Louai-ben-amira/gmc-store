@@ -184,6 +184,14 @@ const EMPTY_FORM = {
   visible: true, is_flash_sale: false, flash_sale_price: '', flash_sale_end: '',
   requires_account: false, has_variants: false, required_fields: [], points_purchasable: false,
   points_earned: 0,
+  delivery_type: 'code',  // 'code' | 'service' | 'topup'
+}
+
+/* Derive delivery_type from existing model fields (for edit mode) */
+function inferDeliveryType(p) {
+  if (p.requires_account) return 'service'
+  if ((p.required_fields || []).some(f => f.type === 'tel' || f.key === 'phone')) return 'topup'
+  return 'code'
 }
 
 const EMPTY_RF = { key: '', label: '', type: 'text', required: true, placeholder: '' }
@@ -336,15 +344,68 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         )}
       </div>
 
-      {/* Toggles */}
+      {/* Delivery Method */}
+      <div>
+        <label style={LBL}>Delivery Method *</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+          {[
+            { value: 'code',    icon: '🎟️', label: 'Digital Code', desc: 'Upload codes — buyer receives a code automatically' },
+            { value: 'service', icon: '👤', label: 'Account Service', desc: 'You deliver manually via buyer\'s account credentials' },
+            { value: 'topup',   icon: '📱', label: 'Phone Topup', desc: 'Buyer provides phone number — you top up manually' },
+          ].map(opt => {
+            const active = form.delivery_type === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange('delivery_type', opt.value)
+                  // Sync the underlying fields automatically
+                  if (opt.value === 'service') {
+                    onChange('requires_account', true)
+                    onChange('required_fields', (form.required_fields || []).filter(f => f.type !== 'tel' && f.key !== 'phone'))
+                  } else if (opt.value === 'topup') {
+                    onChange('requires_account', false)
+                    const hasPhone = (form.required_fields || []).some(f => f.type === 'tel' || f.key === 'phone')
+                    if (!hasPhone) {
+                      onChange('required_fields', [
+                        ...(form.required_fields || []),
+                        { key: 'phone', label: 'Phone Number', type: 'tel', required: true, placeholder: '+216 XX XXX XXX' },
+                      ])
+                    }
+                  } else {
+                    onChange('requires_account', false)
+                    onChange('required_fields', (form.required_fields || []).filter(f => f.type !== 'tel' && f.key !== 'phone'))
+                  }
+                }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  padding: '0.625rem 0.75rem', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: `2px solid ${active
+                    ? opt.value === 'code' ? '#34D399' : opt.value === 'service' ? '#7C3AED' : '#F59E0B'
+                    : 'rgba(255,255,255,0.08)'}`,
+                  background: active
+                    ? opt.value === 'code' ? 'rgba(52,211,153,0.08)' : opt.value === 'service' ? 'rgba(124,58,237,0.1)' : 'rgba(245,158,11,0.08)'
+                    : 'rgba(255,255,255,0.03)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize: '1.25rem', marginBottom: 4 }}>{opt.icon}</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: active
+                  ? opt.value === 'code' ? '#34D399' : opt.value === 'service' ? '#B57BFF' : '#F59E0B'
+                  : 'var(--text-primary)', marginBottom: 2 }}>{opt.label}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Toggles row */}
       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
           <input type="checkbox" checked={form.visible} onChange={e => onChange('visible', e.target.checked)} />
           <span style={{ color: 'var(--lavender)', fontSize: '0.875rem' }}>Visible in store</span>
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-          <input type="checkbox" checked={form.requires_account} onChange={e => onChange('requires_account', e.target.checked)} />
-          <span style={{ color: 'var(--lavender)', fontSize: '0.875rem' }}>Requires account</span>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
           <input type="checkbox" checked={form.has_variants} onChange={e => onChange('has_variants', e.target.checked)} />
@@ -356,13 +417,15 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         </label>
       </div>
 
-      {/* Required Fields */}
-      <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '0.875rem' }}>
-        <RequiredFieldsEditor
-          fields={form.required_fields || []}
-          onChange={v => onChange('required_fields', v)}
-        />
-      </div>
+      {/* Extra required fields — only for service products */}
+      {form.delivery_type === 'service' && (
+        <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '0.875rem' }}>
+          <RequiredFieldsEditor
+            fields={(form.required_fields || []).filter(f => f.type !== 'tel' && f.key !== 'phone')}
+            onChange={v => onChange('required_fields', v)}
+          />
+        </div>
+      )}
 
       {/* Flash sale */}
       <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '0.875rem' }}>
@@ -586,6 +649,14 @@ function VariantsPanel({ productId, productName, onClose }) {
   )
 }
 
+/* Returns true only for products that deliver codes to the buyer.
+   Service products (requires_account) and topup products (tel field) never use Code objects. */
+function isCodeProduct(p) {
+  if (p.requires_account) return false
+  if (p.required_fields?.some(f => f.type === 'tel' || f.key === 'phone')) return false
+  return true
+}
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 export default function ProductsPage() {
   const qc    = useQueryClient()
@@ -646,7 +717,7 @@ export default function ProductsPage() {
 
   const openCreate = () => {
     const firstId = flatCategories[0]?.id || ''
-    setForm({ ...EMPTY_FORM, category: firstId })
+    setForm({ ...EMPTY_FORM, category: firstId, delivery_type: 'code' })
     setImageFile(null); setImagePreview(null)
     setModal('create')
   }
@@ -668,6 +739,7 @@ export default function ProductsPage() {
       required_fields: Array.isArray(p.required_fields) ? p.required_fields : [],
       points_purchasable: p.points_purchasable || false,
       points_earned: p.points_earned || 0,
+      delivery_type: inferDeliveryType(p),
     })
     setImageFile(null)
     setImagePreview(p.image ? mediaUrl(p.image) : null)
@@ -911,8 +983,14 @@ export default function ProductsPage() {
                 <td style={TD_STYLE}>
                   <div style={{ display: 'flex', gap: '0.375rem' }}>
                     <IconBtn onClick={() => openEdit(p)} title="Edit"><Edit2 size={14} /></IconBtn>
-                    <IconBtn onClick={() => openCodes(p)} title="Upload Codes" color={T.success} bg={T.successDim} border={T.successBorder}><Upload size={14} /></IconBtn>
-                    <IconBtn onClick={() => openViewCodes(p)} title="View Codes" color="#60A5FA" bg="rgba(96,165,250,0.08)" border="rgba(96,165,250,0.25)"><Eye size={14} /></IconBtn>
+                    {isCodeProduct(p) && (
+                      <IconBtn onClick={() => openCodes(p)} title="Upload Codes" color={T.success} bg={T.successDim} border={T.successBorder}><Upload size={14} /></IconBtn>
+                    )}
+                    {isCodeProduct(p) && p.code_count > 0 && (
+                      <IconBtn onClick={() => openViewCodes(p)} title={`View Codes (${p.code_count})`} color="#60A5FA" bg="rgba(96,165,250,0.08)" border="rgba(96,165,250,0.25)">
+                        <Eye size={14} />
+                      </IconBtn>
+                    )}
                     <IconBtn onClick={() => openDelete(p)} title="Delete" color={T.danger} bg={T.dangerDim} border={T.dangerBorder}><Trash2 size={14} /></IconBtn>
                   </div>
                 </td>

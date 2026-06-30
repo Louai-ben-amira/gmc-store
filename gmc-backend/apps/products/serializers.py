@@ -77,6 +77,7 @@ class ProductSerializer(serializers.ModelSerializer):
     category_detail   = CategoryBreadcrumbSerializer(source='category', read_only=True)
     variants          = ProductVariantSerializer(many=True, read_only=True)
     min_price         = serializers.SerializerMethodField()
+    code_count        = serializers.SerializerMethodField()
 
     class Meta:
         model  = Product
@@ -87,7 +88,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'effective_price', 'flash_sale_active',
             'avg_rating', 'review_count', 'is_wishlisted',
             'requires_account', 'required_fields', 'has_variants',
-            'variants', 'min_price', 'points_purchasable',
+            'variants', 'min_price', 'points_purchasable', 'code_count',
         ]
 
     def get_available_stock(self, obj):
@@ -120,6 +121,9 @@ class ProductSerializer(serializers.ModelSerializer):
             p = obj.min_variant_price()
             return str(p) if p is not None else None
         return None
+
+    def get_code_count(self, obj):
+        return obj.codes.count()
 
     def validate_required_fields(self, value):
         import json

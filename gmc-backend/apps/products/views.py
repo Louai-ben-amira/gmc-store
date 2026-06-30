@@ -101,7 +101,7 @@ class ProductListView(generics.ListCreateAPIView):
     def get_queryset(self):
         user     = self.request.user
         is_admin = user.is_authenticated and getattr(user, 'role', '') == 'admin'
-        qs       = Product.objects.select_related('category').prefetch_related('variants')
+        qs       = Product.objects.select_related('category').prefetch_related('variants', 'codes')
         if not is_admin:
             qs = qs.filter(visible=True)
         category = self.request.query_params.get('category')
@@ -190,6 +190,17 @@ def bulk_upload_codes(request, pk):
             'page_size': page_size,
             'codes':     CodeSerializer(codes_qs, many=True).data,
         })
+
+    # Block uploads to service/topup products — they never use Code objects
+    has_phone_field = any(
+        f.get('type') == 'tel' or f.get('key') == 'phone'
+        for f in (product.required_fields or [])
+    )
+    if product.requires_account or has_phone_field:
+        return Response(
+            {'detail': 'This product delivers via account/service — it does not use codes.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     serializer = BulkCodeUploadSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

@@ -325,9 +325,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                     product=product, status='available'
                 ).first()
                 if code is None:
-                    # No individual codes — fall back to stock_count
-                    if product.stock_count <= 0:
-                        return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Use variant-level points if set, then product-level, then global rate
             if selected_variant and selected_variant.points_earned > 0:
@@ -382,13 +380,15 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 code.save()
                 order.code = code
                 order.save()
-
-            if selected_variant:
+                # Keep stock_count accurate: count remaining available codes
+                product.stock_count = product.codes.filter(status='available').count()
+                product.save(update_fields=['stock_count'])
+            elif selected_variant:
                 selected_variant.stock_count = max(0, selected_variant.stock_count - 1)
                 selected_variant.save(update_fields=['stock_count'])
             else:
                 product.stock_count = max(0, product.stock_count - 1)
-                product.save()
+                product.save(update_fields=['stock_count'])
 
             if promo_obj:
                 promo_obj.used_count += 1
