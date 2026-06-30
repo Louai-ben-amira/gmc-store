@@ -1316,3 +1316,40 @@ img { max-width: 100%; height: auto; }
     padding: 0.75rem 0.75rem 5rem !important;
   }
 }
+
+/* ── Large screens ≥ 1280px ─────────────────────────────────────── */
+@media (min-width: 1280px) {
+  .hero-content-overlay { padding: 2.5rem 4rem !important; }
+  /* Constrain shop content to a readable max-width and center it */
+  .shop-scroll {
+    padding: 0 2.5rem 1rem !important;
+  }
+  .shop-scroll > * {
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Taller hero banner */
+  .hero-slider-wrap { min-height: 420px !important; }
+  .hero-spacer      { height: 420px !important; }
+}
+
+/* ── Extra-large screens ≥ 1600px ───────────────────────────────── */
+@media (min-width: 1600px) {
+  .shop-scroll {
+    padding: 0 3rem 1rem !important;
+  }
+  .hero-content-overlay { padding: 3rem 5rem !important; }
+  .hero-slider-wrap { min-height: 500px !important; }
+  .hero-spacer      { height: 500px !important; }
+}
+
+/* ── Ultra-wide screens ≥ 1920px ────────────────────────────────── */
+@media (min-width: 1920px) {
+  .shop-scroll > * {
+    max-width: 1600px;
+  }
+  .hero-slider-wrap { min-height: 560px !important; }
+  .hero-spacer      { height: 560px !important; }
+}

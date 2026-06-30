@@ -308,6 +308,54 @@ function HeroSlider({ onFlashClick, onBundlesClick }) {
       )}
       <div className="hero-spacer" style={{ height: 340 }} />
 
+      {/* Slide content overlay */}
+      {(s.title || s.sub || s.cta) && (
+        <div className="hero-content-overlay" style={{
+          position: 'absolute', inset: 0, zIndex: 5,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '2rem 2.5rem',
+          background: s._bgImage ? 'linear-gradient(90deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 100%)' : 'transparent',
+          opacity: anim ? 1 : 0, transition: 'opacity 0.3s ease',
+        }}>
+          {s.title && (
+            <h2 style={{
+              fontFamily: 'Sora, sans-serif', fontWeight: 900, margin: '0 0 0.5rem',
+              fontSize: 'clamp(1.4rem, 4vw, 2.25rem)', color: '#fff',
+              whiteSpace: 'pre-line', textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              maxWidth: 520,
+            }}>{s.title}</h2>
+          )}
+          {s.sub && (
+            <p style={{
+              fontFamily: 'Inter, sans-serif', margin: '0 0 1.25rem',
+              fontSize: 'clamp(0.8rem, 2vw, 1rem)', color: 'rgba(255,255,255,0.75)',
+              maxWidth: 420, textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+            }}>{s.sub}</p>
+          )}
+          {s.cta && (
+            <button
+              onClick={() => {
+                const link = s._ctaLink || ''
+                if (link.startsWith('http')) { window.open(link, '_blank') }
+                else if (link) { navigate(link) }
+              }}
+              style={{
+                alignSelf: 'flex-start', padding: '0.6rem 1.4rem',
+                background: s.accent || '#7C3AED', border: 'none', borderRadius: 10,
+                color: '#fff', fontFamily: 'Sora, sans-serif', fontWeight: 700,
+                fontSize: '0.9rem', cursor: 'pointer', letterSpacing: '0.01em',
+                boxShadow: `0 4px 20px ${s.accentGlow || 'rgba(124,58,237,0.45)'}`,
+                transition: 'transform 0.13s, box-shadow 0.13s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 6px 24px ${s.accentGlow || 'rgba(124,58,237,0.6)'}` }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `0 4px 20px ${s.accentGlow || 'rgba(124,58,237,0.45)'}` }}
+            >
+              {s.cta}
+            </button>
+          )}
+        </div>
+      )}
+
       {[{ fn: prev, pos: { left: 14 }, Icon: TbChevronLeft }, { fn: next, pos: { right: 14 }, Icon: TbChevronRight }].map(({ fn, pos, Icon }, i) => (
         <button key={i} onClick={fn} className="hero-nav-btn" style={{
           position: 'absolute', top: '50%', transform: 'translateY(-50%)', ...pos, zIndex: 10,
