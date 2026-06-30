@@ -229,7 +229,7 @@ export default function FlashSalesPage() {
       <div style={{ background: 'rgba(155,79,237,0.07)', border: `1px solid ${T.border}`, borderRadius: '0.875rem', padding: '0.875rem 1.125rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <Clock size={16} color={T.purple} style={{ flexShrink: 0 }} />
         <p style={{ margin: 0, color: T.textSub, fontSize: '0.8125rem', lineHeight: 1.5 }}>
-          Flash sales auto-expire via <strong style={{ color: T.purpleText }}>Celery Beat</strong> (checks every minute). Set a price + end time and it runs automatically — no manual intervention needed.
+          Flash sales auto-expire via <strong style={{ color: T.purpleText }}>Celery Beat</strong> (checks every minute). Set a price + end time and it runs automatically - no manual intervention needed.
         </p>
       </div>
 

@@ -63,7 +63,7 @@ export function useWebSocket(conversationId, onMessage) {
     socket.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
-        // Intercept pong — clear the timeout, don't forward to handler
+        // Intercept pong - clear the timeout, don't forward to handler
         if (data.type === 'pong') {
           clearTimeout(pongTimer.current)
           pongTimer.current = null
@@ -74,7 +74,7 @@ export function useWebSocket(conversationId, onMessage) {
     }
 
     socket.onerror = () => {
-      // onerror is always followed by onclose — let onclose handle retry
+      // onerror is always followed by onclose - let onclose handle retry
     }
 
     socket.onclose = (event) => {

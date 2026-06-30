@@ -2,12 +2,12 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 
 class LoginRateThrottle(AnonRateThrottle):
-    """10 login attempts per minute per IP — brute-force protection."""
+    """10 login attempts per minute per IP - brute-force protection."""
     scope = 'login'
 
 
 class RegisterRateThrottle(AnonRateThrottle):
-    """5 registrations per hour per IP — account creation spam protection."""
+    """5 registrations per hour per IP - account creation spam protection."""
     scope = 'register'
 
 
@@ -22,5 +22,5 @@ class OrderRateThrottle(UserRateThrottle):
 
 
 class PromoValidateRateThrottle(UserRateThrottle):
-    """60 promo code checks per hour — prevents enumeration."""
+    """60 promo code checks per hour - prevents enumeration."""
     scope = 'promo_validate'

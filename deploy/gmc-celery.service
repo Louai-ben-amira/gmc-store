@@ -1,5 +1,5 @@
 [Unit]
-Description=GMC Store — Celery worker
+Description=GMC Store - Celery worker
 After=network.target redis.service
 
 [Service]

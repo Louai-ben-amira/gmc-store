@@ -3,7 +3,7 @@ import api from './index'
 export const getWallet           = ()       => api.get('/wallet/')
 export const getTransactions     = (params) => api.get('/wallet/transactions/', { params })
 
-// Recharge — new ticket/D17 flow
+// Recharge - new ticket/D17 flow
 export const getPaymentMethods   = ()       => api.get('/payments/payment-methods/')
 export const previewRecharge     = (data)   => api.post('/payments/recharge/preview/', data)
 export const submitRecharge      = (data)   => api.post('/payments/recharge/', data, {

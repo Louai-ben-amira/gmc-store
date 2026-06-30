@@ -76,4 +76,4 @@ class ReferralBonus(models.Model):
 
     def __str__(self):
         eligible = 'credited' if self.was_eligible else 'skipped (balance too low)'
-        return f"Referral: {self.referrer.username} ← {self.referred_user.username} — {eligible}"
+        return f"Referral: {self.referrer.username} ← {self.referred_user.username} - {eligible}"

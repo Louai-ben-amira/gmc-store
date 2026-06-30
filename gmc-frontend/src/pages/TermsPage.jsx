@@ -123,7 +123,7 @@ export default function TermsPage() {
           <Card id="products-&-delivery">
             <SectionHeading icon={TbCircleCheck}>2. Products & Digital Delivery</SectionHeading>
             <Body>
-              GMC Store sells exclusively digital goods: game top-up codes, gift cards, premium account credentials, internet packages, and bundles. All items are delivered electronically — no physical shipment takes place.
+              GMC Store sells exclusively digital goods: game top-up codes, gift cards, premium account credentials, internet packages, and bundles. All items are delivered electronically - no physical shipment takes place.
             </Body>
             <ul style={{ padding: 0, margin: '0 0 0.75rem' }}>
               <Bullet color="#3DDC84">Delivery is typically instant or within a few minutes of payment confirmation.</Bullet>
@@ -132,7 +132,7 @@ export default function TermsPage() {
               <Bullet color="#f59e0b">Stock availability is shown in real time; if a product goes out of stock after your payment, you will receive a full refund to your wallet.</Bullet>
             </ul>
             <Alert color="#7C3AED" Icon={TbAlertTriangle}>
-              Digital codes and credentials are considered <strong>delivered</strong> the moment they are displayed on your order page. Screenshot or copy them immediately — we cannot recover a code that you have already viewed and then lost.
+              Digital codes and credentials are considered <strong>delivered</strong> the moment they are displayed on your order page. Screenshot or copy them immediately - we cannot recover a code that you have already viewed and then lost.
             </Alert>
           </Card>
 
@@ -155,7 +155,7 @@ export default function TermsPage() {
             <SectionHeading icon={TbReceiptRefund} color="#FF6B85">4. Refund Policy</SectionHeading>
 
             <Alert color="#FF6B85" Icon={TbAlertTriangle}>
-              <strong>No refunds are issued for delivered digital codes or revealed credentials.</strong> Once a code or account password is shown on your order page, the product is considered delivered and consumed — we have no way to un-deliver a digital item.
+              <strong>No refunds are issued for delivered digital codes or revealed credentials.</strong> Once a code or account password is shown on your order page, the product is considered delivered and consumed - we have no way to un-deliver a digital item.
             </Alert>
 
             <Body>

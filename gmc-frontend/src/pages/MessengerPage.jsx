@@ -46,7 +46,7 @@ function TypingBubble() {
 /* ── Order card ──────────────────────────────────────────────────────── */
 function OrderCard({ metadata }) {
   const statusMap = {
-    paid_escrow: { label: 'Paid — In Escrow', color: '#f59e0b' },
+    paid_escrow: { label: 'Paid - In Escrow', color: '#f59e0b' },
     in_progress: { label: 'In Progress',       color: '#38BDF8' },
     completed:   { label: 'Completed',          color: '#3DDC84' },
     disputed:    { label: 'Disputed',           color: '#ff4d6d' },
@@ -226,7 +226,7 @@ function ActionBar({ orderId, orderStatus, serviceStatus, isAdmin, onAction }) {
               <TbCircleCheck size={26} color="#3DDC84" />
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-              Confirm you have received your service in full. This <strong style={{ color: 'var(--text-primary)' }}>releases payment to the seller</strong> — this action is permanent.
+              Confirm you have received your service in full. This <strong style={{ color: 'var(--text-primary)' }}>releases payment to the seller</strong> - this action is permanent.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -448,7 +448,7 @@ export default function MessengerPage() {
             <div style={{ padding: '5px 16px', background: wsStatus === 'connecting' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)', borderBottom: `1px solid ${wsStatus === 'connecting' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: wsStatus === 'connecting' ? '#f59e0b' : '#ef4444', animation: 'wsPulse 1.4s ease-in-out infinite' }} />
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.6875rem', color: wsStatus === 'connecting' ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
-                {wsStatus === 'connecting' ? 'Reconnecting…' : 'Connection lost — messages saved when reconnected'}
+                {wsStatus === 'connecting' ? 'Reconnecting…' : 'Connection lost - messages saved when reconnected'}
               </span>
             </div>
           )}

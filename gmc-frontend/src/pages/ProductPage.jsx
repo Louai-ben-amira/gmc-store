@@ -521,7 +521,7 @@ export default function ProductPage() {
                 </div>
               </div>
 
-              {/* ── RIGHT COLUMN — purchase panel ────────────── */}
+              {/* ── RIGHT COLUMN - purchase panel ────────────── */}
               <div className="product-detail-sidebar" style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
 
                 {/* Variant selector */}
@@ -652,7 +652,7 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Points slider — only shown when admin enabled points for this product */}
+                {/* Points slider - only shown when admin enabled points for this product */}
                 {isAuthenticated() && user && maxRounded > 0 && product.points_purchasable && (
                   <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
                     <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.625rem' }}>{t('product.redeemPoints')}</p>
@@ -769,7 +769,7 @@ export default function ProductPage() {
                 Sending to
               </p>
               <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
-                {topupModal.phone || '—'}
+                {topupModal.phone || '-'}
               </p>
             </div>
 
@@ -781,7 +781,7 @@ export default function ProductPage() {
             }}>
               <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.65 }}>
                 Your forfait will be sent to your number <strong style={{ color: 'var(--text-primary)' }}>very soon</strong>.
-                Please wait a few minutes — do not re-order.
+                Please wait a few minutes - do not re-order.
               </p>
             </div>
 

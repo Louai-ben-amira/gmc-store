@@ -323,7 +323,7 @@ function RegisterForm({ onSuccess, switchToLogin }) {
     const e = {}
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
     if (!form.username.trim()) e.username = 'Username is required'
-    if (!form.email.trim()) e.email = 'Email is required — used for order notifications'
+    if (!form.email.trim()) e.email = 'Email is required - used for order notifications'
     else if (!emailRe.test(form.email.trim())) e.email = 'Enter a valid email address'
     if (form.password.length < 8)  e.password = 'Min 8 characters'
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
@@ -416,7 +416,7 @@ function RegisterForm({ onSuccess, switchToLogin }) {
 
       <InputField icon={Lock} type="password" placeholder={t('fields.confirmPassword')} value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} error={errors.confirmPassword} />
 
-      {/* Referral code — optional */}
+      {/* Referral code - optional */}
       <div style={{ marginBottom: '0.875rem' }}>
         <div className="auth-input-wrap">
           <Gift size={14} style={{
@@ -433,7 +433,7 @@ function RegisterForm({ onSuccess, switchToLogin }) {
         </div>
         {form.referral_code && (
           <p style={{ margin: '3px 0 0 2px', fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'Inter, sans-serif' }}>
-            🎁 Referral code applied — your friend earns a bonus!
+            🎁 Referral code applied - your friend earns a bonus!
           </p>
         )}
       </div>

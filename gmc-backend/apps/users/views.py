@@ -95,7 +95,7 @@ def social_auth(request):
             user = User.objects.create_user(
                 username=username, email=email,
                 first_name=first_name, last_name=last_name,
-                password=None,  # unusable password — social-only account
+                password=None,  # unusable password - social-only account
             )
         else:
             # Update name if still blank

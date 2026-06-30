@@ -41,12 +41,12 @@ class PromoCode(models.Model):
 class Order(models.Model):
     class Status(models.TextChoices):
         PENDING_CREDENTIALS = 'pending_credentials', 'Pending Credentials'
-        PAID_ESCROW         = 'paid_escrow',         'Paid — In Escrow'
+        PAID_ESCROW         = 'paid_escrow',         'Paid - In Escrow'
         IN_PROGRESS         = 'in_progress',         'In Progress'
         COMPLETED           = 'completed',           'Completed'
         DISPUTED            = 'disputed',            'Disputed'
         CLOSED              = 'closed',              'Closed'
-        # Legacy values — kept so existing rows don't break
+        # Legacy values - kept so existing rows don't break
         PENDING             = 'pending',             'Pending (legacy)'
         CANCELLED           = 'cancelled',           'Cancelled'
 
@@ -80,7 +80,7 @@ class Order(models.Model):
                            default='pending', blank=True
                        )
     requires_account = models.BooleanField(default=False)
-    # Code reveal tracking — set on first client reveal
+    # Code reveal tracking - set on first client reveal
     code_viewed_at   = models.DateTimeField(null=True, blank=True)
     code_view_ip     = models.GenericIPAddressField(null=True, blank=True)
     created_at       = models.DateTimeField(auto_now_add=True)
@@ -107,7 +107,7 @@ class Order(models.Model):
 
 
 class OrderCodeViewLog(models.Model):
-    """Immutable audit log — one row per reveal attempt (idempotent on first reveal)."""
+    """Immutable audit log - one row per reveal attempt (idempotent on first reveal)."""
     order      = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='view_logs')
     viewed_at  = models.DateTimeField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)
@@ -128,7 +128,7 @@ class OrderCredentials(models.Model):
     revealed_at    = models.DateTimeField(null=True, blank=True)  # first seller reveal
     deleted_at     = models.DateTimeField(null=True, blank=True)  # payload purge timestamp
     created_at     = models.DateTimeField(auto_now_add=True)
-    # Audit log — every reveal: {user_id, username, role, accessed_at, ip}
+    # Audit log - every reveal: {user_id, username, role, accessed_at, ip}
     access_log     = models.JSONField(default=list)
 
     class Meta:

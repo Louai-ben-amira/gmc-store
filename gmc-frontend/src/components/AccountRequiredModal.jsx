@@ -165,7 +165,7 @@ export default function AccountRequiredModal({ product, onConfirm, onCancel }) {
             </div>
           ))}
 
-          {/* Agreement checkbox — only if there are fields */}
+          {/* Agreement checkbox - only if there are fields */}
           {fields.length > 0 && (
             <label style={{ display: 'flex', gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
               <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}

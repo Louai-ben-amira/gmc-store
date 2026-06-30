@@ -399,7 +399,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
           <StockBadge n={stock} />
         </div>
 
-        {/* Wishlist — circle top-right */}
+        {/* Wishlist - circle top-right */}
         <button
           className={`pcard-wish${liked ? ' on' : ''}`}
           onClick={doWish}
@@ -411,7 +411,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
           }
         </button>
 
-        {/* Discount badge — bottom right */}
+        {/* Discount badge - bottom right */}
         {disc > 0 && !flash && (
           <div style={{
             position: 'absolute', bottom: 12, right: 12, zIndex: 8,

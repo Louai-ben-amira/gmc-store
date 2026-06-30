@@ -17,7 +17,7 @@
     "seconds": "s",
     "ended": "Sale ended",
     "save": "Save {{pct}}%",
-    "timeLimited": "FLASH SALES — TIME-LIMITED ONLY",
+    "timeLimited": "FLASH SALES - TIME-LIMITED ONLY",
     "autoRevert": "Prices revert automatically when the timer ends."
   },
   "product": {
@@ -62,7 +62,7 @@
     "total": "Total",
     "cancel": "Cancel",
     "reviews": "REVIEWS",
-    "verifiedPurchase": "VERIFIED PURCHASE — SHARE YOUR EXPERIENCE",
+    "verifiedPurchase": "VERIFIED PURCHASE - SHARE YOUR EXPERIENCE",
     "reviewPlaceholder": "What did you think of this product?",
     "submitReview": "Submit Review",
     "submitting": "Submitting…",

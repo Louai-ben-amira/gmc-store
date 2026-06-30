@@ -47,7 +47,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           animation: 'scaleIn 0.22s ease both',
           boxShadow: '0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(123,47,255,0.1)',
         }}>
-        {/* Drag handle — visible only on mobile when acting as a sheet */}
+        {/* Drag handle - visible only on mobile when acting as a sheet */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 0' }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
         </div>

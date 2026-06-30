@@ -13,7 +13,7 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
     user_username        = serializers.CharField(source='user.username', read_only=True)
     reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, default=None)
 
-    # Computed breakdown fields — read-only, always server-side
+    # Computed breakdown fields - read-only, always server-side
     tax_rate      = serializers.DecimalField(max_digits=5, decimal_places=4, read_only=True)
     wallet_credit = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
@@ -45,7 +45,7 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
             if ticket_value is None or ticket_value <= 0:
                 raise serializers.ValidationError({'ticket_value': 'Ticket value must be greater than 0.'})
 
-            # Uniqueness check — prevent the same ticket code being submitted twice
+            # Uniqueness check - prevent the same ticket code being submitted twice
             qs = RechargeRequest.objects.filter(
                 method__in=list(TICKET_METHODS),
                 ticket_code=attrs['ticket_code'].strip(),

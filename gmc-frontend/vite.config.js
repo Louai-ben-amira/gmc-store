@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'GMC Store',
         short_name: 'GMC Store',
-        description: 'Digital codes & gift cards — Tunisia\'s gaming store',
+        description: 'Digital codes & gift cards - Tunisia\'s gaming store',
         theme_color: '#0a0512',
         background_color: '#0a0512',
         display: 'standalone',
@@ -47,7 +47,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            // API calls — network first, fall back to cache for up to 5 minutes
+            // API calls - network first, fall back to cache for up to 5 minutes
             urlPattern: /^https:\/\/gmcstore\.tn\/api\//,
             handler: 'NetworkFirst',
             options: {
@@ -57,7 +57,7 @@ export default defineConfig({
             },
           },
           {
-            // Media files (product images, avatars) — cache first
+            // Media files (product images, avatars) - cache first
             urlPattern: /^https:\/\/gmcstore\.tn\/media\//,
             handler: 'CacheFirst',
             options: {
@@ -66,7 +66,7 @@ export default defineConfig({
             },
           },
           {
-            // Google Fonts — cache first
+            // Google Fonts - cache first
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
             handler: 'CacheFirst',
             options: {

@@ -54,7 +54,7 @@ function ConvItem({ conv, active, online, onClick }) {
   const client  = conv.client_detail
   const name    = client?.first_name ? `${client.first_name} ${client.last_name || ''}`.trim() : client?.username || 'Unknown'
   const unread  = conv.unread_count || 0
-  const lastMsg = conv.last_message?.body || '—'
+  const lastMsg = conv.last_message?.body || '-'
   return (
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%',
@@ -244,7 +244,7 @@ export default function InboxPage() {
     refetchInterval: 8000,
   })
 
-  // Global admin notification WS — receives new messages from ANY conversation
+  // Global admin notification WS - receives new messages from ANY conversation
   const onAdminNotification = useCallback((msg) => {
     if (msg.type !== 'new_message_notification') return
     // Bump the conversation to top + refresh list
@@ -428,7 +428,7 @@ export default function InboxPage() {
         setInput('')
         scrollToBottom()
 
-        // Always save via HTTP — reliable acknowledgment. The backend broadcasts
+        // Always save via HTTP - reliable acknowledgment. The backend broadcasts
         // the saved message via WebSocket so the client receives it in real-time.
         const fd = new FormData()
         fd.append('body', body)
@@ -492,7 +492,7 @@ export default function InboxPage() {
           <>
             {/* Header */}
             <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid #1e1e2e', display: 'flex', alignItems: 'center', gap: '0.875rem', background: '#13131a', flexShrink: 0 }}>
-              {/* Back button — only on mobile */}
+              {/* Back button - only on mobile */}
               <button className="inbox-back-btn" onClick={() => setMobileView('list')} style={{ background: 'rgba(127,119,221,0.12)', border: '1px solid #2a2a38', borderRadius: 8, cursor: 'pointer', color: '#7F77DD', display: 'none', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, flexShrink: 0 }}>
                 ‹
               </button>
@@ -533,7 +533,7 @@ export default function InboxPage() {
                   <div style={{ padding: '6px 16px', background: wsStatus === 'connecting' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)', borderBottom: `1px solid ${wsStatus === 'connecting' ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'}`, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: wsStatus === 'connecting' ? '#f59e0b' : '#ef4444', animation: 'wsPulse 1.4s ease-in-out infinite' }} />
                     <span style={{ fontSize: '0.75rem', color: wsStatus === 'connecting' ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
-                      {wsStatus === 'connecting' ? 'Reconnecting to live chat…' : 'Disconnected — messages may be delayed'}
+                      {wsStatus === 'connecting' ? 'Reconnecting to live chat…' : 'Disconnected - messages may be delayed'}
                     </span>
                     <style>{`@keyframes wsPulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
                   </div>
@@ -601,7 +601,7 @@ export default function InboxPage() {
                 </form>
               </div>
 
-              {/* Context panel — hidden on mobile */}
+              {/* Context panel - hidden on mobile */}
               {showContext && <div className="inbox-context-panel"><ContextPanel clientId={clientId} clientName={clientName} /></div>}
             </div>
           </>

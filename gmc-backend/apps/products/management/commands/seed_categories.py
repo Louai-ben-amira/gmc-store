@@ -218,6 +218,6 @@ class Command(BaseCommand):
 
         total = Category.objects.count()
         self.stdout.write(self.style.SUCCESS(
-            f'Done — {total} categories in DB '
+            f'Done - {total} categories in DB '
             f'({created_count} created, {updated_count} updated)'
         ))

@@ -297,7 +297,7 @@ export default function ProfilePage() {
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {[
                   { Icon: TbMail,  val: liveUser?.email },
-                  { Icon: TbPhone, val: liveUser?.phone || '—' },
+                  { Icon: TbPhone, val: liveUser?.phone || '-' },
                 ].map(({ Icon, val }) => (
                   <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 9 }}>
                     <Icon size={12} color="var(--text-primary)" />
@@ -505,14 +505,14 @@ export default function ProfilePage() {
 
                     {/* Share text */}
                     <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                      Share your code and earn <strong style={{ color: '#f59e0b' }}>+2 DT</strong> for every friend who signs up — as long as your wallet balance is <strong style={{ color: '#f59e0b' }}>≥ 10 DT</strong> at the time they join.
+                      Share your code and earn <strong style={{ color: '#f59e0b' }}>+2 DT</strong> for every friend who signs up - as long as your wallet balance is <strong style={{ color: '#f59e0b' }}>≥ 10 DT</strong> at the time they join.
                     </p>
                   </div>
 
                   {/* Stats row */}
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <StatCard Icon={TbUsers} label="Friends Joined" value={referralData?.referrals_count ?? '—'} color="#A78BFA" sublabel="REFERRALS" />
-                    <StatCard Icon={TbGift}  label="DT Earned"      value={referralData?.total_earned != null ? `${parseFloat(referralData.total_earned).toFixed(2)} DT` : '—'} color="#f59e0b" sublabel="BONUS CREDITED" />
+                    <StatCard Icon={TbUsers} label="Friends Joined" value={referralData?.referrals_count ?? '-'} color="#A78BFA" sublabel="REFERRALS" />
+                    <StatCard Icon={TbGift}  label="DT Earned"      value={referralData?.total_earned != null ? `${parseFloat(referralData.total_earned).toFixed(2)} DT` : '-'} color="#f59e0b" sublabel="BONUS CREDITED" />
                   </div>
 
                   {/* History list */}

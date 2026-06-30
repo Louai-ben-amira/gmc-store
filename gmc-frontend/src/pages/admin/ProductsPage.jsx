@@ -213,7 +213,7 @@ function RequiredFieldsEditor({ fields, onChange }) {
       </div>
       {fields.length === 0 && (
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-          No required fields — buyers won't be asked for extra info.
+          No required fields - buyers won't be asked for extra info.
         </p>
       )}
       {fields.map((f, i) => (
@@ -259,7 +259,7 @@ function RequiredFieldsEditor({ fields, onChange }) {
           </div>
           {f.type === 'tel' && (
             <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#34D399' }}>
-              📱 Phone field — buyers will see the topup waiting screen after purchase instead of a code.
+              📱 Phone field - buyers will see the topup waiting screen after purchase instead of a code.
             </p>
           )}
         </div>
@@ -349,9 +349,9 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         <label style={LBL}>Delivery Method *</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
           {[
-            { value: 'code',    icon: '🎟️', label: 'Digital Code', desc: 'Upload codes — buyer receives a code automatically' },
+            { value: 'code',    icon: '🎟️', label: 'Digital Code', desc: 'Upload codes - buyer receives a code automatically' },
             { value: 'service', icon: '👤', label: 'Account Service', desc: 'You deliver manually via buyer\'s account credentials' },
-            { value: 'topup',   icon: '📱', label: 'Phone Topup', desc: 'Buyer provides phone number — you top up manually' },
+            { value: 'topup',   icon: '📱', label: 'Phone Topup', desc: 'Buyer provides phone number - you top up manually' },
           ].map(opt => {
             const active = form.delivery_type === opt.value
             return (
@@ -417,7 +417,7 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         </label>
       </div>
 
-      {/* Extra required fields — only for service products */}
+      {/* Extra required fields - only for service products */}
       {form.delivery_type === 'service' && (
         <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '0.875rem' }}>
           <RequiredFieldsEditor
@@ -1054,7 +1054,7 @@ export default function ProductsPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={modal === 'view-codes'} onClose={closeModal} title={`Codes — ${selected?.name}`} size="lg">
+      <Modal isOpen={modal === 'view-codes'} onClose={closeModal} title={`Codes - ${selected?.name}`} size="lg">
         {/* summary pills + sync button */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'stretch' }}>
           {[
@@ -1084,7 +1084,7 @@ export default function ProductsPage() {
         {/* stock mismatch warning */}
         {codesData && selected && codesData.available !== selected.stock_count && (
           <div style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.3)', borderRadius: 8, padding: '0.5rem 0.875rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#F5A623' }}>
-            ⚠️ Stock count mismatch — product shows <b>{selected.stock_count}</b> in stock but there are <b>{codesData.available}</b> available codes.{' '}
+            ⚠️ Stock count mismatch - product shows <b>{selected.stock_count}</b> in stock but there are <b>{codesData.available}</b> available codes.{' '}
             Click <b>⟳ Sync Stock</b> to fix.
           </div>
         )}

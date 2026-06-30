@@ -1,5 +1,5 @@
 /**
- * BlockRating — renders ■■■■□ style rating glyphs instead of star icons.
+ * BlockRating - renders ■■■■□ style rating glyphs instead of star icons.
  * max: total blocks (default 5)
  */
 export default function BlockRating({ value = 0, max = 5, className = '' }) {

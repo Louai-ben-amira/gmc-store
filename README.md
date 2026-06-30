@@ -1,4 +1,4 @@
-# GMC Store — Digital Goods Marketplace
+# GMC Store - Digital Goods Marketplace
 
 A production-ready digital goods marketplace with Django backend and React frontend.
 

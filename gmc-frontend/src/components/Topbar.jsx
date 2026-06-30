@@ -320,7 +320,7 @@ function MegaDropdown({ item, onClose }) {
         )}
       </div>
 
-      {/* Groups — rendered as rows */}
+      {/* Groups - rendered as rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {rows.map((row, ri) => (
           <div key={ri} style={{
@@ -715,7 +715,7 @@ const { t } = useTranslation('common')
         maxWidth: 1400, margin: '0 auto', width: '100%',
       }}>
 
-        {/* Hamburger — mobile only */}
+        {/* Hamburger - mobile only */}
         <button
           className="gmc-mobile-btn"
           onClick={() => setMobileOpen(o => !o)}
@@ -741,14 +741,14 @@ const { t } = useTranslation('common')
           />
         </Link>
 
-        {/* Nav — hidden on mobile */}
+        {/* Nav - hidden on mobile */}
         <nav className="gmc-topbar-nav" style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           {resolvedNavItems.map(item => (
             <NavItem key={item.label} item={item} isActive={isActive(item)} />
           ))}
         </nav>
 
-        {/* Search — hidden on mobile */}
+        {/* Search - hidden on mobile */}
         <div className="gmc-topbar-search" style={{ position: 'relative', width: 200, flexShrink: 0 }}>
           <Search size={13} style={{
             position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)',
@@ -788,7 +788,7 @@ const { t } = useTranslation('common')
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
 
-          {/* Wallet chip — shown when logged in */}
+          {/* Wallet chip - shown when logged in */}
           {authed && walletData != null && (
             <Link to="/wallet" style={{ textDecoration: 'none' }}>
               <div style={{

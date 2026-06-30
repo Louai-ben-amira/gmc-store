@@ -1,5 +1,5 @@
 /**
- * AdminUI — shared design-system components for the GMC admin panel.
+ * AdminUI - shared design-system components for the GMC admin panel.
  *
  * Import what you need:
  *   import { Panel, PageHeader, StatusPill, DataTable, … } from '../../components/admin/AdminUI'
@@ -41,7 +41,7 @@ export const T = {
   body:          "'Outfit', sans-serif",
 }
 
-/* pill colour maps — keyed by semantic status string */
+/* pill colour maps - keyed by semantic status string */
 const PILL_MAP = {
   // order / recharge / crypto statuses
   completed:   { bg: 'rgba(54,255,192,0.12)',  border: 'rgba(54,255,192,0.35)',  color: '#36FFC0' },
@@ -68,7 +68,7 @@ const PILL_MAP = {
    LAYOUT PRIMITIVES
    ═══════════════════════════════════════════════════════════ */
 
-/** Root page wrapper — sets bg, scroll, padding */
+/** Root page wrapper - sets bg, scroll, padding */
 export function PageShell({ children, style = {} }) {
   return (
     <div className="admin-page-padding" style={{
@@ -136,7 +136,7 @@ export function Panel({ children, style = {} }) {
   )
 }
 
-/** Panel title row — title + optional subtitle + optional right link */
+/** Panel title row - title + optional subtitle + optional right link */
 export function PanelHeader({ title, subtitle, action, actionLabel, onAction }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -166,7 +166,7 @@ export function StatCard({ icon, label, value, accent = T.warning, style = {} })
       </div>
       <div>
         <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-        <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 18, color: T.textPrimary, marginTop: 1 }}>{value ?? '—'}</div>
+        <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 18, color: T.textPrimary, marginTop: 1 }}>{value ?? '-'}</div>
       </div>
     </div>
   )
@@ -180,7 +180,7 @@ export function HeroStat({ label, value, unit = 'DT', foot = [], children }) {
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ fontSize: 11, color: T.textSub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</div>
         <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 38, color: T.textPrimary, lineHeight: 1 }}>
-          {value ?? '—'}<span style={{ fontSize: 18, color: '#C39CF5', marginLeft: 4 }}>{unit}</span>
+          {value ?? '-'}<span style={{ fontSize: 18, color: '#C39CF5', marginLeft: 4 }}>{unit}</span>
         </div>
       </div>
       {children && <div style={{ marginTop: 14, position: 'relative', zIndex: 1 }}>{children}</div>}
@@ -188,7 +188,7 @@ export function HeroStat({ label, value, unit = 'DT', foot = [], children }) {
         <div style={{ display: 'flex', gap: 22, marginTop: 14, position: 'relative', zIndex: 1 }}>
           {foot.map(({ label: fl, value: fv }) => (
             <div key={fl} style={{ fontSize: 11, color: '#8A7AAE' }}>
-              {fl} <b style={{ color: T.textPrimary, fontFamily: T.mono, fontWeight: 600 }}>{fv ?? '—'}</b>
+              {fl} <b style={{ color: T.textPrimary, fontFamily: T.mono, fontWeight: 600 }}>{fv ?? '-'}</b>
             </div>
           ))}
         </div>
@@ -242,7 +242,7 @@ export function DataTable({ headers, children, empty = 'No data.', loading = fal
 export function StatusPill({ status, label }) {
   const key  = (status || '').toLowerCase().replace(' ', '_')
   const cfg  = PILL_MAP[key] || { bg: 'rgba(155,79,237,0.12)', border: `rgba(155,79,237,0.35)`, color: T.purpleText }
-  const text = label || (status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : '—')
+  const text = label || (status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : '-')
   return (
     <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color, whiteSpace: 'nowrap', display: 'inline-block' }}>
       {text}
@@ -271,7 +271,7 @@ export function ClientCell({ name, sub, index = 0 }) {
         {(name || '?').charAt(0).toUpperCase()}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ color: T.textPrimary, fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '—'}</div>
+        <div style={{ color: T.textPrimary, fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '-'}</div>
         {sub && <div style={{ color: T.textMuted, fontSize: '0.7rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
       </div>
     </div>
@@ -283,7 +283,7 @@ export function ProductCell({ icon = '🎮', name, sub }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
       <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(91,77,237,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>{icon}</div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ color: T.textPrimary, fontWeight: 500, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '—'}</div>
+        <div style={{ color: T.textPrimary, fontWeight: 500, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || '-'}</div>
         {sub && <div style={{ color: T.textMuted, fontSize: '0.7rem' }}>{sub}</div>}
       </div>
     </div>
@@ -363,7 +363,7 @@ export function IconBtn({ children, onClick, title, color = T.purpleText, bg = '
   )
 }
 
-/** Money value — always JetBrains Mono, green */
+/** Money value - always JetBrains Mono, green */
 export function Money({ amount, color = T.success }) {
   const val = parseFloat(amount ?? 0).toFixed(2)
   return <span style={{ fontFamily: T.mono, fontWeight: 700, color }}>{val} DT</span>

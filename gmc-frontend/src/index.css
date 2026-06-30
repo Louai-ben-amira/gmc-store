@@ -1,5 +1,5 @@
 ﻿/* ═══════════════════════════════════════════════════════════════════
-   GMC Store — Design System v4 "Purple Storm"
+   GMC Store - Design System v4 "Purple Storm"
    Primary: Purple #7C3AED  |  Success/Price: Green #3DDC84
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -61,17 +61,17 @@
   --color-bg-elevated: #181825;
   --color-bg-sunken:   #08080F;
 
-  /* Accent — PURPLE, primary brand */
+  /* Accent - PURPLE, primary brand */
   --color-accent:        #7C3AED;
   --color-accent-dim:    #1A0F2E;
   --color-accent-border: #3D1F7A;
 
-  /* Success — GREEN, prices / wallet / delivery */
+  /* Success - GREEN, prices / wallet / delivery */
   --color-success:        #3DDC84;
   --color-success-dim:    #0F1813;
   --color-success-border: #21392C;
 
-  /* Urgent — flash sales / errors ONLY */
+  /* Urgent - flash sales / errors ONLY */
   --color-urgent:        #FF4D6D;
   --color-urgent-dim:    #1F0F12;
   --color-urgent-border: #3A1620;
@@ -90,7 +90,7 @@
   --font-mono:    'JetBrains Mono', monospace;
 }
 
-/* ── Theme tokens — DARK (default) ───────────────────────────────── */
+/* ── Theme tokens - DARK (default) ───────────────────────────────── */
 :root,
 [data-theme="dark"] {
   --bg-base:      #0B0B12;
@@ -172,7 +172,7 @@
   --grad-card:         linear-gradient(160deg, #111119 0%, #0B0B12 100%);
 }
 
-/* ── Theme tokens — LIGHT ─────────────────────────────────────────── */
+/* ── Theme tokens - LIGHT ─────────────────────────────────────────── */
 [data-theme="light"] {
   --bg-base:      #FAF9FC;
   --bg-surface:   #FFFFFF;
@@ -212,7 +212,7 @@
   --card-img-opacity: 1;
   --input-bg:   #F3F0FA;
 
-  /* Legacy aliases — light overrides */
+  /* Legacy aliases - light overrides */
   --void:          var(--bg-base);
   --surface-0:     var(--bg-base);
   --surface-1:     var(--bg-surface);
@@ -792,7 +792,7 @@ img { max-width: 100%; height: auto; }
 .img-aspect-square  { aspect-ratio: 1 / 1; object-fit: cover; }
 .img-aspect-product { aspect-ratio: 4 / 3; object-fit: cover; }
 .img-aspect-hero    { aspect-ratio: 16 / 9; object-fit: cover; }
-/* ── Light mode — safety-net overrides ───────────────────────────── */
+/* ── Light mode - safety-net overrides ───────────────────────────── */
 /* These catch hardcoded dark values in JS-injected <style> blocks
    that CSS variables alone can't override (border: rgba(255,255,255,...)) */
 [data-theme="light"] .pcard {
@@ -875,7 +875,7 @@ img { max-width: 100%; height: auto; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   PHONE POLISH  — ≤ 640px (2-col product grid breakpoint)
+   PHONE POLISH  - ≤ 640px (2-col product grid breakpoint)
    All rules here use !important because they override injected <style>
    blocks that have no class specificity hierarchy.
 ══════════════════════════════════════════════════════════════════════ */
@@ -1149,19 +1149,19 @@ img { max-width: 100%; height: auto; }
   left: 0 !important;
 }
 
-/* Logos and brand icons — never flip */
+/* Logos and brand icons - never flip */
 [dir="rtl"] .gmc-logo,
 [dir="rtl"] img[alt="GMC Store"] {
   transform: none !important;
 }
 
-/* Directional chevron/arrow icons — flip in RTL */
+/* Directional chevron/arrow icons - flip in RTL */
 [dir="rtl"] .gmc-arrow-icon,
 [dir="rtl"] .icon-directional {
   transform: scaleX(-1);
 }
 
-/* Chat messages — "my messages" always on the end (right in LTR, left in RTL) */
+/* Chat messages - "my messages" always on the end (right in LTR, left in RTL) */
 [dir="rtl"] .chat-msg-mine {
   margin-inline-start: auto;
   margin-inline-end: 0;
@@ -1173,7 +1173,7 @@ img { max-width: 100%; height: auto; }
   border-radius: 4px 16px 16px 16px;
 }
 
-/* Product cards — flip badge positions */
+/* Product cards - flip badge positions */
 [dir="rtl"] .product-card-badge-tl {
   left: unset !important;
   right: 8px !important;
@@ -1189,7 +1189,7 @@ img { max-width: 100%; height: auto; }
   right: 8px !important;
 }
 
-/* Mono labels — keep LTR for codes, hashes, numbers */
+/* Mono labels - keep LTR for codes, hashes, numbers */
 .mono, code, kbd, pre,
 [dir="rtl"] .gmc-code,
 [dir="rtl"] code {
@@ -1242,7 +1242,7 @@ img { max-width: 100%; height: auto; }
   .orders-body {
     padding: 0 1rem 5rem !important;
   }
-  /* Order row — give text room to breathe */
+  /* Order row - give text room to breathe */
   .order-main-row {
     padding: 0.75rem !important;
     gap: 8px !important;
@@ -1266,12 +1266,12 @@ img { max-width: 100%; height: auto; }
   }
 
   /* ── Profile page ─────────────────────────────────────────────── */
-  /* Stat cards (Wallet Balance + Reward Points) — stack on tiny phones */
+  /* Stat cards (Wallet Balance + Reward Points) - stack on tiny phones */
   .profile-stat-row {
     flex-direction: column !important;
     gap: 0.5rem !important;
   }
-  /* Tab buttons — smaller text, no overflow */
+  /* Tab buttons - smaller text, no overflow */
   .profile-identity {
     flex-direction: column !important;
     gap: 0.875rem !important;

@@ -148,7 +148,7 @@ function DetailModal({ payment, onClose, onAction }) {
               style={{ width: '100%', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', background: '#0d0d14', border: '1px solid #2a2a3e', color: 'var(--white-primary)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
             />
           ) : (
-            <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>—</span>
+            <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>-</span>
           )}
         </div>
 

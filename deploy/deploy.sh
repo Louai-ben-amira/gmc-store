@@ -1,5 +1,5 @@
 #!/bin/bash
-# GMC Store — production deploy script
+# GMC Store - production deploy script
 # Run from the server as your deploy user.
 # Usage: ./deploy.sh
 

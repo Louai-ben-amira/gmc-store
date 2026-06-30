@@ -191,14 +191,14 @@ def bulk_upload_codes(request, pk):
             'codes':     CodeSerializer(codes_qs, many=True).data,
         })
 
-    # Block uploads to service/topup products — they never use Code objects
+    # Block uploads to service/topup products - they never use Code objects
     has_phone_field = any(
         f.get('type') == 'tel' or f.get('key') == 'phone'
         for f in (product.required_fields or [])
     )
     if product.requires_account or has_phone_field:
         return Response(
-            {'detail': 'This product delivers via account/service — it does not use codes.'},
+            {'detail': 'This product delivers via account/service - it does not use codes.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
