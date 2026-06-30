@@ -61,19 +61,6 @@ celery -A config worker -l info
 celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 ```
 
-### Admin Panel
-- URL: http://localhost:8000/admin
-- Username: `admin`
-- Password: `Admin1234!`
-
-### Sample Client Accounts
-- **alice** / Client1234! — Balance: 150 DT, 800 pts
-- **bob** / Client1234! — Balance: 200 DT, 1500 pts
-- **carol** / Client1234! — Balance: 50 DT, 200 pts
-- **david** / Client1234! — Balance: 120 DT, 600 pts
-- **emma** / Client1234! — Balance: 80 DT, 350 pts
-
----
 
 ## Frontend Setup
 
