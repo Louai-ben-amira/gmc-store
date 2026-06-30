@@ -5,6 +5,7 @@ import useAuthStore from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { getWallet } from '../api/wallet'
 import { mediaUrl } from '../utils/formatters'
+import UserAvatar from './UserAvatar'
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore()
@@ -76,12 +77,9 @@ export default function Navbar() {
             <div ref={dropdownRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                style={{ background: '#7F77DD', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%' }}
               >
-                {user?.avatar
-                  ? <img src={mediaUrl(user.avatar)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <User size={18} color="var(--text-primary)" />
-                }
+                <UserAvatar user={user} size={36} />
               </button>
               {dropdownOpen && (
                 <div style={{ position: 'absolute', right: 0, top: '110%', background: '#1A1A24', border: '1px solid #2A2A38', borderRadius: '0.75rem', minWidth: '180px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', overflow: 'hidden', zIndex: 200 }}>

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ShoppingBag, Package, Wallet, MessageCircle, User, LogOut, Shield, Zap } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import { mediaUrl } from '../utils/formatters'
+import UserAvatar from './UserAvatar'
 
 const navItems = [
   { to: '/',          icon: ShoppingBag, label: 'Shop' },
@@ -132,18 +133,7 @@ export default function Sidebar() {
       {authed && user ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
           <Link to="/profile" title={user.first_name || user.username}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              overflow: 'hidden',
-              border: '1.5px solid var(--accent-border)',
-            }}>
-              {user.avatar
-                ? <img src={mediaUrl(user.avatar)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <User size={14} color="var(--bg-base)" />
-              }
-            </div>
+            <UserAvatar user={user} size={32} style={{ border: '1.5px solid var(--accent-border)' }} />
           </Link>
           <button
             onClick={handleLogout}
