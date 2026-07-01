@@ -267,11 +267,11 @@ function HeroSlider({ onFlashClick, onBundlesClick }) {
   const slides = dynamicSlides.length > 0
     ? dynamicSlides.map((s, i) => ({
         ...HERO_SLIDES[i % HERO_SLIDES.length],
-        ...(s.title    ? { title: s.title }      : {}),
-        ...(s.subtitle ? { sub: s.subtitle }      : {}),
-        ...(s.cta_text ? { cta: s.cta_text }      : {}),
-        ...(s.cta_link ? { _ctaLink: s.cta_link } : {}),
-        ...(s.image    ? { _bgImage: s.image }     : {}),
+        title:    s.title    || '',
+        sub:      s.subtitle || '',
+        cta:      s.cta_text || '',
+        _ctaLink: s.cta_link || '',
+        _bgImage: s.image    || '',
         id: i + 1,
       }))
     : HERO_SLIDES
