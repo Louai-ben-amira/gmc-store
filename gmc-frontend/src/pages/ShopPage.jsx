@@ -862,6 +862,37 @@ function SidebarLabel({ children }) {
   )
 }
 
+/* Depth-first search for the chain of nodes (root → ... → match) leading to `slug` */
+function findCategoryPath(nodes, slug) {
+  for (const node of nodes) {
+    if (node.slug === slug) return [node]
+    if (node.children?.length) {
+      const sub = findCategoryPath(node.children, slug)
+      if (sub) return [node, ...sub]
+    }
+  }
+  return null
+}
+
+function CategoryPill({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: '6px 12px', borderRadius: 20,
+        border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
+        background: active ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
+        color: active ? '#A78BFA' : 'var(--text-secondary)',
+        fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 700 : 500,
+        cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
   const { t } = useTranslation('shop')
   const { data: rootCats = [] } = useQuery({
@@ -870,31 +901,22 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Which root's regions are expanded below the pill row
-  const [selectedRootSlug, setSelectedRootSlug] = useState(null)
-
-  // Keep the expanded root in sync with the active filter (e.g. after a reset or a direct link)
-  useEffect(() => {
-    if (!activeSlug) { setSelectedRootSlug(null); return }
-    const owner = rootCats.find(r => r.slug === activeSlug || (r.children || []).some(c => c.slug === activeSlug))
-    setSelectedRootSlug(owner ? owner.slug : null)
-  }, [activeSlug, rootCats])
-
   const hasFilters = activeSlug || priceRange < 500
-  const selectedRoot = rootCats.find(r => r.slug === selectedRootSlug)
-  const regions = selectedRoot?.children || []
 
-  const handleRootClick = (root) => {
-    if (selectedRootSlug === root.slug) {
-      // Toggle off
-      setSelectedRootSlug(null)
-      if (activeSlug === root.slug || regions.some(c => c.slug === activeSlug)) onSelect(null)
-      return
-    }
-    setSelectedRootSlug(root.slug)
-    if (!root.children || root.children.length === 0) onSelect(root)
-    else if (root.children.length === 1) onSelect(root.children[0])
-    else onSelect(root) // filter by the whole platform until a region is picked
+  // Chain of selected nodes derived from the active slug (categories nest arbitrarily deep)
+  const path = activeSlug ? (findCategoryPath(rootCats, activeSlug) || []) : []
+
+  // One pill row per level: level 0 is always the roots; deeper levels only render
+  // when the parent actually branches (>1 child) - a lone child is filtered
+  // automatically since selecting a category already includes its descendants.
+  const levels = []
+  let items = rootCats
+  for (let i = 0; items?.length > 0; i++) {
+    if (i > 0 && items.length <= 1) break
+    const isLeafLevel = i > 0 && items.every(n => !n.children || n.children.length === 0)
+    levels.push({ items, selected: path[i] || null, isLeafLevel })
+    if (!path[i]) break
+    items = path[i].children
   }
 
   return (
@@ -907,7 +929,7 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
 
       {/* ── Reset pill ──────────────────────────────── */}
       {hasFilters && (
-        <button onClick={() => { onSelect(null); onPriceChange(500); setSelectedRootSlug(null) }} style={{
+        <button onClick={() => { onSelect(null); onPriceChange(500) }} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
           background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.2)',
@@ -922,78 +944,25 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
         </button>
       )}
 
-      {/* ── Categories ─────────────────────────────── */}
-      <div>
-        <SidebarLabel>{t('filters.category')}</SidebarLabel>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {/* All products pill */}
-          <button
-            onClick={() => { onSelect(null); setSelectedRootSlug(null) }}
-            style={{
-              padding: '6px 12px', borderRadius: 20,
-              border: `1px solid ${!activeSlug ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
-              background: !activeSlug ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
-              color: !activeSlug ? '#A78BFA' : 'var(--text-secondary)',
-              fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: !activeSlug ? 700 : 500,
-              cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
-            }}
-          >
-            {t('filters.allProducts')}
-          </button>
-
-          {/* Root category pills */}
-          {rootCats.map(root => {
-            const active = selectedRootSlug === root.slug
-            return (
-              <button
-                key={root.slug}
-                onClick={() => handleRootClick(root)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 12px', borderRadius: 20,
-                  border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
-                  background: active ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
-                  color: active ? '#A78BFA' : 'var(--text-secondary)',
-                  fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 700 : 500,
-                  cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ fontSize: '0.8125rem', lineHeight: 1 }}>{root.icon}</span>
-                {root.name}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Region chips - only when the selected platform has more than one region */}
-        {regions.length > 1 && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(255,255,255,0.08)' }}>
-            <SidebarLabel>{t('filters.region')}</SidebarLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {regions.map(child => {
-                const active = activeSlug === child.slug
-                return (
-                  <button
-                    key={child.slug}
-                    onClick={() => onSelect(child)}
-                    style={{
-                      padding: '5px 11px', borderRadius: 8,
-                      border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.08)'}`,
-                      background: active ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.02)',
-                      color: active ? '#A78BFA' : 'var(--text-muted)',
-                      fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 700 : 500,
-                      cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {child.name}
-                  </button>
-                )
-              })}
-            </div>
+      {/* ── Categories (drills down through as many levels as the tree has) ── */}
+      {levels.map((lvl, i) => (
+        <div key={i} style={i > 0 ? { marginTop: -8, paddingTop: 12, borderTop: '1px dashed rgba(255,255,255,0.08)' } : undefined}>
+          <SidebarLabel>{lvl.isLeafLevel ? t('filters.region') : t('filters.category')}</SidebarLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {i === 0 && (
+              <CategoryPill active={!activeSlug} onClick={() => onSelect(null)}>
+                {t('filters.allProducts')}
+              </CategoryPill>
+            )}
+            {lvl.items.map(node => (
+              <CategoryPill key={node.slug} active={lvl.selected?.slug === node.slug} onClick={() => onSelect(node)}>
+                {i === 0 && <span style={{ fontSize: '0.8125rem', lineHeight: 1 }}>{node.icon}</span>}
+                {node.name}
+              </CategoryPill>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      ))}
 
       {/* ── Divider ─────────────────────────────────── */}
       <div style={{ height: 1, background: 'var(--bg-elevated)' }} />
