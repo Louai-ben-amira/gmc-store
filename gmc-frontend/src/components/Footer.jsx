@@ -142,7 +142,6 @@ export default function Footer() {
         { label: 'Steam', to: '/?cat=steam-global' },
         { label: 'PlayStation', to: '/?cat=psn-usa' },
         { label: 'Xbox', to: '/?cat=xbox-usa' },
-        { label: 'Google Play', to: '/?cat=google-play' },
         { label: t('footer.viewAll'), to: '/?cat=gift-cards', accent: true },
       ],
     },

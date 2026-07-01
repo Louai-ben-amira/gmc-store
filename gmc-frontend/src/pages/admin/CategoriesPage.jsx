@@ -281,7 +281,7 @@ export default function CategoriesPage() {
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['admin-categories'],
-    queryFn: () => getCategories().then(r => Array.isArray(r.data) ? r.data : r.data.results || []),
+    queryFn: () => getCategories({ parent: 'root' }).then(r => Array.isArray(r.data) ? r.data : r.data.results || []),
   })
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['admin-categories'] })
@@ -355,7 +355,7 @@ export default function CategoriesPage() {
                 ? <tr><td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif' }}>No categories found.</td></tr>
                 : filtered.map(c => <CategoryRow key={c.id} cat={c} onEdit={handleEdit} onDelete={handleDelete} />)
             ) : (
-              categories.filter(c => !c.parent).map(c => (
+              categories.map(c => (
                 <CategoryRow key={c.id} cat={c} onEdit={handleEdit} onDelete={handleDelete} />
               ))
             )}

@@ -340,8 +340,9 @@ class OrderListCreateView(generics.ListCreateAPIView):
         with transaction.atomic():
             if needs_credentials:
                 # Service orders use stock_count - no Code row needed
+                # (variant stock was already validated above when a variant is selected)
                 code = None
-                if product.stock_count <= 0:
+                if not selected_variant and product.stock_count <= 0:
                     return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 code = Code.objects.select_for_update().filter(
