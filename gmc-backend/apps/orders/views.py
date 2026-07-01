@@ -338,11 +338,13 @@ class OrderListCreateView(generics.ListCreateAPIView):
             return Response({'detail': 'Insufficient balance.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            if needs_credentials:
-                # Service orders use stock_count - no Code row needed
-                # (variant stock was already validated above when a variant is selected)
+            if selected_variant:
+                # Variant products track stock on the variant, never on Code rows
                 code = None
-                if not selected_variant and product.stock_count <= 0:
+            elif needs_credentials:
+                # Service/account orders use product.stock_count — no Code row needed
+                code = None
+                if product.stock_count <= 0:
                     return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 code = Code.objects.select_for_update().filter(
