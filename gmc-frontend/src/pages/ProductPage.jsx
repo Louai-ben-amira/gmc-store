@@ -236,7 +236,9 @@ export default function ProductPage() {
   const subtotal       = Math.max(0, effectivePrice - promoDiscount - pointsDiscount)
   const serviceFee     = Math.round(subtotal * 0.01 * 100) / 100
   const finalPrice     = subtotal + serviceFee
-  const inStock        = product.available_stock > 0
+  const inStock        = activeVariants.length > 0
+    ? (selectedVariant ? selectedVariant.stock_count > 0 : activeVariants.some(v => v.stock_count > 0))
+    : product.available_stock > 0
   const fmt            = n => String(n).padStart(2, '0')
 
   // Breadcrumb

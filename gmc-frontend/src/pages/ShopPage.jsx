@@ -901,23 +901,17 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const hasFilters = activeSlug || priceRange < 500
+  const hasFilters = priceRange < 500
 
-  // Chain of selected nodes derived from the active slug (categories nest arbitrarily deep)
+  // Find the deepest selected node to surface its children as "regions"
   const path = activeSlug ? (findCategoryPath(rootCats, activeSlug) || []) : []
+  const deepest = path[path.length - 1] || null
+  const regionItems = deepest?.children?.length > 1 ? deepest.children : []
 
-  // One pill row per level: level 0 is always the roots; deeper levels only render
-  // when the parent actually branches (>1 child) - a lone child is filtered
-  // automatically since selecting a category already includes its descendants.
-  const levels = []
-  let items = rootCats
-  for (let i = 0; items?.length > 0; i++) {
-    if (i > 0 && items.length <= 1) break
-    const isLeafLevel = i > 0 && items.every(n => !n.children || n.children.length === 0)
-    levels.push({ items, selected: path[i] || null, isLeafLevel })
-    if (!path[i]) break
-    items = path[i].children
-  }
+  // If the active slug is itself a leaf with siblings, show the siblings as region pills
+  const parentNode = path.length >= 2 ? path[path.length - 2] : null
+  const siblingItems = parentNode?.children?.length > 1 ? parentNode.children : []
+  const regions = regionItems.length > 0 ? regionItems : siblingItems
 
   return (
     <aside className="filter-sidebar" style={{
@@ -929,7 +923,7 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
 
       {/* ── Reset pill ──────────────────────────────── */}
       {hasFilters && (
-        <button onClick={() => { onSelect(null); onPriceChange(500) }} style={{
+        <button onClick={() => { onPriceChange(500) }} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
           background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.2)',
@@ -944,28 +938,26 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
         </button>
       )}
 
-      {/* ── Categories (drills down through as many levels as the tree has) ── */}
-      {levels.map((lvl, i) => (
-        <div key={i} style={i > 0 ? { marginTop: -8, paddingTop: 12, borderTop: '1px dashed rgba(255,255,255,0.08)' } : undefined}>
-          <SidebarLabel>{lvl.isLeafLevel ? t('filters.region') : t('filters.category')}</SidebarLabel>
+      {/* ── Region (leaf-level children only) ──────── */}
+      {regions.length > 0 && (
+        <div>
+          <SidebarLabel>{t('filters.region')}</SidebarLabel>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {i === 0 && (
-              <CategoryPill active={!activeSlug} onClick={() => onSelect(null)}>
-                {t('filters.allProducts')}
-              </CategoryPill>
-            )}
-            {lvl.items.map(node => (
-              <CategoryPill key={node.slug} active={lvl.selected?.slug === node.slug} onClick={() => onSelect(node)}>
-                {i === 0 && <span style={{ fontSize: '0.8125rem', lineHeight: 1 }}>{node.icon}</span>}
+            {regions.map(node => (
+              <CategoryPill
+                key={node.slug}
+                active={activeSlug === node.slug}
+                onClick={() => onSelect(node)}
+              >
                 {node.name}
               </CategoryPill>
             ))}
           </div>
         </div>
-      ))}
+      )}
 
       {/* ── Divider ─────────────────────────────────── */}
-      <div style={{ height: 1, background: 'var(--bg-elevated)' }} />
+      {regions.length > 0 && <div style={{ height: 1, background: 'var(--bg-elevated)' }} />}
 
       {/* ── Price range ─────────────────────────────── */}
       <div>
