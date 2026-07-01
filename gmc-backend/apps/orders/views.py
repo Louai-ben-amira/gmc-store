@@ -5,7 +5,7 @@ from django.db import transaction, models
 from django.db.models import Prefetch
 from django.conf import settings
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from .models import Order, PromoCode, OrderCredentials, OrderCodeViewLog
 from .serializers import OrderSerializer, PlaceOrderSerializer, PromoCodeSerializer, OrderCredentialsSerializer
 from apps.products.models import Product, Code, Bundle, ProductVariant
@@ -15,6 +15,11 @@ from config.throttles import OrderRateThrottle
 
 
 SERVICE_FEE_RATE = Decimal('0.01')  # 1% service fee on all purchases
+
+
+def _points_from_amount(amount, points_rate):
+    """Round-to-nearest DT spent, converted to loyalty points (e.g. 4.99 DT -> 5 pts at rate 1)."""
+    return int(Decimal(amount).to_integral_value(rounding=ROUND_HALF_UP)) * points_rate
 
 
 def _order_list_queryset():
@@ -251,7 +256,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 return Response({'detail': 'Insufficient balance.'}, status=status.HTTP_400_BAD_REQUEST)
 
             with transaction.atomic():
-                points_earned = int(subtotal) * points_rate
+                points_earned = _points_from_amount(subtotal, points_rate)
                 user.balance -= final_price
                 user.points  += points_earned - points_to_use
                 user.save()
@@ -351,7 +356,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
             elif product.points_earned > 0:
                 points_earned = product.points_earned
             else:
-                points_earned = int(subtotal) * points_rate
+                points_earned = _points_from_amount(subtotal, points_rate)
 
             if needs_credentials:
                 user.balance -= final_price
@@ -862,7 +867,7 @@ def reorder(request, pk):
         if not code:
             return Response({'detail': 'Product is out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        points_earned = product.points_earned if product.points_earned > 0 else int(subtotal) * points_rate
+        points_earned = product.points_earned if product.points_earned > 0 else _points_from_amount(subtotal, points_rate)
         user.balance -= price
         user.points  += points_earned
         user.save()

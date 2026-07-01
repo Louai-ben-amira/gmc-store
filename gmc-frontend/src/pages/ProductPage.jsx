@@ -525,10 +525,22 @@ export default function ProductPage() {
               <div className="product-detail-sidebar" style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
 
                 {/* Variant selector */}
-                {product.has_variants && activeVariants.length > 0 && (
-                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
-                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>{t('product.selectAmount')}</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem' }}>
+                {activeVariants.length > 0 && (
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.25rem' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                        {t('product.selectAmount')}
+                      </span>
+                      {selectedVariant && (
+                        <button onClick={() => setSelectedVariant(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', padding: 0 }}>
+                          ✕ CLEAR
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
                       {activeVariants.map(v => {
                         const active = selectedVariant?.id === v.id
                         return (
@@ -537,45 +549,78 @@ export default function ProductPage() {
                             onClick={() => setSelectedVariant(active ? null : v)}
                             style={{
                               position: 'relative',
-                              padding: '0.875rem 1rem',
+                              padding: '0.875rem 0.75rem',
                               borderRadius: 12,
-                              border: `1.5px solid ${active ? 'rgba(124,58,237,0.8)' : 'rgba(255,255,255,0.08)'}`,
+                              border: `1.5px solid ${active ? '#7C3AED' : 'rgba(255,255,255,0.07)'}`,
                               background: active
-                                ? 'linear-gradient(135deg, rgba(124,58,237,0.18), rgba(124,58,237,0.06))'
-                                : 'rgba(255,255,255,0.02)',
-                              boxShadow: active ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
-                              color: active ? '#A78BFA' : 'var(--text-secondary)',
-                              fontFamily: 'Sora, sans-serif',
+                                ? 'linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(76,29,149,0.14) 100%)'
+                                : 'rgba(255,255,255,0.025)',
+                              boxShadow: active
+                                ? '0 0 0 3px rgba(124,58,237,0.15), 0 4px 16px rgba(124,58,237,0.2)'
+                                : '0 1px 3px rgba(0,0,0,0.2)',
                               cursor: 'pointer',
-                              transition: 'all 0.14s',
+                              transition: 'all 0.15s ease',
                               textAlign: 'left',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: 4,
+                              gap: 6,
+                              overflow: 'hidden',
                             }}
+                            onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(124,58,237,0.45)'; e.currentTarget.style.background = 'rgba(124,58,237,0.07)' } }}
+                            onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.background = 'rgba(255,255,255,0.025)' } }}
                           >
+                            {/* Selected checkmark */}
                             {active && (
                               <span style={{
-                                position: 'absolute', top: 8, right: 8,
-                                width: 16, height: 16, borderRadius: '50%',
-                                background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                position: 'absolute', top: 7, right: 7,
+                                width: 18, height: 18, borderRadius: '50%',
+                                background: 'linear-gradient(135deg,#7C3AED,#9B4FED)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                boxShadow: '0 2px 8px rgba(124,58,237,0.5)',
                               }}>
                                 <TbCheck size={11} color="#fff" strokeWidth={3} />
                               </span>
                             )}
-                            <span style={{ fontSize: '0.875rem', fontWeight: active ? 700 : 600, lineHeight: 1.3 }}>{v.label}</span>
+
+                            {/* Label */}
                             <span style={{
-                              fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700,
-                              color: active ? '#A78BFA' : 'var(--text-muted)',
-                              visibility: active ? 'visible' : 'hidden',
-                              minHeight: '1em',
+                              fontFamily: 'Sora, sans-serif',
+                              fontSize: '0.8125rem',
+                              fontWeight: active ? 700 : 600,
+                              color: active ? '#C4B5FD' : 'var(--text-primary)',
+                              lineHeight: 1.3,
+                              paddingRight: active ? 20 : 0,
+                            }}>{v.label}</span>
+
+                            {/* Price — always visible */}
+                            <span style={{
+                              fontFamily: 'JetBrains Mono, monospace',
+                              fontSize: '0.8125rem',
+                              fontWeight: 800,
+                              color: active ? '#A78BFA' : 'rgba(255,255,255,0.35)',
+                              letterSpacing: '-0.01em',
                             }}>
-                              {parseFloat(v.price).toFixed(2)} DT
+                              {parseFloat(v.price).toFixed(2)}<span style={{ fontSize: '0.625rem', marginLeft: 2, fontWeight: 600 }}>DT</span>
                             </span>
+
+                            {/* Active bottom bar */}
+                            {active && (
+                              <div style={{
+                                position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                                background: 'linear-gradient(90deg,#7C3AED,#A78BFA)',
+                              }} />
+                            )}
                           </button>
                         )
                       })}
                     </div>
+
+                    {/* Selection hint */}
+                    {!selectedVariant && (
+                      <p style={{ margin: '0.75rem 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
+                        👆 Pick a package to see the price
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -583,24 +628,32 @@ export default function ProductPage() {
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
                   {/* Price header */}
                   <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: flashActive ? 6 : 0 }}>
-                      <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '2.25rem', color: flashActive ? 'var(--urgent)' : 'var(--success)', letterSpacing: '-0.02em' }}>
-                        {formatCurrency(effectivePrice)}
+                    {activeVariants.length > 0 && !selectedVariant ? (
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {t('product.selectAmount')}
                       </span>
-                      {flashActive && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{formatCurrency(originalPrice)}</span>}
-                    </div>
-                    {flashActive && timer && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <TbBolt size={12} color="var(--urgent)" />
-                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--urgent)', fontWeight: 700 }}>
-                          {t('product.flashEnds', { time: `${fmt(timer.h)}:${fmt(timer.m)}:${fmt(timer.s)}` })}
-                        </span>
-                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: flashActive ? 6 : 0 }}>
+                          <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '2.25rem', color: flashActive ? 'var(--urgent)' : 'var(--success)', letterSpacing: '-0.02em' }}>
+                            {formatCurrency(effectivePrice)}
+                          </span>
+                          {flashActive && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{formatCurrency(originalPrice)}</span>}
+                        </div>
+                        {flashActive && timer && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <TbBolt size={12} color="var(--urgent)" />
+                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--urgent)', fontWeight: 700 }}>
+                              {t('product.flashEnds', { time: `${fmt(timer.h)}:${fmt(timer.m)}:${fmt(timer.s)}` })}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
                   {/* Line items if discounts active */}
-                  {(promoDiscount > 0 || pointsToUse > 0) && (
+                  {(promoDiscount > 0 || pointsToUse > 0) && !(activeVariants.length > 0 && !selectedVariant) && (
                     <div style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {promoDiscount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
