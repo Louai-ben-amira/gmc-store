@@ -97,8 +97,8 @@ export const NAV_ITEMS = [
         label: 'Steam', color: '#7C3AED',
         items: [
           { label: 'Global', to: '/?cat=steam-global', Icon: SiSteam, color: '#66C0F4' },
-          { label: 'USA',    to: '/?cat=steam-usa',    Icon: SiSteam, color: '#66C0F4' },
           { label: 'Europe', to: '/?cat=steam-europe', Icon: SiSteam, color: '#66C0F4' },
+          { label: 'Other',  to: '/?cat=steam-other',  Icon: SiSteam, color: '#66C0F4' },
         ],
       },
       {
@@ -106,7 +106,7 @@ export const NAV_ITEMS = [
         items: [
           { label: 'USA',    to: '/?cat=psn-usa',    Icon: SiPlaystation, color: '#0070d1' },
           { label: 'France', to: '/?cat=psn-france', Icon: SiPlaystation, color: '#0070d1' },
-          { label: 'Turkey', to: '/?cat=psn-turkey', Icon: SiPlaystation, color: '#0070d1' },
+          { label: 'Other',  to: '/?cat=psn-other',  Icon: SiPlaystation, color: '#0070d1' },
         ],
       },
       {
@@ -139,7 +139,7 @@ export const NAV_ITEMS = [
           { label: 'GMC Gift',          to: '/?cat=gmc-gift-card',      Icon: PiGiftBold,        color: '#7C3AED' },
           { label: 'Roblox',            to: '/?cat=roblox-gift-card',   Icon: SiRoblox,          color: '#E2231A' },
           { label: 'League of Legends', to: '/?cat=lol-gift-card',      Icon: SiLeagueoflegends, color: '#C89B3C' },
-          { label: 'Valorant',          to: '/?cat=valorant-gift-card',  Icon: SiValorant,        color: '#FF4655' },
+          { label: 'Free Fire',         to: '/?cat=free-fire-diamonds', Icon: PiFireBold,        color: '#FF6B00' },
         ],
       },
     ],
@@ -333,15 +333,15 @@ function MegaDropdown({ item, onClose }) {
               <div key={gi}>
                 {/* Group label */}
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  marginBottom: '6px', paddingBottom: '5px',
-                  borderBottom: `1px solid ${group.color}20`,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  marginBottom: '8px', paddingBottom: '6px',
+                  borderBottom: `1px solid ${group.color}30`,
                 }}>
-                  <div style={{ width: 3, height: 10, borderRadius: 2, background: group.color }} />
+                  <div style={{ width: 3, height: 12, borderRadius: 2, background: group.color, flexShrink: 0 }} />
                   <span style={{
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem',
-                    fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: `${group.color}bb`,
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: '0.65rem',
+                    fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: group.color,
                   }}>
                     {group.labelKey ? t(group.labelKey) : group.label}
                   </span>
@@ -791,18 +791,56 @@ const { t } = useTranslation('common')
           {/* Wallet chip - shown when logged in */}
           {authed && walletData != null && (
             <Link to="/wallet" style={{ textDecoration: 'none' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-                background: 'rgba(61,220,132,0.08)', border: '1px solid rgba(61,220,132,0.2)',
-                borderRadius: 7, transition: 'border-color 0.15s, background 0.15s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3DDC84'; e.currentTarget.style.background = 'rgba(61,220,132,0.14)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(61,220,132,0.2)'; e.currentTarget.style.background = 'rgba(61,220,132,0.08)' }}
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '0 14px 0 10px', height: 36, borderRadius: 10,
+                  background: 'linear-gradient(135deg, rgba(61,220,132,0.12) 0%, rgba(61,220,132,0.06) 100%)',
+                  border: '1px solid rgba(61,220,132,0.28)',
+                  boxShadow: '0 0 0 0 rgba(61,220,132,0)',
+                  transition: 'all 0.2s ease',
+                  position: 'relative', overflow: 'hidden',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(61,220,132,0.6)'
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(61,220,132,0.2) 0%, rgba(61,220,132,0.1) 100%)'
+                  e.currentTarget.style.boxShadow = '0 0 14px rgba(61,220,132,0.2)'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(61,220,132,0.28)'
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(61,220,132,0.12) 0%, rgba(61,220,132,0.06) 100%)'
+                  e.currentTarget.style.boxShadow = '0 0 0 0 rgba(61,220,132,0)'
+                  e.currentTarget.style.transform = 'none'
+                }}
               >
-                <TbWallet size={12} color="#3DDC84" />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 700, color: '#3DDC84' }}>
-                  {formatCurrency(walletData.balance || 0)}
-                </span>
+                {/* icon container */}
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: 'rgba(61,220,132,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <TbWallet size={13} color="#3DDC84" strokeWidth={2} />
+                </div>
+
+                {/* amount */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '0.8125rem', fontWeight: 700,
+                    color: '#3DDC84',
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {parseFloat(walletData.balance || 0).toLocaleString('fr-TN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '0.625rem', fontWeight: 600,
+                    color: 'rgba(61,220,132,0.6)',
+                    letterSpacing: '0.05em',
+                  }}>DT</span>
+                </div>
               </div>
             </Link>
           )}

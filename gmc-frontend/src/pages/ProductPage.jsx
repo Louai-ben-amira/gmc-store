@@ -528,7 +528,7 @@ export default function ProductPage() {
                 {product.has_variants && activeVariants.length > 0 && (
                   <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
                     <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>{t('product.selectAmount')}</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem' }}>
                       {activeVariants.map(v => {
                         const active = selectedVariant?.id === v.id
                         return (
@@ -536,22 +536,40 @@ export default function ProductPage() {
                             key={v.id}
                             onClick={() => setSelectedVariant(active ? null : v)}
                             style={{
-                              padding: '0.5rem 0.875rem',
-                              borderRadius: 8,
-                              border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
-                              background: active ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)',
+                              position: 'relative',
+                              padding: '0.875rem 1rem',
+                              borderRadius: 12,
+                              border: `1.5px solid ${active ? 'rgba(124,58,237,0.8)' : 'rgba(255,255,255,0.08)'}`,
+                              background: active
+                                ? 'linear-gradient(135deg, rgba(124,58,237,0.18), rgba(124,58,237,0.06))'
+                                : 'rgba(255,255,255,0.02)',
+                              boxShadow: active ? '0 0 0 3px rgba(124,58,237,0.12)' : 'none',
                               color: active ? '#A78BFA' : 'var(--text-secondary)',
                               fontFamily: 'Sora, sans-serif',
-                              fontSize: '0.8125rem',
-                              fontWeight: active ? 700 : 400,
                               cursor: 'pointer',
                               transition: 'all 0.14s',
-                              textAlign: 'center',
-                              lineHeight: 1.3,
+                              textAlign: 'left',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
                             }}
                           >
-                            <span style={{ display: 'block' }}>{v.label}</span>
-                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: active ? '#A78BFA' : 'var(--text-muted)' }}>
+                            {active && (
+                              <span style={{
+                                position: 'absolute', top: 8, right: 8,
+                                width: 16, height: 16, borderRadius: '50%',
+                                background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                <TbCheck size={11} color="#fff" strokeWidth={3} />
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.875rem', fontWeight: active ? 700 : 600, lineHeight: 1.3 }}>{v.label}</span>
+                            <span style={{
+                              fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700,
+                              color: active ? '#A78BFA' : 'var(--text-muted)',
+                              visibility: active ? 'visible' : 'hidden',
+                              minHeight: '1em',
+                            }}>
                               {parseFloat(v.price).toFixed(2)} DT
                             </span>
                           </button>
