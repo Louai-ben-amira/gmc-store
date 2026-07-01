@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  TbShoppingBag, TbPackage, TbHeart, TbChevronDown,
+  TbShoppingBag, TbPackage, TbHeart,
   TbChevronLeft, TbChevronRight, TbFlame, TbStar, TbArrowRight,
   TbHeartFilled, TbBrandWhatsapp, TbBrandMessenger, TbBrandInstagram,
 } from 'react-icons/tb'
@@ -869,8 +869,33 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
     queryFn: () => getCategories({ parent: 'root' }).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.results ?? []) }),
     staleTime: 5 * 60 * 1000,
   })
-  const [openRoot, setOpenRoot] = useState(null)
+
+  // Which root's regions are expanded below the pill row
+  const [selectedRootSlug, setSelectedRootSlug] = useState(null)
+
+  // Keep the expanded root in sync with the active filter (e.g. after a reset or a direct link)
+  useEffect(() => {
+    if (!activeSlug) { setSelectedRootSlug(null); return }
+    const owner = rootCats.find(r => r.slug === activeSlug || (r.children || []).some(c => c.slug === activeSlug))
+    setSelectedRootSlug(owner ? owner.slug : null)
+  }, [activeSlug, rootCats])
+
   const hasFilters = activeSlug || priceRange < 500
+  const selectedRoot = rootCats.find(r => r.slug === selectedRootSlug)
+  const regions = selectedRoot?.children || []
+
+  const handleRootClick = (root) => {
+    if (selectedRootSlug === root.slug) {
+      // Toggle off
+      setSelectedRootSlug(null)
+      if (activeSlug === root.slug || regions.some(c => c.slug === activeSlug)) onSelect(null)
+      return
+    }
+    setSelectedRootSlug(root.slug)
+    if (!root.children || root.children.length === 0) onSelect(root)
+    else if (root.children.length === 1) onSelect(root.children[0])
+    else onSelect(root) // filter by the whole platform until a region is picked
+  }
 
   return (
     <aside className="filter-sidebar" style={{
@@ -882,7 +907,7 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
 
       {/* ── Reset pill ──────────────────────────────── */}
       {hasFilters && (
-        <button onClick={() => { onSelect(null); onPriceChange(500) }} style={{
+        <button onClick={() => { onSelect(null); onPriceChange(500); setSelectedRootSlug(null) }} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
           background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.2)',
@@ -901,75 +926,73 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
       <div>
         <SidebarLabel>{t('filters.category')}</SidebarLabel>
 
-        {/* All products */}
-        <button
-          onClick={() => { onSelect(null); setOpenRoot(null) }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            width: '100%', padding: '8px 10px', marginBottom: 2,
-            borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left',
-            background: !activeSlug ? 'rgba(124,58,237,0.12)' : 'transparent',
-            transition: 'background 0.13s',
-          }}
-          onMouseEnter={e => { if (activeSlug) e.currentTarget.style.background = 'var(--bg-elevated)' }}
-          onMouseLeave={e => { if (activeSlug) e.currentTarget.style.background = 'transparent' }}
-        >
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: !activeSlug ? '#7C3AED' : 'rgba(255,255,255,0.2)', flexShrink: 0, transition: 'background 0.13s' }} />
-          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: !activeSlug ? 600 : 400, color: !activeSlug ? 'var(--accent)' : 'var(--text-muted)' }}>{t('filters.allProducts')}</span>
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {/* All products pill */}
+          <button
+            onClick={() => { onSelect(null); setSelectedRootSlug(null) }}
+            style={{
+              padding: '6px 12px', borderRadius: 20,
+              border: `1px solid ${!activeSlug ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
+              background: !activeSlug ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
+              color: !activeSlug ? '#A78BFA' : 'var(--text-secondary)',
+              fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: !activeSlug ? 700 : 500,
+              cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
+            }}
+          >
+            {t('filters.allProducts')}
+          </button>
 
-        {/* Root categories */}
-        {rootCats.map(root => {
-          const isOpen = openRoot === root.slug
-          const hasActiveChild = (root.children || []).some(c => c.slug === activeSlug)
-          return (
-            <div key={root.slug} style={{ marginBottom: 2 }}>
+          {/* Root category pills */}
+          {rootCats.map(root => {
+            const active = selectedRootSlug === root.slug
+            return (
               <button
-                onClick={() => setOpenRoot(isOpen ? null : root.slug)}
+                key={root.slug}
+                onClick={() => handleRootClick(root)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  width: '100%', padding: '8px 10px', borderRadius: 8,
-                  border: 'none', cursor: 'pointer', textAlign: 'left',
-                  background: hasActiveChild ? 'rgba(124,58,237,0.07)' : 'transparent',
-                  transition: 'background 0.13s',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '6px 12px', borderRadius: 20,
+                  border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'}`,
+                  background: active ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
+                  color: active ? '#A78BFA' : 'var(--text-secondary)',
+                  fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 700 : 500,
+                  cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
                 }}
-                onMouseEnter={e => { if (!hasActiveChild) e.currentTarget.style.background = 'var(--bg-elevated)' }}
-                onMouseLeave={e => { if (!hasActiveChild) e.currentTarget.style.background = hasActiveChild ? 'rgba(124,58,237,0.07)' : 'transparent' }}
               >
-                <span style={{ fontSize: '0.875rem', flexShrink: 0 }}>{root.icon}</span>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: hasActiveChild ? 600 : 400, color: hasActiveChild ? 'var(--accent)' : 'var(--text-secondary)', flex: 1 }}>{root.name}</span>
-                <TbChevronDown size={13} color="var(--text-muted)" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8125rem', lineHeight: 1 }}>{root.icon}</span>
+                {root.name}
               </button>
+            )
+          })}
+        </div>
 
-              {/* Children */}
-              {isOpen && (
-                <div style={{ marginLeft: 10, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {(root.children || []).map(child => {
-                    const active = activeSlug === child.slug
-                    return (
-                      <button
-                        key={child.slug}
-                        onClick={() => onSelect(child)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          width: '100%', padding: '6px 10px', borderRadius: 7,
-                          border: 'none', cursor: 'pointer', textAlign: 'left',
-                          background: active ? 'rgba(124,58,237,0.15)' : 'transparent',
-                          borderLeft: active ? '2px solid #7C3AED' : '2px solid transparent',
-                          transition: 'all 0.13s',
-                        }}
-                        onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--bg-elevated)' }}
-                        onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
-                      >
-                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 600 : 400, color: active ? 'var(--accent)' : 'var(--text-muted)' }}>{child.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+        {/* Region chips - only when the selected platform has more than one region */}
+        {regions.length > 1 && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(255,255,255,0.08)' }}>
+            <SidebarLabel>{t('filters.region')}</SidebarLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {regions.map(child => {
+                const active = activeSlug === child.slug
+                return (
+                  <button
+                    key={child.slug}
+                    onClick={() => onSelect(child)}
+                    style={{
+                      padding: '5px 11px', borderRadius: 8,
+                      border: `1px solid ${active ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.08)'}`,
+                      background: active ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.02)',
+                      color: active ? '#A78BFA' : 'var(--text-muted)',
+                      fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: active ? 700 : 500,
+                      cursor: 'pointer', transition: 'all 0.13s', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {child.name}
+                  </button>
+                )
+              })}
             </div>
-          )
-        })}
+          </div>
+        )}
       </div>
 
       {/* ── Divider ─────────────────────────────────── */}
@@ -1085,11 +1108,12 @@ export default function ShopPage() {
   }, [searchParams])
 
   const handleCategorySelect = (cat) => {
-    if (!cat) { setActiveSlug(null); return }
+    if (!cat) { setActiveSlug(null); setSort('popular'); return }
     setActiveSlug(cat.slug === activeSlug ? null : cat.slug)
     setActiveTab('shop')
+    setSort('popular')
   }
-  const handleTabChange = (key) => { setActiveTab(key); if (key !== 'shop') setActiveSlug(null) }
+  const handleTabChange = (key) => { setActiveTab(key); if (key !== 'shop') setActiveSlug(null); setSort('popular') }
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', activeSlug, localSearch, activeTab, sort],
@@ -1099,6 +1123,7 @@ export default function ShopPage() {
       if (sort === 'price_asc')  params.ordering = 'price'
       if (sort === 'price_desc') params.ordering = '-price'
       if (sort === 'newest')     params.ordering = '-created_at'
+      if (sort === 'popular')    params.ordering = 'popular'
       return getProducts(params).then(r => r.data)
     },
     enabled: activeTab !== 'bundles',

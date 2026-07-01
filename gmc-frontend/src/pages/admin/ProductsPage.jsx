@@ -105,7 +105,7 @@ function CategoryPicker({ value, onChange, flatCategories }) {
             </div>
 
             {/* List */}
-            <div style={{ maxHeight: 260, overflowY: 'auto', padding: '4px 0' }}>
+            <div style={{ maxHeight: 320, overflowY: 'auto', padding: '4px 0' }}>
               {/* Clear option */}
               <button
                 type="button"
@@ -122,46 +122,64 @@ function CategoryPicker({ value, onChange, flatCategories }) {
                 <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No category</span>
               </button>
 
-              {filtered.map(cat => {
+              {filtered.map((cat, i) => {
                 const isSelected = cat.id === Number(value)
-                const indent = cat.depth * 16
+                const indent = cat.depth * 14
+                const showGroupHeader = !search.trim() && cat.depth === 0 && i > 0
                 return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => pick(cat)}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                      padding: `6px 12px 6px ${12 + indent}px`,
-                      border: 'none', cursor: 'pointer', textAlign: 'left',
-                      background: isSelected ? 'rgba(124,58,237,0.18)' : 'transparent',
-                      borderLeft: isSelected ? '2px solid #7C3AED' : '2px solid transparent',
-                      transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
-                  >
-                    {cat.depth > 0 && (
-                      <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.75rem', flexShrink: 0 }}>└</span>
+                  <div key={cat.id}>
+                    {/* Group divider between root categories */}
+                    {showGroupHeader && (
+                      <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
                     )}
-                    <span style={{ fontSize: cat.depth === 0 ? '0.9375rem' : '0.8125rem', lineHeight: 1, flexShrink: 0 }}>{cat.icon || '📦'}</span>
-                    <span style={{
-                      flex: 1, fontSize: cat.depth === 0 ? '0.875rem' : '0.8125rem',
-                      fontWeight: cat.depth === 0 ? 600 : 400,
-                      color: isSelected ? '#C4B5FD' : cat.depth === 0 ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {cat.name}
-                    </span>
-                    {cat.depth === 0 && (
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0, opacity: 0.8 }} />
+                    {/* Root category = non-clickable section header */}
+                    {cat.depth === 0 ? (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '6px 12px 4px',
+                        cursor: 'default',
+                      }}>
+                        <span style={{ fontSize: '0.9rem', lineHeight: 1 }}>{cat.icon || '📦'}</span>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: '0.6875rem', fontWeight: 700,
+                          color: cat.color || '#A78BFA',
+                          textTransform: 'uppercase', letterSpacing: '0.08em',
+                        }}>{cat.name}</span>
+                        <div style={{ flex: 1, height: 1, background: `${cat.color || '#7C3AED'}30`, marginLeft: 4 }} />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => pick(cat)}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 7,
+                          padding: `5px 12px 5px ${12 + indent}px`,
+                          border: 'none', cursor: 'pointer', textAlign: 'left',
+                          background: isSelected ? 'rgba(124,58,237,0.18)' : 'transparent',
+                          borderLeft: isSelected ? '2px solid #7C3AED' : '2px solid transparent',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                      >
+                        <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '0.7rem', flexShrink: 0 }}>└</span>
+                        <span style={{ fontSize: '0.8125rem', lineHeight: 1, flexShrink: 0 }}>{cat.icon || '📦'}</span>
+                        <span style={{
+                          flex: 1, fontSize: '0.8125rem', fontWeight: cat.depth === 1 ? 500 : 400,
+                          color: isSelected ? '#C4B5FD' : cat.depth === 1 ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {cat.name}
+                        </span>
+                        {isSelected && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0 }}>
+                            <path d="M2 6l3 3 5-5" stroke="#A78BFA" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </button>
                     )}
-                    {isSelected && (
-                      <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0 }}>
-                        <path d="M2 6l3 3 5-5" stroke="#A78BFA" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </button>
+                  </div>
                 )
               })}
 

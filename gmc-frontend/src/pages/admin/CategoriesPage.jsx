@@ -13,48 +13,79 @@ const EMPTY = { name: '', slug: '', icon: '', color: '#7C3AED', parent: '', desc
 
 /* ── Category row (recursive) ─────────────────────────────────────────── */
 function CategoryRow({ cat, depth = 0, onEdit, onDelete }) {
-  const [open, setOpen] = useState(depth === 0)
+  const [open, setOpen] = useState(true)
   const hasChildren = cat.children?.length > 0
+  const indent = depth * 18
 
   return (
     <>
-      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+      <tr
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <td style={{ padding: '10px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: depth * 20 }}>
+        <td style={{ padding: '7px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, paddingLeft: indent }}>
+            {/* collapse toggle or indent spacer */}
             {hasChildren ? (
-              <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-muted)', display: 'flex' }}>
-                <ChevronRight size={14} style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+              <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-muted)', display: 'flex', flexShrink: 0 }}>
+                <ChevronRight size={13} style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
               </button>
             ) : (
-              <span style={{ width: 18 }} />
+              depth > 0
+                ? <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '0.7rem', flexShrink: 0 }}>└</span>
+                : <span style={{ width: 17, flexShrink: 0 }} />
             )}
-            <span style={{ fontSize: '1.1rem' }}>{cat.icon || '📁'}</span>
-            <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: depth === 0 ? 700 : 500, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{cat.name}</span>
-            {!cat.is_active && <span style={{ background: 'rgba(255,77,109,0.15)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: '0.6875rem', color: '#ff4d6d', fontWeight: 600 }}>Hidden</span>}
+
+            {/* root category: colored label like picker header */}
+            {depth === 0 ? (
+              <>
+                <span style={{ fontSize: '1rem', lineHeight: 1, flexShrink: 0 }}>{cat.icon || '📁'}</span>
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.75rem',
+                  color: cat.color || '#A78BFA', textTransform: 'uppercase', letterSpacing: '0.07em',
+                }}>{cat.name}</span>
+                <div style={{ flex: 1, height: 1, background: `${cat.color || '#7C3AED'}25`, marginLeft: 4 }} />
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: '0.875rem', lineHeight: 1, flexShrink: 0 }}>{cat.icon || '📦'}</span>
+                <span style={{
+                  fontFamily: 'Sora, sans-serif',
+                  fontWeight: depth === 1 ? 600 : 400,
+                  fontSize: depth === 1 ? '0.875rem' : '0.8125rem',
+                  color: depth === 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                }}>{cat.name}</span>
+                {!cat.is_active && (
+                  <span style={{ background: 'rgba(255,77,109,0.15)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: '0.6rem', color: '#ff4d6d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hidden</span>
+                )}
+              </>
+            )}
           </div>
         </td>
-        <td style={{ padding: '10px 14px' }}>
-          <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 5, padding: '2px 8px', color: '#A78BFA' }}>
+
+        <td style={{ padding: '7px 14px' }}>
+          <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.18)', borderRadius: 5, padding: '2px 7px', color: '#A78BFA' }}>
             {cat.slug}
           </code>
         </td>
-        <td style={{ padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-          {cat.children?.length || 0}
+
+        <td style={{ padding: '7px 14px', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          {hasChildren ? cat.children.length : <span style={{ opacity: 0.3 }}>—</span>}
         </td>
-        <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button onClick={() => onEdit(cat)} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600 }}>
+
+        <td style={{ padding: '7px 14px', textAlign: 'right' }}>
+          <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
+            <button onClick={() => onEdit(cat)} style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.22)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.15s' }}>
               <Edit2 size={12} /> Edit
             </button>
-            <button onClick={() => onDelete(cat)} style={{ background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 7, padding: '5px 10px', cursor: 'pointer', color: '#ff4d6d', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600 }}>
+            <button onClick={() => onDelete(cat)} style={{ background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.22)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', color: '#ff4d6d', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.15s' }}>
               <Trash2 size={12} /> Delete
             </button>
           </div>
         </td>
       </tr>
+
       {open && hasChildren && cat.children.map(child => (
         <CategoryRow key={child.id} cat={child} depth={depth + 1} onEdit={onEdit} onDelete={onDelete} />
       ))}
@@ -187,7 +218,7 @@ function CategoryModal({ isOpen, onClose, editing, allCategories, onSave }) {
           <div>
             <label style={{ display: 'block', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Parent Category</label>
             <select value={form.parent || ''} onChange={e => set('parent', e.target.value ? parseInt(e.target.value) : '')} style={{ width: '100%' }}>
-              <option value="">- No parent (top level) -</option>
+              <option value="">— No parent (top level) —</option>
               {flatCats.map(c => (
                 <option key={c.id} value={c.id}>{'  '.repeat(c._depth)}{c._depth > 0 ? '└ ' : ''}{c.icon} {c.name}</option>
               ))}

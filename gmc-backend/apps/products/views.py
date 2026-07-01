@@ -145,6 +145,15 @@ class ProductListView(generics.ListCreateAPIView):
         if req_acc == 'true':
             qs = qs.filter(requires_account=True)
 
+        ordering = self.request.query_params.get('ordering', '')
+        ALLOWED = {'price', '-price', 'created_at', '-created_at', 'name', '-name', '-_avg_rating', '-_review_count'}
+        if ordering in ALLOWED:
+            qs = qs.order_by(ordering)
+        elif ordering == 'popular':
+            qs = qs.order_by('-_review_count', '-created_at')
+        else:
+            qs = qs.order_by('-created_at')
+
         return qs
 
     def get_serializer_context(self):
