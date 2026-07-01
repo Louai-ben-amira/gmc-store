@@ -456,14 +456,18 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
         {/* Price + Buy Now */}
         <div className="pcard-footer">
           <div>
-            <div className="pcard-plabel">{t('product.price')}</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
-              {flash && orig > price && (
-                <span className="pcard-orig">{orig.toFixed(2)}</span>
-              )}
-              <span className="pcard-price">{price.toFixed(2)}</span>
-              <span className="pcard-cur">DT</span>
-            </div>
+            {!product.has_variants && (
+              <>
+                <div className="pcard-plabel">{t('product.price')}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
+                  {flash && orig > price && (
+                    <span className="pcard-orig">{orig.toFixed(2)}</span>
+                  )}
+                  <span className="pcard-price">{price.toFixed(2)}</span>
+                  <span className="pcard-cur">DT</span>
+                </div>
+              </>
+            )}
           </div>
 
           <button
