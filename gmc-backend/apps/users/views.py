@@ -278,7 +278,7 @@ class AdminUsersListView(generics.ListAPIView):
         )
 
 
-class AdminUserDetailView(generics.RetrieveUpdateAPIView):
+class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdmin]
 

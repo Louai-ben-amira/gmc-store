@@ -1,20 +1,22 @@
 ﻿import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAdminUsers, updateAdminUser } from '../../api/admin'
+import { getAdminUsers, updateAdminUser, deleteAdminUser } from '../../api/admin'
 import Modal from '../../components/Modal'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Search, Edit2, CheckCircle, XCircle } from 'lucide-react'
+import { Search, Edit2, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { PageShell, PageHeader, StatusPill, IconBtn, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
 
 export default function UsersPage() {
   const qc    = useQueryClient()
   const toast = useToast()
 
-  const [search,   setSearch]   = useState('')
-  const [selected, setSelected] = useState(null)
-  const [balance,  setBalance]  = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [search,      setSearch]      = useState('')
+  const [selected,    setSelected]    = useState(null)
+  const [balance,     setBalance]     = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting,    setDeleting]    = useState(false)
 
   const { data } = useQuery({
     queryKey: ['admin-users', search],
@@ -37,6 +39,18 @@ export default function UsersPage() {
       closeEdit()
     } catch { toast.error('Failed to update.') }
     setLoading(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteAdminUser(deleteTarget.id)
+      toast.success(`User "${deleteTarget.username}" deleted.`)
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      setDeleteTarget(null)
+    } catch { toast.error('Failed to delete user.') }
+    setDeleting(false)
   }
 
   const toggleActive = async (u) => {
@@ -94,6 +108,15 @@ export default function UsersPage() {
                     >
                       {u.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                     </IconBtn>
+                    <IconBtn
+                      onClick={() => setDeleteTarget(u)}
+                      title="Delete user"
+                      color={T.danger}
+                      bg={T.dangerDim}
+                      border={T.dangerBorder}
+                    >
+                      <Trash2 size={14} />
+                    </IconBtn>
                   </div>
                 </td>
               </tr>
@@ -101,6 +124,28 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Delete confirmation ── */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete User" size="sm">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <p style={{ margin: 0, color: T.textSub, fontSize: '0.9375rem', lineHeight: 1.6 }}>
+            Are you sure you want to <strong style={{ color: T.danger }}>permanently delete</strong> the user{' '}
+            <strong style={{ color: T.textPrimary }}>"{deleteTarget?.username}"</strong>?
+            <br />
+            <span style={{ fontSize: '0.8125rem', color: T.textMuted }}>This action cannot be undone. All their data (orders, balance, messages) will be removed.</span>
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button className="btn-secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', background: 'linear-gradient(135deg,#c0152a,#e8172e)', color: '#fff', opacity: deleting ? 0.6 : 1 }}
+            >
+              {deleting ? 'Deleting...' : 'Delete User'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={!!selected} onClose={closeEdit} title={`Edit - ${selected?.username}`} size="sm">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

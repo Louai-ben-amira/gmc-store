@@ -45,6 +45,15 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Category.objects.prefetch_related('children')
 
+    def perform_update(self, serializer):
+        old_requires = self.get_object().requires_account
+        instance = serializer.save()
+        # Cascade requires_account change to all products in this category
+        if instance.requires_account != old_requires:
+            Product.objects.filter(category=instance).update(
+                requires_account=instance.requires_account
+            )
+
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
