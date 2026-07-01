@@ -705,7 +705,7 @@ export default function ProductsPage() {
   })
   const { data: catsData } = useQuery({
     queryKey: ['admin-categories'],
-    queryFn:  () => getCategories({ ordering: 'name' }).then(r => r.data),
+    queryFn:  () => getCategories({ parent: 'root' }).then(r => r.data),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -725,8 +725,7 @@ export default function ProductsPage() {
   const products = productsData?.results || productsData || []
 
   const flatCategories = useMemo(() => {
-    const tree = catsData?.results || catsData || []
-    const roots = tree.filter(c => !c.parent)
+    const roots = catsData?.results || catsData || []
     return flattenCats(roots)
   }, [catsData])
 
