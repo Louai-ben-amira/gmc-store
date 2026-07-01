@@ -433,13 +433,8 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 _auto_open_order_chat(order)
             except Exception:
                 pass
-
-            # Fallback deletion scheduled at 24h - confirm/close will trigger sooner
-            try:
-                from apps.orders.tasks import schedule_credentials_deletion
-                _fire(schedule_credentials_deletion.apply_async, args=[order.id], countdown=86400)
-            except Exception:
-                pass
+            # The encrypted payload is purged when the buyer confirms delivery
+            # (see confirm_delivery), in the same transaction as the escrow release.
 
         try:
             from apps.orders.tasks import send_order_confirmation_email
@@ -589,11 +584,14 @@ def confirm_delivery(request, pk):
                 note=f'Escrow released: Order #{order.id}'
             )
 
-    # Purge credentials payload (keep row for audit)
-    try:
-        order.credentials.purge_payload()
-    except OrderCredentials.DoesNotExist:
-        pass
+        # Purge the encrypted payload in the same transaction as the escrow
+        # release, so the order can never be left settled-but-not-purged: if
+        # the purge fails, the release rolls back and the buyer can retry.
+        # The row is kept for audit; only the payload is cleared.
+        try:
+            order.credentials.purge_payload()
+        except OrderCredentials.DoesNotExist:
+            pass
 
     # Archive chat thread (mark read-only via conversation status)
     try:

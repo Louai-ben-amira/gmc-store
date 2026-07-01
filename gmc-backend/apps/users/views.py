@@ -51,8 +51,12 @@ def social_auth(request):
         if r.status_code != 200:
             return Response({'detail': 'Invalid Google token.'}, status=400)
         info = r.json()
-        if info.get('aud') != settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_ID:
+        if not settings.GOOGLE_CLIENT_ID:
+            return Response({'detail': 'Google sign-in is not configured.'}, status=503)
+        if info.get('aud') != settings.GOOGLE_CLIENT_ID:
             return Response({'detail': 'Token audience mismatch.'}, status=400)
+        if str(info.get('email_verified')).lower() != 'true':
+            return Response({'detail': 'Google email is not verified.'}, status=400)
         social_id  = info.get('sub')
         email      = info.get('email', '')
         first_name = info.get('given_name', '')
@@ -316,6 +320,9 @@ class AdminRechargeApproveView(generics.GenericAPIView):
             recharge = RechargeRequest.objects.get(pk=pk)
         except RechargeRequest.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if recharge.status != 'pending':
+            return Response({'detail': f'Recharge is already {recharge.status}.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

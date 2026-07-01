@@ -156,25 +156,3 @@ def send_order_confirmation_email(order_id):
         msg.send()
     except Exception:
         pass
-
-
-@shared_task
-def schedule_credentials_deletion(order_id):
-    """
-    Purge the encrypted credential payload for a closed/completed order.
-    Keeps the OrderCredentials row intact for audit (access_log, revealed_at, etc.).
-    Only purges if the order is in a terminal state - prevents early deletion
-    if the task fires before the buyer has confirmed.
-    """
-    from apps.orders.models import Order, OrderCredentials
-    try:
-        order = Order.objects.get(pk=order_id)
-        if order.escrow_held:
-            return
-        creds = OrderCredentials.objects.get(order_id=order_id)
-        if not creds.deleted_at:
-            creds.purge_payload()
-    except (Order.DoesNotExist, OrderCredentials.DoesNotExist):
-        pass
-    except Exception:
-        pass
