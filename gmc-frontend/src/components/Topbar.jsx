@@ -73,8 +73,8 @@ export const NAV_ITEMS = [
       {
         labelKey: 'nav.gamingAccounts', label: 'Gaming Accounts', color: '#7C3AED',
         items: [
-          { label: 'Steam',      to: '/gaming-accounts?platform=steam', Icon: SiSteam,     color: '#66C0F4' },
-          { label: 'Epic Games', to: '/gaming-accounts?platform=epic',  Icon: SiEpicgames, color: 'var(--text-primary)'    },
+          { label: 'Steam',      to: '/?cat=steam-accounts',      Icon: SiSteam,     color: '#66C0F4' },
+          { label: 'Epic Games', to: '/?cat=epic-games-accounts', Icon: SiEpicgames, color: 'var(--text-primary)' },
         ],
       },
       {
