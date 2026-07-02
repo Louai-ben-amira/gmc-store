@@ -111,7 +111,7 @@ createRoot(document.getElementById('root')).render(
 
             {/* Customer */}
             <Route path="/"          element={<Layout><ShopPage /></Layout>} />
-            <Route path="/product/:id" element={<Layout><ProductPage /></Layout>} />
+            <Route path="/product/:slug" element={<Layout><ProductPage /></Layout>} />
             <Route path="/bundle/:id" element={<Layout><BundlePage /></Layout>} />
             <Route path="/orders"    element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
             <Route path="/wallet"    element={<Layout><ProtectedRoute><WalletPage /></ProtectedRoute></Layout>} />

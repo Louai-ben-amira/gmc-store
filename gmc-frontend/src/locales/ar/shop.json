@@ -47,6 +47,7 @@
     "step3Account": "يتم تسليم الخدمة",
     "step3Code": "تسليم {{name}}",
     "selectAmount": "اختر المبلغ",
+    "quantity": "الكمية",
     "flashEnds": "ينتهي العرض خلال {{time}}",
     "processing": "جارٍ المعالجة…",
     "confirmPurchase": "تأكيد الشراء",

@@ -10,7 +10,7 @@ import Modal, { ConfirmModal } from '../../components/Modal'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, mediaUrl } from '../../utils/formatters'
 import { Plus, Edit2, Trash2, Upload, Search, Eye, EyeOff, Layers } from 'lucide-react'
-import { PageShell, PageHeader, QuickActionButton, IconBtn, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
+import { PageShell, PageHeader, QuickActionButton, IconBtn, TH_STYLE, TD_STYLE, T, Pagination } from '../../components/admin/AdminUI'
 
 /* ── flatten nested category tree ──────────────────────────────────────── */
 function flattenCats(nodes, depth = 0, acc = []) {
@@ -681,6 +681,7 @@ export default function ProductsPage() {
   const toast = useToast()
 
   const [search,   setSearch]   = useState('')
+  const [page,     setPage]     = useState(1)
   const [modal,    setModal]    = useState(null)
   const [selected, setSelected] = useState(null)
   const [form,     setForm]     = useState(EMPTY_FORM)
@@ -699,9 +700,10 @@ export default function ProductsPage() {
   const [variantProduct, setVariantProduct] = useState(null)
 
   /* ── queries ──────────────────────────────────────────────────────── */
+  const PAGE_SIZE = 20
   const { data: productsData } = useQuery({
-    queryKey: ['admin-products', search],
-    queryFn:  () => getProducts({ search, page_size: 50 }).then(r => r.data),
+    queryKey: ['admin-products', search, page],
+    queryFn:  () => getProducts({ search, page, page_size: PAGE_SIZE }).then(r => r.data),
   })
   const { data: catsData } = useQuery({
     queryKey: ['admin-categories'],
@@ -722,7 +724,9 @@ export default function ProductsPage() {
     staleTime:      0,
   })
 
-  const products = productsData?.results || productsData || []
+  const products    = productsData?.results || productsData || []
+  const totalCount  = productsData?.count ?? products.length
+  const totalPages  = Math.ceil(totalCount / PAGE_SIZE)
 
   const flatCategories = useMemo(() => {
     const roots = catsData?.results || catsData || []
@@ -910,7 +914,7 @@ export default function ProductsPage() {
 
       <div style={{ position: 'relative', marginBottom: '1.25rem', maxWidth: '340px' }}>
         <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search products..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
       </div>
 
       <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -1015,6 +1019,7 @@ export default function ProductsPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
       </div>
 
       <Modal

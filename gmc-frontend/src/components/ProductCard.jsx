@@ -312,13 +312,13 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
       return
     }
     if (onBuyClick) { onBuyClick(product); return }
-    navigate(`/product/${product.id}`)
+    navigate(`/product/${product.slug || product.id}`)
   }
 
   return (
     <div
       className="pcard"
-      onClick={() => navigate(`/product/${product.id}`)}
+      onClick={() => navigate(`/product/${product.slug || product.id}`)}
       style={{ animation: `pcUp 0.34s ${index * 0.045}s ease both` }}
     >
       {/* ══ IMAGE SECTION ══════════════════════════════════════════════ */}
