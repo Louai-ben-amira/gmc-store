@@ -48,6 +48,8 @@ CATEGORY_TREE = [
                     {'name': 'EA FC Accounts',              'slug': 'ea-fc-accounts',             'icon': '⚽', 'order': 5},
                     {'name': 'Clash of Clans Accounts',     'slug': 'clash-of-clans-accounts',   'icon': '🏰', 'order': 6},
                     {'name': 'Genshin Impact Accounts',     'slug': 'genshin-accounts',           'icon': '🌸', 'order': 7},
+                    {'name': 'Steam Accounts',              'slug': 'steam-accounts',             'icon': '🎮', 'order': 8},
+                    {'name': 'Epic Games Accounts',         'slug': 'epic-games-accounts',        'icon': '🖤', 'order': 9},
                 ],
             },
             {
