@@ -174,6 +174,17 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
             return [permissions.AllowAny()]
         return [IsAdmin()]
 
+    def get_object(self):
+        lookup = self.kwargs.get('pk') or self.kwargs.get('slug')
+        qs = self.get_queryset()
+        # Try slug first (non-numeric), then fall back to pk
+        if isinstance(lookup, str) and not lookup.isdigit():
+            obj = generics.get_object_or_404(qs, slug=lookup)
+        else:
+            obj = generics.get_object_or_404(qs, pk=lookup)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAdmin])

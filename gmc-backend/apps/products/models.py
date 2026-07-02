@@ -77,6 +77,7 @@ class Category(models.Model):
 
 class Product(models.Model):
     name             = models.CharField(max_length=200)
+    slug             = models.SlugField(max_length=220, unique=True, blank=True)
     category         = models.ForeignKey(
                            Category, null=True, blank=True,
                            on_delete=models.SET_NULL, related_name='products'
@@ -109,6 +110,17 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name)
+            slug = base
+            n = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{n}'
+                n += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
 
     @property
     def effective_price(self):

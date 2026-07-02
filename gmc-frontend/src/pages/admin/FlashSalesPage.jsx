@@ -4,7 +4,7 @@ import { getProducts, setFlashSale, clearFlashSale } from '../../api/admin'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, mediaUrl } from '../../utils/formatters'
 import { Zap, X, Clock, Tag } from 'lucide-react'
-import { PageShell, FilterTabs, T } from '../../components/admin/AdminUI'
+import { PageShell, FilterTabs, T, Pagination } from '../../components/admin/AdminUI'
 
 const CATEGORY_LABELS = {
   gift_cards: 'Gift Cards', valorant: 'Valorant', steam: 'Steam',
@@ -163,21 +163,24 @@ export default function FlashSalesPage() {
   const qc      = useQueryClient()
   const toast   = useToast()
   const [loading, setLoading] = useState({})
-  const [filter, setFilter]   = useState('all')
+  const [filter,  setFilter]  = useState('all')
+  const [page,    setPage]    = useState(1)
 
+  const PAGE_SIZE = 20
   const { data: productsData } = useQuery({
-    queryKey: ['admin-products-flash'],
-    queryFn:  () => getProducts().then(r => r.data),
+    queryKey: ['admin-products-flash', filter, page],
+    queryFn:  () => getProducts({ page, page_size: PAGE_SIZE }).then(r => r.data),
     refetchInterval: 30000,
   })
 
-  const products = (productsData?.results || productsData || []).filter(p => {
+  const allProducts = productsData?.results || productsData || []
+  const products = allProducts.filter(p => {
     if (filter === 'active')   return p.flash_sale_active
     if (filter === 'inactive') return !p.flash_sale_active
     return true
   })
-
-  const activeSales = (productsData?.results || productsData || []).filter(p => p.flash_sale_active).length
+  const totalPages = Math.ceil((productsData?.count ?? allProducts.length) / PAGE_SIZE)
+  const activeSales = allProducts.filter(p => p.flash_sale_active).length
 
   const handleSave = async (id, price, endsAt) => {
     setLoading(l => ({ ...l, [id]: true }))
@@ -245,6 +248,7 @@ export default function FlashSalesPage() {
           ))}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
     </PageShell>
   )
 }

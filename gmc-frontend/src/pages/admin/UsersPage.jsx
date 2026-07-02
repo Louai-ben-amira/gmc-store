@@ -5,24 +5,27 @@ import Modal from '../../components/Modal'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { Search, Edit2, CheckCircle, XCircle, Trash2 } from 'lucide-react'
-import { PageShell, PageHeader, StatusPill, IconBtn, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
+import { PageShell, PageHeader, StatusPill, IconBtn, TH_STYLE, TD_STYLE, T, Pagination } from '../../components/admin/AdminUI'
 
 export default function UsersPage() {
   const qc    = useQueryClient()
   const toast = useToast()
 
   const [search,      setSearch]      = useState('')
+  const [page,        setPage]        = useState(1)
   const [selected,    setSelected]    = useState(null)
   const [balance,     setBalance]     = useState('')
   const [loading,     setLoading]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting,    setDeleting]    = useState(false)
 
+  const PAGE_SIZE = 20
   const { data } = useQuery({
-    queryKey: ['admin-users', search],
-    queryFn:  () => getAdminUsers({ search: search || undefined }).then(r => r.data),
+    queryKey: ['admin-users', search, page],
+    queryFn:  () => getAdminUsers({ search: search || undefined, page, page_size: PAGE_SIZE }).then(r => r.data),
   })
-  const users = data?.results || data || []
+  const users      = data?.results || data || []
+  const totalPages = Math.ceil((data?.count ?? users.length) / PAGE_SIZE)
 
   const openEdit = (u) => {
     setSelected(u)
@@ -67,7 +70,7 @@ export default function UsersPage() {
 
       <div style={{ position: 'relative', marginBottom: '1.25rem', maxWidth: '340px' }}>
         <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search users..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
       </div>
 
       <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -123,6 +126,7 @@ export default function UsersPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
       </div>
 
       {/* ── Delete confirmation ── */}

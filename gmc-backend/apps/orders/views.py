@@ -215,6 +215,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
         product_id    = serializer.validated_data.get('product_id')
         bundle_id     = serializer.validated_data.get('bundle_id')
         variant_id    = serializer.validated_data.get('variant_id')
+        quantity      = serializer.validated_data['quantity']
         points_to_use = serializer.validated_data['points_to_use']
         promo_str     = serializer.validated_data.get('promo_code', '').strip().upper()
         credentials   = serializer.validated_data.get('credentials', {})
@@ -236,6 +237,8 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
         # ── Bundle order ───────────────────────────────────────────────────
         if bundle_id:
+            if quantity > 1:
+                return Response({'detail': 'Quantity is not supported for bundles.'}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 bundle = Bundle.objects.get(pk=bundle_id, is_active=True)
             except Bundle.DoesNotExist:
@@ -307,6 +310,16 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 {'detail': 'This product requires account credentials.', 'requires_account': True},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if needs_credentials and quantity > 1:
+            return Response(
+                {'detail': 'Quantity is not supported for products that require account credentials.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if quantity > 1 and points_to_use > 0:
+            return Response(
+                {'detail': 'Points cannot be combined with a quantity greater than 1.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Resolve variant if product has variants
         selected_variant = None
@@ -317,8 +330,8 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 selected_variant = ProductVariant.objects.get(pk=variant_id, product=product, is_active=True)
             except ProductVariant.DoesNotExist:
                 return Response({'detail': 'Selected variant not found or inactive.'}, status=status.HTTP_404_NOT_FOUND)
-            if selected_variant.stock_count <= 0:
-                return Response({'detail': 'Selected variant is out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
+            if selected_variant.stock_count < quantity:
+                return Response({'detail': 'Not enough stock available for the selected quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if points_to_use > 0 and not product.points_purchasable:
             return Response({'detail': 'Points cannot be used for this product.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -334,24 +347,27 @@ class OrderListCreateView(generics.ListCreateAPIView):
         subtotal    = max(Decimal('0'), base_price - promo_discount - Decimal(points_to_use) / 100)
         service_fee = (subtotal * SERVICE_FEE_RATE).quantize(Decimal('0.01'))
         final_price = subtotal + service_fee
-        if user.balance < final_price:
+        total_price = final_price * quantity
+        if user.balance < total_price:
             return Response({'detail': 'Insufficient balance.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            codes = []
             if selected_variant:
                 # Variant products track stock on the variant, never on Code rows
-                code = None
+                selected_variant = ProductVariant.objects.select_for_update().get(pk=selected_variant.pk)
+                if selected_variant.stock_count < quantity:
+                    return Response({'detail': 'Not enough stock available for the selected quantity.'}, status=status.HTTP_400_BAD_REQUEST)
             elif needs_credentials:
                 # Service/account orders use product.stock_count — no Code row needed
-                code = None
                 if product.stock_count <= 0:
                     return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                code = Code.objects.select_for_update().filter(
+                codes = list(Code.objects.select_for_update().filter(
                     product=product, status='available'
-                ).first()
-                if code is None:
-                    return Response({'detail': 'Product out of stock.'}, status=status.HTTP_400_BAD_REQUEST)
+                )[:quantity])
+                if len(codes) < quantity:
+                    return Response({'detail': 'Not enough stock available for the selected quantity.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Use variant-level points if set, then product-level, then global rate
             if selected_variant and selected_variant.points_earned > 0:
@@ -361,79 +377,86 @@ class OrderListCreateView(generics.ListCreateAPIView):
             else:
                 points_earned = _points_from_amount(subtotal, points_rate)
 
-            if needs_credentials:
-                user.balance -= final_price
-                user.points  += points_earned - points_to_use
-                user.save()
+            user.balance -= total_price
+            user.points  += (points_earned * quantity) - points_to_use
+            user.save()
 
-                order = Order.objects.create(
-                    user=user, product=product,
-                    variant=selected_variant,
-                    amount_paid=final_price,
-                    service_fee=service_fee,
-                    discount_amount=promo_discount,
-                    points_earned=points_earned,
-                    points_used=points_to_use,
-                    promo_code=promo_obj,
-                    status=Order.Status.PAID_ESCROW,
-                    escrow_held=True,
-                    requires_account=True,
-                    service_status='pending',
-                )
-            else:
-                user.balance -= final_price
-                user.points  += points_earned - points_to_use
-                user.save()
+            orders = []
+            for i in range(quantity):
+                if needs_credentials:
+                    order = Order.objects.create(
+                        user=user, product=product,
+                        variant=selected_variant,
+                        amount_paid=final_price,
+                        service_fee=service_fee,
+                        discount_amount=promo_discount,
+                        points_earned=points_earned,
+                        points_used=points_to_use,
+                        promo_code=promo_obj,
+                        status=Order.Status.PAID_ESCROW,
+                        escrow_held=True,
+                        requires_account=True,
+                        service_status='pending',
+                    )
+                else:
+                    order = Order.objects.create(
+                        user=user, product=product,
+                        variant=selected_variant,
+                        amount_paid=final_price,
+                        service_fee=service_fee,
+                        discount_amount=promo_discount,
+                        points_earned=points_earned,
+                        # A single purchase's redeemed points apply to quantity=1 only
+                        points_used=points_to_use if i == 0 else 0,
+                        promo_code=promo_obj,
+                        status=Order.Status.COMPLETED,
+                        escrow_held=False,
+                        requires_account=False,
+                        service_status='pending',
+                    )
 
-                order = Order.objects.create(
-                    user=user, product=product,
-                    variant=selected_variant,
-                    amount_paid=final_price,
-                    service_fee=service_fee,
-                    discount_amount=promo_discount,
-                    points_earned=points_earned,
-                    points_used=points_to_use,
-                    promo_code=promo_obj,
-                    status=Order.Status.COMPLETED,
-                    escrow_held=False,
-                    requires_account=False,
-                    service_status='pending',
-                )
+                if codes:
+                    code = codes[i]
+                    code.status = 'sold'
+                    code.order  = order
+                    code.save()
+                    order.code = code
+                    order.save()
 
-            if code:
-                code.status = 'sold'
-                code.order  = order
-                code.save()
-                order.code = code
-                order.save()
+                orders.append(order)
+
+            if codes:
                 # Keep stock_count accurate: count remaining available codes
                 product.stock_count = product.codes.filter(status='available').count()
                 product.save(update_fields=['stock_count'])
             elif selected_variant:
-                selected_variant.stock_count = max(0, selected_variant.stock_count - 1)
+                selected_variant.stock_count = max(0, selected_variant.stock_count - quantity)
                 selected_variant.save(update_fields=['stock_count'])
             else:
-                product.stock_count = max(0, product.stock_count - 1)
+                product.stock_count = max(0, product.stock_count - quantity)
                 product.save(update_fields=['stock_count'])
 
             if promo_obj:
-                promo_obj.used_count += 1
+                promo_obj.used_count += quantity
                 promo_obj.save()
 
             WalletTransaction.objects.create(
-                user=user, type='debit', amount=final_price,
-                method='wallet', note=f'Purchase: {product.name}'
+                user=user, type='debit', amount=total_price,
+                method='wallet',
+                note=f'Purchase: {product.name}' + (f' x{quantity}' if quantity > 1 else ''),
             )
             if points_earned > 0:
                 WalletTransaction.objects.create(
                     user=user, type='credit', amount=0,
-                    method='points', note=f'Points earned: {points_earned} for order #{order.id}'
+                    method='points', note=f'Points earned: {points_earned * quantity} for order #{orders[0].id}'
                 )
 
             if needs_credentials and credentials:
-                creds = OrderCredentials(order=order)
+                creds = OrderCredentials(order=orders[0])
                 creds.set_data(credentials)
                 creds.save()
+
+        order = orders[0]
 
         # Auto-open chat for credential orders
         if needs_credentials:
@@ -446,7 +469,8 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
         try:
             from apps.orders.tasks import send_order_confirmation_email
-            _fire(send_order_confirmation_email.delay, order.id)
+            for o in orders:
+                _fire(send_order_confirmation_email.delay, o.id)
         except Exception:
             pass
 
@@ -454,10 +478,10 @@ class OrderListCreateView(generics.ListCreateAPIView):
             from apps.payments.tasks import send_telegram_alert
             low_threshold = getattr(settings, 'LOW_STOCK_THRESHOLD', 3)
             _fire(send_telegram_alert.delay,
-                f"New Order #{order.id}\n"
+                f"New Order #{order.id}" + (f" (x{quantity})" if quantity > 1 else '') + "\n"
                 f"{user.username}\n"
                 f"{product.name}\n"
-                f"{order.amount_paid} DT"
+                f"{total_price} DT"
                 + (" - Requires credentials" if needs_credentials else '')
             )
             if product.stock_count <= low_threshold:
@@ -474,6 +498,11 @@ class OrderListCreateView(generics.ListCreateAPIView):
         except Exception:
             pass
 
+        if quantity > 1:
+            return Response(
+                {'orders': OrderSerializer(orders, many=True).data, 'count': quantity},
+                status=status.HTTP_201_CREATED,
+            )
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

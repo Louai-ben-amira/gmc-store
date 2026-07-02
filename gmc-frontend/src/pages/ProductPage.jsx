@@ -173,7 +173,8 @@ function SectionLabel({ children }) {
 /* ── Main Page ───────────────────────────────────────────────────────── */
 export default function ProductPage() {
   const { t }    = useTranslation('shop')
-  const { id }   = useParams()
+  const { slug } = useParams()
+  const id = slug  // kept for backward-compat with queryKeys below
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuthStore()
   const toast    = useToast()
@@ -191,6 +192,7 @@ export default function ProductPage() {
   const [pendingCredentials, setPendingCredentials] = useState(null)
   const [topupModal,        setTopupModal]         = useState({ open: false, phone: '', product: '' })
   const [selectedVariant,   setSelectedVariant]   = useState(null)
+  const [quantity,          setQuantity]          = useState(1)
   const [reviewRating,      setReviewRating]      = useState(0)
   const [reviewBody,        setReviewBody]        = useState('')
   const [reviewLoading,     setReviewLoading]     = useState(false)
@@ -241,6 +243,16 @@ export default function ProductPage() {
     : product.available_stock > 0
   const fmt            = n => String(n).padStart(2, '0')
 
+  // Multi-unit purchases (gift cards, game keys, etc.) — not for services/account
+  // orders, which are always a single delivery.
+  const hasRequiredFields = product.required_fields?.length > 0
+  const allowQuantity  = !product.requires_account && !hasRequiredFields
+  const maxQty          = Math.min(20, selectedVariant
+    ? selectedVariant.stock_count
+    : (activeVariants.length > 0 ? 0 : product.available_stock))
+  const qty              = allowQuantity ? Math.min(Math.max(quantity, 1), Math.max(maxQty, 1)) : 1
+  const totalFinalPrice = finalPrice * qty
+
   // Breadcrumb
   const crumbs = [
     product.category_detail?.parent?.name,
@@ -283,7 +295,6 @@ export default function ProductPage() {
       toast.error('Please select a variant before purchasing.')
       return
     }
-    const hasRequiredFields = product?.required_fields?.length > 0
     if (hasRequiredFields || product?.requires_account) {
       setCredModalOpen(true)
     } else {
@@ -302,6 +313,7 @@ export default function ProductPage() {
       const { data: orderData } = await placeOrder({
         product_id:    product.id,
         variant_id:    selectedVariant?.id || null,
+        quantity:      qty,
         points_to_use: pointsToUse,
         promo_code:    promoResult ? promoResult.code : '',
         credentials:   pendingCredentials || {},
@@ -313,6 +325,10 @@ export default function ProductPage() {
         setTopupModal({ open: true, phone: phoneNumber, product: product.name })
       } else if (orderData.requires_account) {
         toast.success('Order placed! Check your chat.'); navigate('/orders')
+      } else if (Array.isArray(orderData.orders)) {
+        setQuantity(1)
+        toast.success(`${orderData.count} orders placed! View your codes in Orders.`)
+        navigate('/orders')
       } else {
         setCodeModal({ open: true, orderId: orderData.id, order: orderData }); toast.success('Order placed!')
       }
@@ -548,7 +564,7 @@ export default function ProductPage() {
                         return (
                           <button
                             key={v.id}
-                            onClick={() => setSelectedVariant(active ? null : v)}
+                            onClick={() => { setSelectedVariant(active ? null : v); setQuantity(1) }}
                             style={{
                               position: 'relative',
                               padding: '0.875rem 0.75rem',
@@ -654,13 +670,39 @@ export default function ProductPage() {
                     )}
                   </div>
 
+                  {/* Quantity stepper — multi-unit digital codes only */}
+                  {allowQuantity && maxQty > 1 && !(activeVariants.length > 0 && !selectedVariant) && (
+                    <div style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                        {t('product.quantity', 'Quantity')}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={qty <= 1}
+                          style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', cursor: qty <= 1 ? 'default' : 'pointer', opacity: qty <= 1 ? 0.4 : 1, fontSize: '1rem', lineHeight: 1 }}>
+                          −
+                        </button>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>{qty}</span>
+                        <button type="button" onClick={() => { setQuantity(q => Math.min(maxQty, q + 1)); setPointsToUse(0) }} disabled={qty >= maxQty}
+                          style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', cursor: qty >= maxQty ? 'default' : 'pointer', opacity: qty >= maxQty ? 0.4 : 1, fontSize: '1rem', lineHeight: 1 }}>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Line items if discounts active */}
-                  {(promoDiscount > 0 || pointsToUse > 0) && !(activeVariants.length > 0 && !selectedVariant) && (
+                  {(promoDiscount > 0 || pointsToUse > 0 || qty > 1) && !(activeVariants.length > 0 && !selectedVariant) && (
                     <div style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {qty > 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{formatCurrency(effectivePrice)} × {qty}</span>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{formatCurrency(effectivePrice * qty)}</span>
+                        </div>
+                      )}
                       {promoDiscount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{t('product.promoLabel', { code: promoResult.code })}</span>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', color: 'var(--success)' }}>-{formatCurrency(promoDiscount)}</span>
+                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', color: 'var(--success)' }}>-{formatCurrency(promoDiscount * qty)}</span>
                         </div>
                       )}
                       {pointsToUse > 0 && (
@@ -671,12 +713,12 @@ export default function ProductPage() {
                       )}
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: '#f59e0b' }}>{t('product.serviceFee')}</span>
-                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', color: '#f59e0b' }}>+{formatCurrency(serviceFee)}</span>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem', color: '#f59e0b' }}>+{formatCurrency(serviceFee * qty)}</span>
                       </div>
                       <div style={{ height: 1, background: 'var(--bg-elevated)', margin: '2px 0' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{t('product.total')}</span>
-                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '1.125rem', color: 'var(--accent)' }}>{formatCurrency(finalPrice)}</span>
+                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '1.125rem', color: 'var(--accent)' }}>{formatCurrency(totalFinalPrice)}</span>
                       </div>
                     </div>
                   )}
@@ -689,7 +731,7 @@ export default function ProductPage() {
                       disabled={!inStock || loading}
                       onClick={handleBuyClick}
                     >
-                      {!inStock ? t('product.outOfStock') : loading ? t('product.processing') : `⚡ ${t('product.confirmPurchase')}`}
+                      {!inStock ? t('product.outOfStock') : loading ? t('product.processing') : `⚡ ${t('product.confirmPurchase')}${qty > 1 ? ` (${qty})` : ''}`}
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 }}>
                       <TbLock size={11} color="var(--text-primary)" />
@@ -725,8 +767,8 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Points slider - only shown when admin enabled points for this product */}
-                {isAuthenticated() && user && maxRounded > 0 && product.points_purchasable && (
+                {/* Points slider - only shown when admin enabled points for this product (single-unit purchases only) */}
+                {isAuthenticated() && user && maxRounded > 0 && product.points_purchasable && qty === 1 && (
                   <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
                     <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.625rem' }}>{t('product.redeemPoints')}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -753,10 +795,11 @@ export default function ProductPage() {
               {[
                 [t('product.labelProduct'), product.name],
                 ...(selectedVariant ? [[t('product.labelVariant'), selectedVariant.label]] : []),
+                ...(qty > 1 ? [[t('product.quantity', 'Quantity'), String(qty)]] : []),
                 [t('product.labelPrice'), formatCurrency(effectivePrice)],
-                ...(promoDiscount > 0 ? [[t('product.labelPromo'), `-${formatCurrency(promoDiscount)}`]] : []),
+                ...(promoDiscount > 0 ? [[t('product.labelPromo'), `-${formatCurrency(promoDiscount * qty)}`]] : []),
                 ...(pointsToUse > 0 ? [[t('product.labelPoints'), `-${pointsToUse} pts`]] : []),
-                [t('product.serviceFee'), `+${formatCurrency(serviceFee)}`],
+                [t('product.serviceFee'), `+${formatCurrency(serviceFee * qty)}`],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>{label}</span>
@@ -769,7 +812,7 @@ export default function ProductPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: 'var(--text-primary)' }}>{t('product.total')}</span>
               <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1.25rem', color: 'var(--accent)' }}>
-                {formatCurrency(finalPrice)}
+                {formatCurrency(totalFinalPrice)}
               </span>
             </div>
           }

@@ -94,6 +94,7 @@ class PlaceOrderSerializer(serializers.Serializer):
     product_id    = serializers.IntegerField(required=False)
     bundle_id     = serializers.IntegerField(required=False)
     variant_id    = serializers.IntegerField(required=False, allow_null=True)
+    quantity      = serializers.IntegerField(default=1, min_value=1, max_value=20)
     points_to_use = serializers.IntegerField(default=0, min_value=0)
     promo_code    = serializers.CharField(required=False, allow_blank=True, default='')
     credentials   = serializers.DictField(required=False, allow_empty=True, default=dict)

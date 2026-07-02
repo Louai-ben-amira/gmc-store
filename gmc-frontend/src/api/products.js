@@ -7,7 +7,7 @@ export const getCategoryProducts = (slug, params) => api.get(`/products/categori
 
 // Products
 export const getProducts  = (params) => api.get('/products/', { params })
-export const getProduct   = (id)     => api.get(`/products/${id}/`)
+export const getProduct   = (slug)   => api.get(`/products/${slug}/`)
 
 export const getBundles   = (params) => api.get('/products/bundles/', { params })
 export const getBundle    = (id)     => api.get(`/products/bundles/${id}/`)

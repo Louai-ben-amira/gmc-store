@@ -587,7 +587,7 @@ function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false
 
   return (
     <div
-      onClick={() => navigate(`/product/${product.id}`)}
+      onClick={() => navigate(`/product/${product.slug || product.id}`)}
       style={{
         minWidth: cardW, maxWidth: cardW, flexShrink: 0,
         background: darkBg,
@@ -716,7 +716,7 @@ function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false
             </div>
           </div>
           <button
-            onClick={e => { e.stopPropagation(); navigate(`/product/${product.id}`) }}
+            onClick={e => { e.stopPropagation(); navigate(`/product/${product.slug || product.id}`) }}
             style={{
               padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
               background: flash ? 'linear-gradient(135deg,#CC0020,#FF1F3A)' : 'linear-gradient(135deg,#4C1D95,#7C3AED)',

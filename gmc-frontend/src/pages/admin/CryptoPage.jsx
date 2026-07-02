@@ -4,7 +4,7 @@ import { getAdminCryptoPayments, adminCryptoAction, getSiteSettings, createSiteS
 import { formatDate } from '../../utils/formatters'
 import { CheckCircle, XCircle, Settings, Copy, Check, X, ExternalLink } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
-import { PageShell, PageHeader, FilterTabs, StatusPill, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
+import { PageShell, PageHeader, FilterTabs, StatusPill, TH_STYLE, TD_STYLE, T, Pagination } from '../../components/admin/AdminUI'
 
 const WALLET_KEYS = [
   { key: 'BINANCE_ADDRESS', label: 'Binance Address (USDT)', icon: '🟡' },
@@ -284,16 +284,20 @@ function WalletSettings() {
 
 export default function CryptoPage() {
   const [statusFilter,  setStatusFilter]  = useState('')
+  const [page,          setPage]          = useState(1)
   const [selected,      setSelected]      = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
   const qc    = useQueryClient()
   const toast = useToast()
 
-  const { data = [], isLoading } = useQuery({
-    queryKey: ['admin-crypto', statusFilter],
-    queryFn:  () => getAdminCryptoPayments(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
+  const PAGE_SIZE = 20
+  const { data: rawData = {}, isLoading } = useQuery({
+    queryKey: ['admin-crypto', statusFilter, page],
+    queryFn:  () => getAdminCryptoPayments({ ...(statusFilter ? { status: statusFilter } : {}), page, page_size: PAGE_SIZE }).then(r => r.data),
     refetchInterval: 20000,
   })
+  const data       = rawData?.results ?? (Array.isArray(rawData) ? rawData : [])
+  const totalPages = Math.ceil((rawData?.count ?? data.length) / PAGE_SIZE)
 
   const handleAction = async (id, action, note = '', txHash = '') => {
     setActionLoading(id)
@@ -324,7 +328,7 @@ export default function CryptoPage() {
       <FilterTabs
         tabs={tabs}
         value={statusFilter}
-        onChange={setStatusFilter}
+        onChange={v => { setStatusFilter(v); setPage(1) }}
         style={{ marginBottom: '1.25rem' }}
       />
 
@@ -400,6 +404,7 @@ export default function CryptoPage() {
             })}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
       </div>
 
       {selected && (

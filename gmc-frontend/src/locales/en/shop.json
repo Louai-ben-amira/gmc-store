@@ -47,6 +47,7 @@
     "step3Account": "Service delivered",
     "step3Code": "{{name}} delivered",
     "selectAmount": "SELECT AMOUNT",
+    "quantity": "Quantity",
     "flashEnds": "Flash ends in {{time}}",
     "processing": "Processing…",
     "confirmPurchase": "Confirm Purchase",
