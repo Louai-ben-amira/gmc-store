@@ -106,12 +106,16 @@ export const NAV_ITEMS = [
         fallbackIcon: BsXbox, fallbackColor: '#107C10',
       },
       {
-        label: 'Valorant', color: '#FF4655', categorySlug: 'valorant-points',
+        label: 'Valorant', color: '#FF4655', categorySlug: 'valorant-gift-card',
         fallbackIcon: SiValorant, fallbackColor: '#FF4655',
       },
       {
         label: 'iTunes', color: '#A2AAAD', categorySlug: 'apple-gift-cards',
         fallbackIcon: SiApple, fallbackColor: '#A2AAAD',
+      },
+      {
+        label: 'Nintendo eShop', color: '#E60012', categorySlug: 'nintendo-eshop',
+        fallbackIcon: PiGameControllerBold, fallbackColor: '#E60012',
       },
       {
         label: 'Other', color: '#7C3AED',
@@ -643,12 +647,15 @@ function SearchBox({ mobile = false, onNavigate, onQueryChange }) {
 
   const { data, isFetching } = useQuery({
     queryKey: ['nav-search', debouncedQuery],
-    queryFn:  () => getProducts({ search: debouncedQuery, page_size: 6 }).then(r => r.data),
+    queryFn:  () => getProducts({ search: debouncedQuery, page_size: 20 }).then(r => r.data),
     enabled:  debouncedQuery.length > 0,
     staleTime: 15000,
   })
 
-  const results = data?.results || data || []
+  // Only show products whose name starts with what was typed (matches from the first letter).
+  const results = (data?.results || data || [])
+    .filter(p => p.name?.toLowerCase().startsWith(debouncedQuery.toLowerCase()))
+    .slice(0, 6)
   const showDropdown = open && query.trim().length > 0
 
   const goToProduct = (product) => {
