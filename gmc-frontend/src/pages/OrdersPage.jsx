@@ -381,7 +381,7 @@ export default function OrdersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => getOrders().then(r => r.data),
+    queryFn: () => getOrders({ page_size: 100 }).then(r => r.data),
   })
   const allOrders = data?.results || data || []
   const orders = filter === 'all' ? allOrders : allOrders.filter(o => o.status === filter)
