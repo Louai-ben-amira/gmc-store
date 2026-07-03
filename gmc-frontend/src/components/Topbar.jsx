@@ -114,10 +114,6 @@ export const NAV_ITEMS = [
         fallbackIcon: SiApple, fallbackColor: '#A2AAAD',
       },
       {
-        label: 'Nintendo eShop', color: '#E60012', categorySlug: 'nintendo-eshop',
-        fallbackIcon: PiGameControllerBold, fallbackColor: '#E60012',
-      },
-      {
         label: 'Other', color: '#7C3AED',
         items: [
           { label: 'GMC Gift',          to: '/?cat=gmc-gift-card',      Icon: PiGiftBold,        color: '#7C3AED' },
