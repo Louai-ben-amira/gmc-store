@@ -1,4 +1,5 @@
 import json
+import uuid
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -83,6 +84,9 @@ class Order(models.Model):
     # Code reveal tracking - set on first client reveal
     code_viewed_at   = models.DateTimeField(null=True, blank=True)
     code_view_ip     = models.GenericIPAddressField(null=True, blank=True)
+    # Groups the N orders created by a single quantity>1 purchase so the
+    # client can display them as one purchase with multiple codes.
+    batch_id         = models.UUIDField(null=True, blank=True, db_index=True)
     created_at       = models.DateTimeField(auto_now_add=True)
 
     class Meta:

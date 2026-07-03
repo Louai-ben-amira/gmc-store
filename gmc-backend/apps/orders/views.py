@@ -1,3 +1,4 @@
+import uuid
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -381,6 +382,8 @@ class OrderListCreateView(generics.ListCreateAPIView):
             user.points  += (points_earned * quantity) - points_to_use
             user.save()
 
+            batch_id = uuid.uuid4() if quantity > 1 else None
+
             orders = []
             for i in range(quantity):
                 if needs_credentials:
@@ -397,6 +400,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                         escrow_held=True,
                         requires_account=True,
                         service_status='pending',
+                        batch_id=batch_id,
                     )
                 else:
                     order = Order.objects.create(
@@ -413,6 +417,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                         escrow_held=False,
                         requires_account=False,
                         service_status='pending',
+                        batch_id=batch_id,
                     )
 
                 if codes:

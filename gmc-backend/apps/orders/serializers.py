@@ -39,7 +39,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'code_value', 'is_revealed', 'is_refund_eligible',
             'code_viewed_at', 'code_view_ip',
             'promo_code_str', 'has_credentials',
-            'conversation_id', 'created_at',
+            'conversation_id', 'created_at', 'batch_id',
         ]
         read_only_fields = [
             'id', 'amount_paid', 'service_fee', 'discount_amount', 'points_earned',
