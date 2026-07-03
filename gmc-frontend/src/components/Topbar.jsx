@@ -16,9 +16,9 @@ import {
 import {
   SiValorant, SiRoblox, SiSteam, SiPlaystation,
   SiNetflix, SiSpotify, SiYoutube, SiApple,
-  SiLeagueoflegends, SiEpicgames,
+  SiLeagueoflegends, SiEpicgames, SiRockstargames,
 } from 'react-icons/si'
-import { BsXbox } from 'react-icons/bs'
+import { BsXbox, BsMicrosoft } from 'react-icons/bs'
 import { useQuery } from '@tanstack/react-query'
 import useAuthStore from '../store/authStore'
 import { mediaUrl, formatCurrency } from '../utils/formatters'
@@ -73,8 +73,10 @@ export const NAV_ITEMS = [
       {
         labelKey: 'nav.gamingAccounts', label: 'Gaming Accounts', color: '#7C3AED',
         items: [
-          { label: 'Steam',      to: '/?cat=steam-accounts',      Icon: SiSteam,     color: '#66C0F4' },
-          { label: 'Epic Games', to: '/?cat=epic-games-accounts', Icon: SiEpicgames, color: 'var(--text-primary)' },
+          { label: 'Steam',          to: '/?cat=steam-accounts',          Icon: SiSteam,         color: '#66C0F4' },
+          { label: 'Epic Games',     to: '/?cat=epic-games-accounts',     Icon: SiEpicgames,     color: 'var(--text-primary)' },
+          { label: 'Microsoft',      to: '/?cat=microsoft-accounts',      Icon: BsMicrosoft,     color: '#00A4EF' },
+          { label: 'Rockstar Games', to: '/?cat=rockstar-games-accounts', Icon: SiRockstargames, color: '#FCAF17' },
         ],
       },
       {
