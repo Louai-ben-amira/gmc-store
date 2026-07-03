@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query'
 import useAuthStore from '../store/authStore'
 import { mediaUrl, formatCurrency } from '../utils/formatters'
 import { getWallet } from '../api/wallet'
-import { getCategories } from '../api/products'
+import { getCategories, getProducts } from '../api/products'
 
 /* ── inject global keyframe once ───────────────────────────────────── */
 if (typeof document !== 'undefined' && !document.getElementById('gmc-nav-style')) {
@@ -86,7 +86,7 @@ export const NAV_ITEMS = [
         ],
       },
     ],
-    viewAll: { labelKey: 'nav.viewAllAccounts', label: 'View All Gaming Accounts', to: '/gaming-accounts' },
+    viewAll: { labelKey: 'nav.viewAllAccounts', label: 'View All Gaming Accounts', to: '/?cat=game-accounts' },
   },
 
   {
@@ -94,44 +94,24 @@ export const NAV_ITEMS = [
     maxCols: 3,
     groups: [
       {
-        label: 'Steam', color: '#7C3AED',
-        items: [
-          { label: 'Global', to: '/?cat=steam-global', Icon: SiSteam, color: '#66C0F4' },
-          { label: 'Europe', to: '/?cat=steam-europe', Icon: SiSteam, color: '#66C0F4' },
-          { label: 'Other',  to: '/?cat=steam-other',  Icon: SiSteam, color: '#66C0F4' },
-        ],
+        label: 'Steam', color: '#7C3AED', categorySlug: 'steam-gift-cards',
+        fallbackIcon: SiSteam, fallbackColor: '#66C0F4',
       },
       {
-        label: 'PlayStation', color: '#7C3AED',
-        items: [
-          { label: 'USA',    to: '/?cat=psn-usa',    Icon: SiPlaystation, color: '#0070d1' },
-          { label: 'France', to: '/?cat=psn-france', Icon: SiPlaystation, color: '#0070d1' },
-          { label: 'Other',  to: '/?cat=psn-other',  Icon: SiPlaystation, color: '#0070d1' },
-        ],
+        label: 'PlayStation', color: '#7C3AED', categorySlug: 'playstation-gift-cards',
+        fallbackIcon: SiPlaystation, fallbackColor: '#0070d1',
       },
       {
-        label: 'Xbox', color: '#7C3AED',
-        items: [
-          { label: 'USA',    to: '/?cat=xbox-usa',    Icon: BsXbox, color: '#107C10' },
-          { label: 'Turkey', to: '/?cat=xbox-turkey', Icon: BsXbox, color: '#107C10' },
-          { label: 'Other',  to: '/?cat=xbox-other',  Icon: BsXbox, color: '#107C10' },
-        ],
+        label: 'Xbox', color: '#7C3AED', categorySlug: 'xbox-gift-cards',
+        fallbackIcon: BsXbox, fallbackColor: '#107C10',
       },
       {
-        label: 'Valorant', color: '#FF4655',
-        items: [
-          { label: 'Europe', to: '/?cat=valorant-europe', Icon: SiValorant, color: '#FF4655' },
-          { label: 'Turkey', to: '/?cat=valorant-turkey', Icon: SiValorant, color: '#FF4655' },
-        ],
+        label: 'Valorant', color: '#FF4655', categorySlug: 'valorant-points',
+        fallbackIcon: SiValorant, fallbackColor: '#FF4655',
       },
       {
-        label: 'iTunes', color: '#A2AAAD',
-        items: [
-          { label: 'USA',     to: '/?cat=itunes-usa',     Icon: SiApple, color: '#A2AAAD' },
-          { label: 'France',  to: '/?cat=itunes-france',  Icon: SiApple, color: '#A2AAAD' },
-          { label: 'Turkey',  to: '/?cat=itunes-turkey',  Icon: SiApple, color: '#A2AAAD' },
-          { label: 'Allemagne', to: '/?cat=itunes-allemagne', Icon: SiApple, color: '#A2AAAD' },
-        ],
+        label: 'iTunes', color: '#A2AAAD', categorySlug: 'apple-gift-cards',
+        fallbackIcon: SiApple, fallbackColor: '#A2AAAD',
       },
       {
         label: 'Other', color: '#7C3AED',
@@ -349,6 +329,11 @@ function MegaDropdown({ item, onClose }) {
 
                 {/* Sub items */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {group.items.length === 0 && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.6, padding: '4px 7px' }}>
+                      No regions yet
+                    </span>
+                  )}
                   {group.items.map((sub, si) => {
                     const Icon = sub.Icon
                     return (
@@ -373,15 +358,16 @@ function MegaDropdown({ item, onClose }) {
                           e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
                         }}
                       >
-                        {Icon && (
-                          <span style={{
-                            width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                            background: `${sub.color}18`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            <Icon size={12} color={sub.color} />
-                          </span>
-                        )}
+                        <span style={{
+                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                          background: `${sub.color}18`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {Icon
+                            ? <Icon size={12} color={sub.color} />
+                            : <span style={{ fontSize: '0.72rem', lineHeight: 1 }}>{sub.emoji || '📦'}</span>
+                          }
+                        </span>
                         {sub.label}
                       </Link>
                     )
@@ -632,6 +618,194 @@ function UserMenu({ user, onLogout }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   LIVE SEARCH  (type-ahead dropdown, matches product name/description)
+═══════════════════════════════════════════════════════════════════════ */
+function useDebouncedValue(value, delay) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(id)
+  }, [value, delay])
+  return debounced
+}
+
+function SearchBox({ mobile = false, onNavigate, onQueryChange }) {
+  const { t } = useTranslation('common')
+  const navigate = useNavigate()
+  const [query, setQuery]     = useState('')
+  const [open, setOpen]       = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const wrapRef  = useRef(null)
+  const blurTimer = useRef(null)
+
+  const debouncedQuery = useDebouncedValue(query.trim(), 250)
+
+  const { data, isFetching } = useQuery({
+    queryKey: ['nav-search', debouncedQuery],
+    queryFn:  () => getProducts({ search: debouncedQuery, page_size: 6 }).then(r => r.data),
+    enabled:  debouncedQuery.length > 0,
+    staleTime: 15000,
+  })
+
+  const results = data?.results || data || []
+  const showDropdown = open && query.trim().length > 0
+
+  const goToProduct = (product) => {
+    clearTimeout(blurTimer.current)
+    setOpen(false)
+    setQuery('')
+    setActiveIdx(-1)
+    onNavigate?.()
+    navigate(`/product/${product.slug || product.id}`)
+  }
+
+  const handleKeyDown = (e) => {
+    if (!showDropdown || results.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx(i => (i + 1) % results.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx(i => (i - 1 + results.length) % results.length)
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault()
+      goToProduct(results[activeIdx])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: 'relative', width: mobile ? '100%' : 200, flexShrink: 0 }}
+    >
+      <Search size={13} style={{
+        position: 'absolute', left: mobile ? 10 : 9, top: '50%', transform: 'translateY(-50%)',
+        pointerEvents: 'none',
+        color: focused ? '#7C3AED' : 'rgba(255,255,255,0.22)',
+        transition: 'color 0.15s',
+      }} />
+      <input
+        type="text"
+        value={query}
+        placeholder={t('btn.search')}
+        onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(-1); onQueryChange?.(e.target.value) }}
+        onFocus={() => { setFocused(true); setOpen(true) }}
+        onBlur={() => { blurTimer.current = setTimeout(() => { setFocused(false); setOpen(false) }, 150) }}
+        onKeyDown={handleKeyDown}
+        style={{
+          width: '100%', height: mobile ? 40 : 32,
+          paddingLeft: mobile ? 32 : 28, paddingRight: query ? 26 : 10,
+          background: 'var(--bg-elevated)',
+          border: `1px solid ${focused ? '#7C3AED' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: mobile ? 10 : 8, color: 'var(--text-primary)',
+          fontFamily: 'Inter, sans-serif', fontSize: mobile ? '0.875rem' : '0.8rem',
+          outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
+          boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.18)' : 'none',
+        }}
+      />
+      {query && (
+        <button
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => { setQuery(''); setOpen(false); onQueryChange?.('') }}
+          style={{
+            position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-muted)', padding: '4px', display: 'flex',
+            minWidth: 28, minHeight: 28, alignItems: 'center', justifyContent: 'center',
+          }}>
+          <X size={11} />
+        </button>
+      )}
+
+      {/* ── Live results dropdown ── */}
+      {showDropdown && (
+        <div
+          onMouseDown={e => e.preventDefault()}
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: mobile ? 0 : 'auto',
+            width: mobile ? '100%' : 320,
+            zIndex: 9999,
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(124,58,237,0.25)',
+            borderTop: '2px solid #7C3AED',
+            borderRadius: 14,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04)',
+            overflow: 'hidden',
+            animation: 'navDropIn 0.15s ease both',
+          }}
+        >
+          {isFetching && results.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
+              {Array(3).fill(0).map((_, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 9, background: 'var(--bg-elevated)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: 10, width: '70%', borderRadius: 4, background: 'var(--bg-elevated)', marginBottom: 6 }} />
+                    <div style={{ height: 8, width: '45%', borderRadius: 4, background: 'var(--bg-elevated)' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results.length === 0 ? (
+            <div style={{ padding: '1.25rem 1rem', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                No products found for "<span style={{ color: 'var(--text-secondary)' }}>{query.trim()}</span>"
+              </p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: 360, overflowY: 'auto', padding: 6 }}>
+              {results.map((product, i) => (
+                <div
+                  key={product.id}
+                  onClick={() => goToProduct(product)}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 8px', borderRadius: 10, cursor: 'pointer',
+                    background: activeIdx === i ? 'rgba(124,58,237,0.14)' : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 9, flexShrink: 0, overflow: 'hidden',
+                    background: '#181825', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {product.image
+                      ? <img src={mediaUrl(product.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <PiGiftBold size={16} color="rgba(255,255,255,0.2)" />
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {product.name}
+                    </p>
+                    {product.description && (
+                      <p style={{ margin: '2px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.6875rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {product.description}
+                      </p>
+                    )}
+                  </div>
+                  <span style={{
+                    flexShrink: 0, fontFamily: 'JetBrains Mono, monospace', fontWeight: 700,
+                    fontSize: '0.8125rem', color: '#3DDC84',
+                  }}>
+                    {formatCurrency(product.effective_price ?? product.price)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    TOPBAR
 ═══════════════════════════════════════════════════════════════════════ */
 export default function Topbar({ onSearch }) {
@@ -641,8 +815,6 @@ export default function Topbar({ onSearch }) {
   const authed    = isAuthenticated()
 const { t } = useTranslation('common')
 
-  const [focused,     setFocused]     = useState(false)
-  const [query,       setQuery]       = useState('')
   const [authModal,   setAuthModal]   = useState({ open: false, tab: 'login' })
   const [mobileOpen,  setMobileOpen]  = useState(false)
 
@@ -679,8 +851,26 @@ const { t } = useTranslation('common')
     return map
   }, [allCategories])
 
-  // Resolve nav items: replace categorySlug items with DB children
+  // Resolve nav items: replace categorySlug items/groups with DB children
   const resolvedNavItems = useMemo(() => NAV_ITEMS.map(item => {
+    if (item.groups) {
+      const groups = item.groups.map(group => {
+        if (!group.categorySlug) return group
+        const parent = catBySlug[group.categorySlug]
+        const items = (parent?.children || [])
+          .filter(c => c.is_active !== false)
+          .map(c => ({
+            label: c.name,
+            to: `/?cat=${c.slug}`,
+            emoji: c.icon,
+            Icon: group.fallbackIcon,
+            color: c.color || group.fallbackColor || group.color,
+          }))
+        return { ...group, items }
+      })
+      return { ...item, groups }
+    }
+
     if (!item.categorySlug) return item
     const parent = catBySlug[item.categorySlug]
     const children = (parent?.children || [])
@@ -697,7 +887,6 @@ const { t } = useTranslation('common')
     return { ...item, children, viewAll }
   }), [catBySlug])
 
-  const handleChange = e => { setQuery(e.target.value); onSearch?.(e.target.value) }
   const handleLogout = () => { logout(); navigate('/') }
   const isActive = (item) => item.exact && location.pathname === '/' && !location.search
 
@@ -749,39 +938,8 @@ const { t } = useTranslation('common')
         </nav>
 
         {/* Search - hidden on mobile */}
-        <div className="gmc-topbar-search" style={{ position: 'relative', width: 200, flexShrink: 0 }}>
-          <Search size={13} style={{
-            position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)',
-            pointerEvents: 'none',
-            color: focused ? '#7C3AED' : 'rgba(255,255,255,0.22)',
-            transition: 'color 0.15s',
-          }} />
-          <input
-            type="text" value={query} placeholder={t('btn.search')}
-            onChange={handleChange}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={{
-              width: '100%', height: 32,
-              paddingLeft: 28, paddingRight: query ? 26 : 10,
-              background: 'var(--bg-elevated)',
-              border: `1px solid ${focused ? '#7C3AED' : 'rgba(255,255,255,0.08)'}`,
-              borderRadius: 8, color: 'var(--text-primary)',
-              fontFamily: 'Inter, sans-serif', fontSize: '0.8rem',
-              outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
-              boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.18)' : 'none',
-            }}
-          />
-          {query && (
-            <button onClick={() => { setQuery(''); onSearch?.('') }} style={{
-              position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', padding: '4px', display: 'flex',
-              minWidth: 28, minHeight: 28, alignItems: 'center', justifyContent: 'center',
-            }}>
-              <X size={11} />
-            </button>
-          )}
+        <div className="gmc-topbar-search">
+          <SearchBox onQueryChange={onSearch} />
         </div>
 
         {/* Right actions */}
@@ -897,22 +1055,8 @@ const { t } = useTranslation('common')
         }}>
 
           {/* Mobile search */}
-          <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-            <Search size={13} style={{
-              position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-              color: 'rgba(255,255,255,0.22)', pointerEvents: 'none',
-            }}/>
-            <input
-              type="text" value={query} placeholder={t('btn.search')}
-              onChange={handleChange}
-              style={{
-                width: '100%', height: 40, paddingLeft: 32, paddingRight: 12,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 10, color: 'var(--text-primary)',
-                fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', outline: 'none',
-              }}
-            />
+          <div style={{ marginBottom: '1.25rem' }}>
+            <SearchBox mobile onNavigate={() => setMobileOpen(false)} />
           </div>
 
           {/* Nav links */}

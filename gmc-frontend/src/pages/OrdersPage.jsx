@@ -368,6 +368,113 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
   )
 }
 
+/* ── Group multi-quantity purchases (same batch_id) into one card ──────── */
+function groupOrders(orders) {
+  const groups = []
+  const indexByBatch = new Map()
+  for (const order of orders) {
+    if (order.batch_id) {
+      if (indexByBatch.has(order.batch_id)) {
+        groups[indexByBatch.get(order.batch_id)].orders.push(order)
+      } else {
+        indexByBatch.set(order.batch_id, groups.length)
+        groups.push({ isGroup: true, batch_id: order.batch_id, orders: [order] })
+      }
+    } else {
+      groups.push({ isGroup: false, order })
+    }
+  }
+  return groups
+}
+
+/* ── Grouped order card (one purchase, many codes) ──────────────────────── */
+function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
+  const { t } = useTranslation('orders')
+  const [expanded, setExpanded] = useState(false)
+  const orders = group.orders
+  const first = orders[0]
+  const totalAmount = orders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0)
+  const totalPoints = orders.reduce((s, o) => s + (o.points_earned || 0), 0)
+  const allSameStatus = orders.every(o => o.status === first.status)
+  const cfg = STATUS_CFG[allSameStatus ? first.status : 'pending'] || STATUS_CFG.pending
+  const StatusIcon = cfg.Icon
+
+  return (
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 16,
+      overflow: 'hidden',
+      animation: 'fadeSlideUp 0.35s ' + (idx * 0.04) + 's ease both',
+      transition: 'border-color 0.15s, box-shadow 0.15s',
+    }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(124,58,237,0.25)'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(124,58,237,0.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}
+    >
+      <div className="order-main-row" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '1rem 1.25rem', cursor: 'pointer' }} onClick={() => setExpanded(v => !v)}>
+        <div style={{ width: 50, height: 50, borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: '#181825', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {first.product_detail?.image
+            ? <img src={mediaUrl(first.product_detail.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <TbShoppingBag size={20} color="rgba(255,255,255,0.15)" />
+          }
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {first.product_detail?.name || first.bundle_name || 'Bundle Order'}
+            </p>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
+              x{orders.length}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>{orders.length} codes</span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(first.created_at)}</span>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'right', flexShrink: 0, marginRight: 8 }}>
+          <p style={{ margin: '0 0 5px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#3DDC84' }}>{formatCurrency(totalAmount)}</p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cfg.color + '12', border: '1px solid ' + cfg.color + '28', borderRadius: 7, padding: '3px 8px' }}>
+            <StatusIcon size={10} color={cfg.color} />
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.05em' }}>
+              {allSameStatus ? t('status.' + first.status, cfg.label).toUpperCase() : 'MIXED'}
+            </span>
+          </div>
+        </div>
+
+        <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }} style={{
+          width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0,
+          color: 'var(--text-muted)', transition: 'all 0.13s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'white' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+        >
+          {expanded ? <TbChevronUp size={14} /> : <TbChevronDown size={14} />}
+        </button>
+      </div>
+
+      {expanded && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.15)', padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {orders.map((order, i) => (
+            <OrderRow
+              key={order.id}
+              order={order}
+              idx={i}
+              onView={onView}
+              onReorder={onReorder}
+              reorderingId={reorderingId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Main page ───────────────────────────────────────────────────────── */
 export default function OrdersPage() {
   const { t } = useTranslation('orders')
@@ -503,15 +610,26 @@ export default function OrdersPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              {orders.map((order, i) => (
-                <OrderRow
-                  key={order.id}
-                  order={order}
-                  idx={i}
-                  onView={setSelectedOrder}
-                  onReorder={handleReorder}
-                  reorderingId={reorderingId}
-                />
+              {groupOrders(orders).map((item, i) => (
+                item.isGroup ? (
+                  <OrderGroupRow
+                    key={'batch-' + item.batch_id}
+                    group={item}
+                    idx={i}
+                    onView={setSelectedOrder}
+                    onReorder={handleReorder}
+                    reorderingId={reorderingId}
+                  />
+                ) : (
+                  <OrderRow
+                    key={item.order.id}
+                    order={item.order}
+                    idx={i}
+                    onView={setSelectedOrder}
+                    onReorder={handleReorder}
+                    reorderingId={reorderingId}
+                  />
+                )
               ))}
             </div>
           )}

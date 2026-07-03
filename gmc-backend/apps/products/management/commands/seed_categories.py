@@ -11,22 +11,57 @@ CATEGORY_TREE = [
                 'name': 'Gift Cards', 'slug': 'gift-cards', 'icon': '🎁',
                 'color': '#8B5CF6', 'order': 1,
                 'children': [
-                    {'name': 'Steam Gift Cards',       'slug': 'steam-gift-cards',       'icon': '🎮', 'order': 1},
-                    {'name': 'PlayStation Gift Cards',  'slug': 'playstation-gift-cards', 'icon': '🕹️', 'order': 2},
-                    {'name': 'Xbox Gift Cards',         'slug': 'xbox-gift-cards',        'icon': '🟢', 'order': 3},
+                    {
+                        'name': 'Steam Gift Cards', 'slug': 'steam-gift-cards', 'icon': '🎮', 'order': 1,
+                        'children': [
+                            {'name': 'Global', 'slug': 'steam-global', 'icon': '🌍', 'order': 1},
+                            {'name': 'Europe', 'slug': 'steam-europe', 'icon': '🇪🇺', 'order': 2},
+                            {'name': 'Other',  'slug': 'steam-other',  'icon': '🎮', 'order': 3},
+                        ],
+                    },
+                    {
+                        'name': 'PlayStation Gift Cards', 'slug': 'playstation-gift-cards', 'icon': '🕹️', 'order': 2,
+                        'children': [
+                            {'name': 'USA',    'slug': 'psn-usa',    'icon': '🇺🇸', 'order': 1},
+                            {'name': 'France', 'slug': 'psn-france', 'icon': '🇫🇷', 'order': 2},
+                            {'name': 'Other',  'slug': 'psn-other',  'icon': '🕹️', 'order': 3},
+                        ],
+                    },
+                    {
+                        'name': 'Xbox Gift Cards', 'slug': 'xbox-gift-cards', 'icon': '🟢', 'order': 3,
+                        'children': [
+                            {'name': 'USA',    'slug': 'xbox-usa',    'icon': '🇺🇸', 'order': 1},
+                            {'name': 'Turkey', 'slug': 'xbox-turkey', 'icon': '🇹🇷', 'order': 2},
+                            {'name': 'Other',  'slug': 'xbox-other',  'icon': '🟢', 'order': 3},
+                        ],
+                    },
                     {'name': 'Nintendo eShop',          'slug': 'nintendo-eshop',         'icon': '🔴', 'order': 4},
                     {'name': 'Razer Gold',              'slug': 'razer-gold',             'icon': '💚', 'order': 5},
                     {'name': 'Roblox Gift Cards',       'slug': 'roblox-gift-cards',      'icon': '🟥', 'order': 6},
                     {'name': 'Riot Gift Cards',         'slug': 'riot-gift-cards',        'icon': '⚔️', 'order': 7},
                     {'name': 'Google Play',             'slug': 'google-play',            'icon': '▶️', 'order': 8},
-                    {'name': 'Apple Gift Cards',        'slug': 'apple-gift-cards',       'icon': '🍎', 'order': 9},
+                    {
+                        'name': 'Apple Gift Cards', 'slug': 'apple-gift-cards', 'icon': '🍎', 'order': 9,
+                        'children': [
+                            {'name': 'USA',       'slug': 'itunes-usa',       'icon': '🇺🇸', 'order': 1},
+                            {'name': 'France',    'slug': 'itunes-france',    'icon': '🇫🇷', 'order': 2},
+                            {'name': 'Turkey',    'slug': 'itunes-turkey',    'icon': '🇹🇷', 'order': 3},
+                            {'name': 'Allemagne', 'slug': 'itunes-allemagne', 'icon': '🇩🇪', 'order': 4},
+                        ],
+                    },
                 ],
             },
             {
                 'name': 'Game Top-Ups', 'slug': 'game-top-ups', 'icon': '⚡',
                 'color': '#F59E0B', 'order': 2, 'requires_account': True,
                 'children': [
-                    {'name': 'Valorant Points (VP)',        'slug': 'valorant-points',         'icon': '🔫', 'order': 1},
+                    {
+                        'name': 'Valorant Points (VP)', 'slug': 'valorant-points', 'icon': '🔫', 'order': 1,
+                        'children': [
+                            {'name': 'Europe', 'slug': 'valorant-europe', 'icon': '🇪🇺', 'order': 1},
+                            {'name': 'Turkey', 'slug': 'valorant-turkey', 'icon': '🇹🇷', 'order': 2},
+                        ],
+                    },
                     {'name': 'Fortnite V-Bucks',            'slug': 'fortnite-vbucks',         'icon': '🏗️', 'order': 2},
                     {'name': 'Roblox Robux',                'slug': 'roblox-robux',            'icon': '🟥', 'order': 3},
                     {'name': 'Free Fire Diamonds',          'slug': 'free-fire-diamonds',      'icon': '💎', 'order': 4},
@@ -41,15 +76,15 @@ CATEGORY_TREE = [
                 'name': 'Game Accounts', 'slug': 'game-accounts', 'icon': '👤',
                 'color': '#EF4444', 'order': 3, 'requires_account': True,
                 'children': [
-                    {'name': 'Valorant Accounts',           'slug': 'valorant-accounts',          'icon': '🔫', 'order': 1},
-                    {'name': 'Fortnite Accounts',           'slug': 'fortnite-accounts',          'icon': '🏗️', 'order': 2},
-                    {'name': 'Roblox Accounts',             'slug': 'roblox-accounts',            'icon': '🟥', 'order': 3},
-                    {'name': 'League of Legends Accounts',  'slug': 'lol-accounts',               'icon': '⚔️', 'order': 4},
-                    {'name': 'EA FC Accounts',              'slug': 'ea-fc-accounts',             'icon': '⚽', 'order': 5},
-                    {'name': 'Clash of Clans Accounts',     'slug': 'clash-of-clans-accounts',   'icon': '🏰', 'order': 6},
-                    {'name': 'Genshin Impact Accounts',     'slug': 'genshin-accounts',           'icon': '🌸', 'order': 7},
-                    {'name': 'Steam Accounts',              'slug': 'steam-accounts',             'icon': '🎮', 'order': 8},
-                    {'name': 'Epic Games Accounts',         'slug': 'epic-games-accounts',        'icon': '🖤', 'order': 9},
+                    {'name': 'Valorant Top Up',              'slug': 'valorant-accounts',          'icon': '🔫', 'order': 1},
+                    {'name': 'Fortnite Top Up',              'slug': 'fortnite-accounts',          'icon': '🏗️', 'order': 2},
+                    {'name': 'Roblox Top Up',                'slug': 'roblox-accounts',            'icon': '🟥', 'order': 3},
+                    {'name': 'League of Legends Top Up',     'slug': 'lol-accounts',               'icon': '⚔️', 'order': 4},
+                    {'name': 'EA FC Top Up',                 'slug': 'ea-fc-accounts',             'icon': '⚽', 'order': 5},
+                    {'name': 'Clash of Clans Top Up',        'slug': 'clash-of-clans-accounts',   'icon': '🏰', 'order': 6},
+                    {'name': 'Genshin Impact Top Up',        'slug': 'genshin-accounts',           'icon': '🌸', 'order': 7},
+                    {'name': 'Steam Top Up',                 'slug': 'steam-accounts',             'icon': '🎮', 'order': 8},
+                    {'name': 'Epic Games Top Up',            'slug': 'epic-games-accounts',        'icon': '🖤', 'order': 9},
                 ],
             },
             {
