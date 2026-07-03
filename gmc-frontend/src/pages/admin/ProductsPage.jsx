@@ -327,15 +327,11 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         </div>
         <div>
           <label style={LBL}>⭐ Points Earned on Purchase</label>
-          <input
-            type="number" min="0" step="1"
-            value={form.points_earned ?? 0}
-            onChange={e => onChange('points_earned', parseInt(e.target.value) || 0)}
-            placeholder="0 = use global rate"
-            style={INP}
-          />
+          <div style={{ ...INP, display: 'flex', alignItems: 'center', color: 'var(--muted)' }}>
+            {Math.round(Number(form.price) || 0)} pts (auto)
+          </div>
           <p style={{ margin: '3px 0 0', color: 'var(--muted)', fontSize: '0.7rem' }}>
-            0 = use global POINTS_RATE setting
+            Auto-calculated: 1 DT = 1 point
           </p>
         </div>
       </div>
@@ -796,7 +792,8 @@ export default function ProductsPage() {
     fd.append('requires_account', form.requires_account)
     fd.append('has_variants', form.has_variants)
     fd.append('points_purchasable', form.points_purchasable)
-    fd.append('points_earned', form.points_earned ?? 0)
+    // Points are always auto-calculated from price (1 DT = 1 point) — never set manually.
+    fd.append('points_earned', 0)
     fd.append('required_fields', JSON.stringify(form.required_fields || []))
     fd.append('is_flash_sale', form.is_flash_sale)
     if (form.is_flash_sale && form.flash_sale_price) fd.append('flash_sale_price', form.flash_sale_price)
