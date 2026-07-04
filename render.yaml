@@ -58,6 +58,10 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
       - key: LOW_STOCK_THRESHOLD
         value: "3"
 
