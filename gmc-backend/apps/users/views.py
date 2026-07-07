@@ -3,17 +3,18 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.conf import settings
 from .models import User, WalletTransaction
 from .serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer,
     ChangePasswordSerializer, WalletTransactionSerializer, AdminUserSerializer
 )
 from .permissions import IsAdmin
 from apps.payments.models import RechargeRequest
 from apps.payments.serializers import RechargeRequestSerializer
-from config.throttles import LoginRateThrottle, RegisterRateThrottle
+from config.throttles import LoginRateThrottle, RegisterRateThrottle, PasswordResetRateThrottle
 from django.db import transaction
 import requests as http_requests
 import re
@@ -198,6 +199,45 @@ def update_language(request):
     return Response({'language': language})
 
 
+class ForgotPasswordView(generics.GenericAPIView):
+    serializer_class = ForgotPasswordSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRateThrottle]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user:
+            from django.utils.http import urlsafe_base64_encode
+            from django.utils.encoding import force_bytes
+            from django.contrib.auth.tokens import default_token_generator
+            from .tasks import send_password_reset_email
+
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            send_password_reset_email.delay(user.id, uid, token)
+
+        # Same response whether or not the email exists - avoids leaking which emails are registered.
+        return Response({'detail': 'If an account exists for this email, a reset link has been sent.'})
+
+
+class ResetPasswordView(generics.GenericAPIView):
+    serializer_class = ResetPasswordSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRateThrottle]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        return Response({'detail': 'Password has been reset successfully.'})
+
+
 class ChangePasswordView(generics.GenericAPIView):
     serializer_class = ChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -270,12 +310,21 @@ class AdminUsersListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
-        return (
+        qs = (
             User.objects
             .select_related('referred_by')
             .annotate(orders_count=Count('orders'))
             .order_by('-created_at')
         )
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(referral_code__icontains=search)
+            )
+        return qs
 
 
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):

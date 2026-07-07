@@ -1,12 +1,20 @@
-from decimal import Decimal
+import json
+from decimal import Decimal, InvalidOperation
 from rest_framework import serializers
 from . import hero
-from .models import RechargeRequest, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
+from .models import RechargeRequest, RechargeTicketItem, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
 
 
 TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket'}
 D17_METHODS      = {'d17_number', 'd17_address'}
 TRANSFER_METHODS = {'d17_number', 'd17_address', 'bank_transfer', 'edinar', 'flouci'}
+
+
+class RechargeTicketItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = RechargeTicketItem
+        fields = ['id', 'code', 'value', 'credit']
+        read_only_fields = ['id', 'code', 'value', 'credit']
 
 
 class RechargeRequestSerializer(serializers.ModelSerializer):
@@ -17,12 +25,16 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
     tax_rate      = serializers.DecimalField(max_digits=5, decimal_places=4, read_only=True)
     wallet_credit = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
+    ticket_items = RechargeTicketItemSerializer(many=True, read_only=True)
+    # Write-only: JSON string of [{code, value}, ...] for ticket methods (multipart-safe)
+    tickets = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model  = RechargeRequest
         fields = [
             'id', 'user', 'user_username',
             'method',
-            'ticket_code', 'ticket_value',
+            'ticket_code', 'ticket_value', 'ticket_items', 'tickets',
             'amount_sent', 'reference_code',
             'tax_rate', 'wallet_credit',
             'proof', 'status', 'admin_note',
@@ -30,7 +42,7 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = [
-            'id', 'user', 'tax_rate', 'wallet_credit',
+            'id', 'user', 'ticket_code', 'ticket_value', 'tax_rate', 'wallet_credit',
             'status', 'admin_note', 'reviewed_at', 'reviewed_by', 'created_at',
         ]
 
@@ -38,24 +50,39 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
         method = attrs.get('method', '')
 
         if method in TICKET_METHODS:
-            if not attrs.get('ticket_code', '').strip():
-                raise serializers.ValidationError({'ticket_code': 'Ticket code is required.'})
+            raw = attrs.get('tickets', '')
+            try:
+                items = json.loads(raw) if raw else []
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({'tickets': 'Invalid ticket list.'})
 
-            ticket_value = attrs.get('ticket_value')
-            if ticket_value is None or ticket_value <= 0:
-                raise serializers.ValidationError({'ticket_value': 'Ticket value must be greater than 0.'})
+            if not isinstance(items, list) or not items:
+                raise serializers.ValidationError({'tickets': 'At least one ticket code is required.'})
 
-            # Uniqueness check - prevent the same ticket code being submitted twice
-            qs = RechargeRequest.objects.filter(
-                method__in=list(TICKET_METHODS),
-                ticket_code=attrs['ticket_code'].strip(),
-            )
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
+            seen_codes = set()
+            parsed = []
+            for item in items:
+                code  = str(item.get('code', '')).strip()
+                value = item.get('value')
+                if not code:
+                    raise serializers.ValidationError({'tickets': 'Every ticket needs a code.'})
+                try:
+                    value = Decimal(str(value))
+                except (TypeError, InvalidOperation):
+                    value = None
+                if value is None or value <= 0:
+                    raise serializers.ValidationError({'tickets': f'Ticket "{code}" needs a value greater than 0.'})
+                if code in seen_codes:
+                    raise serializers.ValidationError({'tickets': f'Ticket code "{code}" was submitted twice.'})
+                seen_codes.add(code)
+                parsed.append({'code': code, 'value': value})
+
+            if RechargeTicketItem.objects.filter(code__in=seen_codes).exists():
                 raise serializers.ValidationError(
-                    {'ticket_code': 'This ticket code has already been submitted.'}
+                    {'tickets': 'One or more of these ticket codes has already been submitted.'}
                 )
+
+            attrs['_parsed_tickets'] = parsed
 
         elif method in TRANSFER_METHODS:
             amount_sent = attrs.get('amount_sent')
@@ -65,6 +92,21 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'reference_code': 'Transaction reference number is required.'})
 
         return attrs
+
+    def create(self, validated_data):
+        parsed_tickets = validated_data.pop('_parsed_tickets', None)
+        validated_data.pop('tickets', None)
+
+        request = RechargeRequest.objects.create(**validated_data)
+
+        if parsed_tickets:
+            RechargeTicketItem.objects.bulk_create([
+                RechargeTicketItem(request=request, code=t['code'], value=t['value'])
+                for t in parsed_tickets
+            ])
+            request.save(update_fields=['tax_rate', 'wallet_credit'])
+
+        return request
 
 
 class RechargePreviewSerializer(serializers.Serializer):

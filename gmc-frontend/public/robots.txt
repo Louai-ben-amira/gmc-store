@@ -5,4 +5,4 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /oauth/
 
-Sitemap: https://gmcstore.tn/sitemap.xml
+Sitemap: https://gmcstorex.com/sitemap.xml

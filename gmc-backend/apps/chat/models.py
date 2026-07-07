@@ -11,6 +11,8 @@ class Conversation(models.Model):
     priority        = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='normal')
     last_message_at = models.DateTimeField(null=True, blank=True)
     unread_count    = models.IntegerField(default=0)
+    # Anti-spam guard: at most one "you have a new message" email per hour
+    last_email_alert_at = models.DateTimeField(null=True, blank=True)
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:

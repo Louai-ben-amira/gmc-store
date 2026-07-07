@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import ShopPage       from './pages/ShopPage'
 import ProductPage    from './pages/ProductPage'
 import RegisterPage   from './pages/RegisterPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import OrdersPage     from './pages/OrdersPage'
 import WalletPage     from './pages/WalletPage'
 import MessengerPage  from './pages/MessengerPage'
@@ -108,6 +109,7 @@ createRoot(document.getElementById('root')).render(
             {/* Auth */}
             <Route path="/register"      element={<AuthRoute><RegisterPage /></AuthRoute>} />
             <Route path="/oauth/google"  element={<OAuthCallbackPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Customer */}
             <Route path="/"          element={<Layout><ShopPage /></Layout>} />

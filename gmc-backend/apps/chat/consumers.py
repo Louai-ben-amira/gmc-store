@@ -120,6 +120,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         msg = await self._save_message(body)
 
+        # Admin replied: if the client doesn't read it within ~5 min, email them
+        if self.user.role == 'admin':
+            try:
+                from apps.chat.tasks import schedule_unread_email_check
+                schedule_unread_email_check(msg['id'])
+            except Exception:
+                pass
+
         payload = {
             'type':           'chat_message',
             'id':             msg['id'],

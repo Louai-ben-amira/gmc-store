@@ -119,6 +119,17 @@ class RechargeRequest(models.Model):
                 self.tax_rate = Decimal(rate_str)
             except Exception:
                 self.tax_rate = Decimal('0.11')
+
+            items = list(self.ticket_items.all()) if self.pk else []
+            if items:
+                total_credit = Decimal('0')
+                for item in items:
+                    item.credit = (item.value * (Decimal('1') - self.tax_rate)).quantize(Decimal('0.01'))
+                    total_credit += item.credit
+                RechargeTicketItem.objects.bulk_update(items, ['credit'])
+                self.wallet_credit = total_credit
+                return self.wallet_credit
+
             base = self.ticket_value or Decimal('0')
             self.wallet_credit = (base * (Decimal('1') - self.tax_rate)).quantize(Decimal('0.01'))
         elif self.method == 'bank_transfer':
@@ -142,10 +153,27 @@ class RechargeRequest(models.Model):
     def wallet_credit_description(self):
         if self.method in self.TICKET_METHODS:
             pct = int(self.tax_rate * 100)
+            items = list(self.ticket_items.all())
+            if items:
+                total_value = sum((i.value for i in items), Decimal('0'))
+                return (
+                    f"{len(items)} ticket(s), {total_value} DT total – {pct}% fee = {self.wallet_credit} DT credited"
+                )
             return (
                 f"{self.ticket_value} DT ticket – {pct}% fee = {self.wallet_credit} DT credited"
             )
         return f"D17 transfer – {self.wallet_credit} DT credited"
+
+
+class RechargeTicketItem(models.Model):
+    """One physical/digital recharge ticket within a (possibly multi-ticket) RechargeRequest."""
+    request = models.ForeignKey(RechargeRequest, on_delete=models.CASCADE, related_name='ticket_items')
+    code    = models.CharField(max_length=50, unique=True)
+    value   = models.DecimalField(max_digits=10, decimal_places=2)
+    credit  = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
+
+    def __str__(self):
+        return f"{self.code} ({self.value} DT)"
 
 
 class GiftCardBatch(models.Model):
