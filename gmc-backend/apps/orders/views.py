@@ -809,7 +809,9 @@ def cancel_order(request, pk):
         )
 
     with transaction.atomic():
-        locked = Order.objects.select_for_update().select_related('code', 'user').get(pk=order.pk)
+        # of=('self',) restricts the row lock to the orders table - code is a nullable
+        # OneToOneField, and Postgres rejects FOR UPDATE across a LEFT OUTER JOIN on it.
+        locked = Order.objects.select_for_update(of=('self',)).select_related('code', 'user').get(pk=order.pk)
 
         # Double-check after lock
         if locked.code_viewed_at is not None or locked.status != Order.Status.COMPLETED:

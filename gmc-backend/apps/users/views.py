@@ -583,7 +583,10 @@ def admin_cancel_order(request, pk):
         return Response({'detail': 'Only completed code orders can be cancelled here.'}, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
-        locked = Order.objects.select_for_update().select_related('code', 'user').get(pk=order.pk)
+        # `of=('self',)` restricts the row lock to the orders table. Without it, Postgres
+        # rejects locking a query that LEFT OUTER JOINs a nullable relation (code is nullable)
+        # with "FOR UPDATE cannot be applied to the nullable side of an outer join".
+        locked = Order.objects.select_for_update(of=('self',)).select_related('code', 'user').get(pk=order.pk)
 
         code = locked.code
         if code:
