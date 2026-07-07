@@ -111,7 +111,7 @@ export default function Footer() {
       links: [
         { label: 'Free Fire', to: '/?cat=free-fire' },
         { label: 'PUBG Mobile', to: '/?cat=pubg-mobile' },
-        { label: 'FC Mobile', to: '/?cat=fc-mobile' },
+        { label: 'Blood Strike', to: '/?cat=blood-strike' },
         { label: 'Mobile Legends', to: '/?cat=mobile-legends' },
         { label: t('footer.viewAll'), to: '/?cat=top-up-games', accent: true },
       ],

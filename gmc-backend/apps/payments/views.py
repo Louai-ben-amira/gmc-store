@@ -173,7 +173,8 @@ class RechargeCreateView(generics.CreateAPIView):
                 from apps.payments.tasks import send_telegram_alert
                 method_label = recharge.get_method_display()
                 if recharge.method in TICKET_METHODS:
-                    detail = f"🎫 Ticket {recharge.ticket_value} DT → credit {recharge.wallet_credit} DT"
+                    count = recharge.ticket_items.count()
+                    detail = f"🎫 {count} ticket(s) → credit {recharge.wallet_credit} DT"
                 else:
                     detail = f"💸 Sent {recharge.amount_sent} DT → credit {recharge.wallet_credit} DT"
                 send_telegram_alert.delay(

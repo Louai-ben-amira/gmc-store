@@ -1,11 +1,11 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { login, register, socialAuth } from '../api/auth'
+import { login, register, socialAuth, forgotPassword } from '../api/auth'
 import { googleLogin, facebookLogin } from '../utils/socialAuth'
 import useAuthStore from '../store/authStore'
 import { useToast } from '../hooks/useToast'
-import { X, Eye, EyeOff, Zap, User, Lock, Mail, ArrowRight, Sparkles, Gift } from 'lucide-react'
+import { X, Eye, EyeOff, Zap, User, Lock, Mail, ArrowRight, Sparkles, Gift, ArrowLeft, MailCheck } from 'lucide-react'
 
 /* ── inject styles once ─────────────────────────────────────────────── */
 if (typeof document !== 'undefined' && !document.getElementById('auth-modal-style')) {
@@ -217,7 +217,7 @@ function InputField({ icon: Icon, type = 'text', placeholder, value, onChange, e
 }
 
 /* ── Login form ─────────────────────────────────────────────────────── */
-function LoginForm({ onSuccess, switchToRegister }) {
+function LoginForm({ onSuccess, switchToRegister, switchToForgot }) {
   const { t } = useTranslation('auth')
   const [form, setForm]       = useState({ username: '', password: '' })
   const [showPass, setShowPass] = useState(false)
@@ -280,6 +280,16 @@ function LoginForm({ onSuccess, switchToRegister }) {
           </button>
         }
       />
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '-0.375rem 0 0.875rem' }}>
+        <button type="button" onClick={switchToForgot}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600, transition: 'color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          Forgot password?
+        </button>
+      </div>
 
       <button type="submit" className="auth-submit" disabled={loading} style={{ marginTop: '0.25rem' }}>
         {loading ? (
@@ -464,6 +474,87 @@ function RegisterForm({ onSuccess, switchToLogin }) {
   )
 }
 
+/* ── Forgot password form ───────────────────────────────────────────── */
+function ForgotPasswordForm({ switchToLogin }) {
+  const [email, setEmail]     = useState('')
+  const [error, setError]     = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent]       = useState(false)
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault()
+    if (!email.trim()) { setError('Email is required'); return }
+    setLoading(true)
+    setError('')
+    try {
+      await forgotPassword(email.trim())
+      setSent(true)
+    } catch {
+      // Backend always returns 200 to avoid leaking whether the email exists,
+      // so a failure here means a real network/server error.
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div style={{ animation: 'authSlideRight 0.22s ease both', textAlign: 'center', padding: '0.5rem 0 0.25rem' }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%', background: 'rgba(61,220,132,0.12)',
+          border: '1px solid rgba(61,220,132,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 1rem',
+        }}>
+          <MailCheck size={22} color="#3DDC84" />
+        </div>
+        <p style={{ color: 'var(--text-primary)', fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>
+          Check your inbox
+        </p>
+        <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', lineHeight: 1.5, margin: '0 0 1.5rem' }}>
+          If an account exists for <strong style={{ color: 'var(--text-secondary)' }}>{email.trim()}</strong>, we've sent a link to reset your password.
+        </p>
+        <button type="button" onClick={switchToLogin} className="auth-submit">
+          <ArrowLeft size={15} /> Back to sign in
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ animation: 'authSlideRight 0.22s ease both' }}>
+      <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', lineHeight: 1.5, margin: '0 0 1.125rem' }}>
+        Enter the email tied to your account and we'll send you a link to reset your password.
+      </p>
+
+      <InputField
+        icon={Mail} type="email" placeholder="Email address"
+        value={email} onChange={e => { setEmail(e.target.value); setError('') }}
+        error={error}
+      />
+
+      <button type="submit" className="auth-submit" disabled={loading} style={{ marginTop: '0.25rem' }}>
+        {loading ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--text-primary)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+            Sending link…
+          </span>
+        ) : (
+          <><Mail size={15} /> Send reset link</>
+        )}
+      </button>
+
+      <button type="button" onClick={switchToLogin}
+        style={{ width: '100%', marginTop: '0.875rem', padding: '0.5rem', border: 'none', background: 'none', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+      >
+        <ArrowLeft size={13} /> Back to sign in
+      </button>
+    </form>
+  )
+}
+
 /* ── Main AuthModal ─────────────────────────────────────────────────── */
 export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
   const { t } = useTranslation('auth')
@@ -536,27 +627,28 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'login' }) {
           </div>
 
           {/* Tab switcher */}
-          <div style={{
-            display: 'flex', gap: 4, padding: 4,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 12, marginBottom: '1.375rem',
-          }}>
-            <button className={`auth-tab ${tab === 'login' ? 'active' : 'inactive'}`} onClick={() => setTab('login')}>
-              {t('tabs.signIn')}
-            </button>
-            <button className={`auth-tab ${tab === 'register' ? 'active' : 'inactive'}`} onClick={() => setTab('register')}>
-              {t('tabs.signUp')}
-            </button>
-          </div>
+          {tab !== 'forgot' && (
+            <div style={{
+              display: 'flex', gap: 4, padding: 4,
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 12, marginBottom: '1.375rem',
+            }}>
+              <button className={`auth-tab ${tab === 'login' ? 'active' : 'inactive'}`} onClick={() => setTab('login')}>
+                {t('tabs.signIn')}
+              </button>
+              <button className={`auth-tab ${tab === 'register' ? 'active' : 'inactive'}`} onClick={() => setTab('register')}>
+                {t('tabs.signUp')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Form area */}
         <div style={{ padding: '0 1.75rem 1.75rem', overflowY: 'auto', maxHeight: 'calc(90vh - 160px)' }}>
-          {tab === 'login'
-            ? <LoginForm key="login" onSuccess={handleSuccess} switchToRegister={() => setTab('register')} />
-            : <RegisterForm key="register" onSuccess={handleSuccess} switchToLogin={() => setTab('login')} />
-          }
+          {tab === 'login' && <LoginForm key="login" onSuccess={handleSuccess} switchToRegister={() => setTab('register')} switchToForgot={() => setTab('forgot')} />}
+          {tab === 'register' && <RegisterForm key="register" onSuccess={handleSuccess} switchToLogin={() => setTab('login')} />}
+          {tab === 'forgot' && <ForgotPasswordForm key="forgot" switchToLogin={() => setTab('login')} />}
         </div>
       </div>
     </div>

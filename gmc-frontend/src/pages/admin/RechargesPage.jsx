@@ -38,6 +38,22 @@ function CreditBreakdown({ r }) {
   const isTicket = r.method === 'ooredoo_ticket' || r.method === 'orange_ticket'
   const isD17    = r.method === 'd17_number' || r.method === 'd17_address'
 
+  if (isTicket && r.ticket_items?.length) {
+    const pct = Math.round(parseFloat(r.tax_rate) * 100)
+    const totalValue = r.ticket_items.reduce((s, it) => s + parseFloat(it.value), 0)
+    const count = r.ticket_items.length
+    return (
+      <div>
+        <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {count > 1 && <span>{count} tickets · </span>}
+          {totalValue.toFixed(2)} DT <span style={{ color: '#ff4d6d' }}>–{pct}%</span>
+        </p>
+        <p style={{ margin: '2px 0 0', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.125rem', color: '#3DDC84' }}>
+          {parseFloat(r.wallet_credit).toFixed(2)} DT
+        </p>
+      </div>
+    )
+  }
   if (isTicket && r.ticket_value) {
     const pct = Math.round(parseFloat(r.tax_rate) * 100)
     return (
@@ -77,6 +93,22 @@ function CreditBreakdown({ r }) {
 }
 
 function TicketInfo({ r }) {
+  if (r.ticket_items?.length) {
+    return (
+      <div>
+        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Ticket Code{r.ticket_items.length > 1 ? 's' : ''}
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {r.ticket_items.map(it => (
+            <p key={it.id} style={{ margin: 0, color: 'var(--success)', fontWeight: 600, fontSize: '0.8125rem', fontFamily: 'JetBrains Mono, monospace' }}>
+              {it.code} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— {parseFloat(it.value).toFixed(2)} DT</span>
+            </p>
+          ))}
+        </div>
+      </div>
+    )
+  }
   if (!r.ticket_code) return null
   return (
     <div>

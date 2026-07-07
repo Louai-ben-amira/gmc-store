@@ -70,6 +70,33 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    uid          = serializers.CharField()
+    token        = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, data):
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+        from django.contrib.auth.tokens import default_token_generator
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(data['uid']))
+            user = User.objects.get(pk=user_id)
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            raise serializers.ValidationError('Invalid or expired reset link.')
+
+        if not default_token_generator.check_token(user, data['token']):
+            raise serializers.ValidationError('Invalid or expired reset link.')
+
+        data['user'] = user
+        return data
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True, min_length=8)

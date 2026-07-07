@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getProduct, getReviews, submitReview, getReviewEligibility } from '../api/products'
-import { placeOrder, validatePromo, revealCode } from '../api/orders'
+import { placeOrder, validatePromo, revealCode, cancelOrder } from '../api/orders'
 import Topbar from '../components/Topbar'
 import Modal from '../components/Modal'
 import AccountRequiredModal from '../components/AccountRequiredModal'
@@ -45,6 +45,7 @@ function CodeModal({ isOpen, onClose, orderId, orderData }) {
   const [code,    setCode]    = useState(null)
   const [loading, setLoading] = useState(false)
   const [copied,  setCopied]  = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
 
   // Reset when modal opens
   useEffect(() => {
@@ -62,6 +63,21 @@ function CodeModal({ isOpen, onClose, orderId, orderData }) {
       toast.error(err?.response?.data?.detail || 'Could not reveal code.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!window.confirm('Cancel this order? Your balance will be refunded.')) return
+    setCancelLoading(true)
+    try {
+      await cancelOrder(orderId)
+      toast.success('Order cancelled. Balance refunded.')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      onClose()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not cancel order.')
+    } finally {
+      setCancelLoading(false)
     }
   }
 
@@ -115,13 +131,28 @@ function CodeModal({ isOpen, onClose, orderId, orderData }) {
                 </div>
               </div>
             ) : (
-              <button
-                className="btn-primary"
-                onClick={() => setStep('warn')}
-                style={{ width: '100%', justifyContent: 'center', padding: '0.875rem' }}
-              >
-                <TbLock size={15} /> Reveal Code
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => setStep('warn')}
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.875rem' }}
+                >
+                  <TbLock size={15} /> Reveal Code
+                </button>
+                {orderData?.is_refund_eligible && (
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelLoading}
+                    style={{
+                      width: '100%', padding: '0.625rem', borderRadius: 10, cursor: 'pointer',
+                      background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                      color: '#f87171', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: 600,
+                    }}
+                  >
+                    {cancelLoading ? 'Cancelling…' : '✕ Cancel Order & Get Refund'}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ) : (

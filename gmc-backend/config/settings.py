@@ -87,8 +87,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-_DATABASE_URL = config('DATABASE_URL', default='')
-if _DATABASE_URL:
+_USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+_DATABASE_URL = '' if _USE_SQLITE else config('DATABASE_URL', default='')
+if _USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+elif _DATABASE_URL:
     from urllib.parse import urlparse, parse_qs
 
     _u = urlparse(_DATABASE_URL)
@@ -266,6 +274,7 @@ REST_FRAMEWORK = {
         'user':           '600/minute',
         'login':          '10/minute',
         'register':       '5/hour',
+        'password_reset': '5/hour',
         'recharge':       '20/hour',
         'order':          '30/hour',
         'promo_validate': '60/hour',
@@ -288,6 +297,7 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@gmcstore.com')
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24  # reset links expire after 24 hours
 
 # Use console backend in development when SMTP credentials aren't configured,
 # so password-reset / order emails print to terminal instead of silently failing.

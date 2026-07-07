@@ -17,8 +17,10 @@ import {
   SiValorant, SiRoblox, SiSteam, SiPlaystation,
   SiNetflix, SiSpotify, SiYoutube, SiApple,
   SiLeagueoflegends, SiEpicgames, SiRockstargames,
+  SiOpenai, SiClaude, SiCanva,
 } from 'react-icons/si'
 import { BsXbox, BsMicrosoft } from 'react-icons/bs'
+import { GiPistolGun } from 'react-icons/gi'
 import { useQuery } from '@tanstack/react-query'
 import useAuthStore from '../store/authStore'
 import { mediaUrl, formatCurrency } from '../utils/formatters'
@@ -49,7 +51,7 @@ export const NAV_ITEMS = [
     children: [
       { label: 'Free Fire',      to: '/?cat=free-fire-diamonds',      Icon: PiFireBold,       color: '#FF6B00' },
       { label: 'PUBG Mobile',    to: '/?cat=pubg-uc',                 Icon: PiTargetBold,     color: '#F5A623' },
-      { label: 'FC Mobile',      to: '/?cat=fifa-coins',              Icon: PiSoccerBallBold, color: '#3DDC84' },
+      { label: 'Blood Strike',   to: '/?cat=blood-strike',            Icon: GiPistolGun,      color: '#DC2626' },
       { label: 'Mobile Legends', to: '/?cat=mobile-legends-diamonds', Icon: PiCrownBold,      color: '#1b9aee' },
       { label: 'eFootball',      to: '/?cat=efootball',               Icon: PiSoccerBallBold, color: '#0066CC' },
     ],
@@ -126,6 +128,16 @@ export const NAV_ITEMS = [
       },
     ],
     viewAll: { labelKey: 'nav.viewAllGiftCards', label: 'View All Gift Cards', to: '/?cat=gift-cards' },
+  },
+
+  {
+    labelKey: 'nav.subscriptions', label: 'Subscriptions', NavIcon: PiCrownBold, color: '#7C3AED',
+    children: [
+      { label: 'ChatGPT Plus', to: '/?cat=chatgpt-plus', Icon: SiOpenai, color: '#10A37F' },
+      { label: 'Claude Pro',   to: '/?cat=claude-pro',    Icon: SiClaude, color: '#D97757' },
+      { label: 'Canva Pro',    to: '/?cat=canva-pro',     Icon: SiCanva,  color: '#00C4CC' },
+    ],
+    viewAll: { labelKey: 'nav.viewAllSubscriptions', label: 'View All Subscriptions', to: '/?cat=subscriptions' },
   },
 
   {

@@ -11,6 +11,11 @@ class RegisterRateThrottle(AnonRateThrottle):
     scope = 'register'
 
 
+class PasswordResetRateThrottle(AnonRateThrottle):
+    """5 password-reset requests per hour per IP - prevents email-bombing an address."""
+    scope = 'password_reset'
+
+
 class RechargeRateThrottle(UserRateThrottle):
     """20 recharge submissions per hour per user."""
     scope = 'recharge'

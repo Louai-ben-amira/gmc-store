@@ -311,7 +311,7 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
   const [method,        setMethod]        = useState('ooredoo_ticket')
   // Multi-ticket state
   const [tickets,       setTickets]       = useState([mkTicket()])
-  const [submitProgress,setSubmitProgress]= useState(null) // { done, total, failed }
+  const [submittedCount,setSubmittedCount]= useState(0)
   // Transfer state
   const [amountSent,    setAmountSent]    = useState('')
   const [referenceCode, setReferenceCode] = useState('')
@@ -341,7 +341,7 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
   const resetForm = () => {
     setMethod('ooredoo_ticket'); setTickets([mkTicket()])
     setAmountSent(''); setReferenceCode(''); setSelectedD17(''); setProof(null)
-    setStep(1); setErrors({}); setSubmitProgress(null)
+    setStep(1); setErrors({}); setSubmittedCount(0)
   }
 
   const handleClose = () => { onClose(); resetForm() }
@@ -378,26 +378,20 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
     setLoading(true)
 
     if (isTicket) {
-      let succeeded = 0; let failed = 0
-      setSubmitProgress({ done: 0, total: tickets.length, failed: 0 })
-      for (let i = 0; i < tickets.length; i++) {
-        const t = tickets[i]
-        try {
-          const fd = new FormData()
-          fd.append('method', method)
-          fd.append('ticket_code', t.code.trim())
-          fd.append('ticket_value', t.value)
-          if (proof) fd.append('proof', proof)
-          await submitRecharge(fd)
-          succeeded++
-        } catch {
-          failed++
-        }
-        setSubmitProgress({ done: i + 1, total: tickets.length, failed })
+      try {
+        const fd = new FormData()
+        fd.append('method', method)
+        fd.append('tickets', JSON.stringify(tickets.map(t => ({ code: t.code.trim(), value: t.value }))))
+        if (proof) fd.append('proof', proof)
+        await submitRecharge(fd)
+        setSubmittedCount(tickets.length)
+        onSuccess(); setStep(2)
+      } catch (err) {
+        const data = err.response?.data
+        toast.error(data?.tickets?.[0] || data?.detail || 'Submission failed. Please try again.')
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
-      if (succeeded > 0) { onSuccess(); setStep(2) }
-      else toast.error('All ticket submissions failed. Please try again.')
       return
     }
 
@@ -435,27 +429,6 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
   const ticketMethods   = ALL_METHODS.filter(m => m.group === 'ticket')
   const transferMethods = ALL_METHODS.filter(m => m.group === 'transfer')
 
-  /* ── Submitting progress overlay ── */
-  if (loading && submitProgress) {
-    const pct = Math.round((submitProgress.done / submitProgress.total) * 100)
-    return (
-      <Modal isOpen={isOpen} onClose={() => {}} title="Submitting Tickets…" size="sm">
-        <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem' }}>
-          <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', margin: '0 0 18px' }}>
-            Processing ticket {Math.min(submitProgress.done + 1, submitProgress.total)} of {submitProgress.total}
-          </p>
-          <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 100, height: 8, overflow: 'hidden', marginBottom: 10 }}>
-            <div style={{ height: '100%', width: pct + '%', background: 'linear-gradient(90deg, #7C3AED, #3DDC84)', borderRadius: 100, transition: 'width 0.3s ease' }} />
-          </div>
-          <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-muted)', margin: '6px 0 0' }}>
-            {submitProgress.done}/{submitProgress.total} done
-            {submitProgress.failed > 0 && <span style={{ color: '#ff4d6d', marginLeft: 8 }}>· {submitProgress.failed} failed</span>}
-          </p>
-        </div>
-      </Modal>
-    )
-  }
-
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Recharge Wallet" size="sm">
       {/* Tab switcher */}
@@ -480,19 +453,13 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
             <TbCircleCheck size={30} color="#3DDC84" />
           </div>
           <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)', margin: '0 0 6px' }}>
-            {submitProgress && submitProgress.total > 1
-              ? `${submitProgress.total - submitProgress.failed} ticket${submitProgress.total - submitProgress.failed > 1 ? 's' : ''} submitted!`
+            {submittedCount > 1
+              ? `${submittedCount} tickets submitted!`
               : 'Request Submitted!'}
           </p>
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.6 }}>
-            We'll review your request{submitProgress?.total > 1 ? 's' : ''} and credit your wallet.
+            We'll review your request and credit your wallet.
           </p>
-          {submitProgress?.failed > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.2)', borderRadius: 8, padding: '5px 12px', marginBottom: 10 }}>
-              <TbAlertCircle size={13} color="#ff4d6d" />
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#ff4d6d' }}>{submitProgress.failed} ticket(s) failed - contact support</span>
-            </div>
-          )}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: '5px 12px', marginBottom: 20 }}>
             <TbAlertCircle size={13} color="#f59e0b" />
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#f59e0b' }}>⏳ Pending review - usually within a few hours</span>
