@@ -6,11 +6,14 @@ services:
     region: frankfurt
     rootDir: gmc-backend
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
-    startCommand: "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+    startCommand: "gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --workers 1 --bind 0.0.0.0:$PORT --max-requests 400 --max-requests-jitter 100 --timeout 120"
     healthCheckPath: /admin/login/
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.3"
+      # Cap glibc malloc arenas to reduce per-thread memory fragmentation (lower RSS)
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
