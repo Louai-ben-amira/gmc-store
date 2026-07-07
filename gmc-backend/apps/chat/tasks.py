@@ -1,27 +1,38 @@
 """Unread-message email alerts.
 
 When an admin replies in the messenger and the client is offline (closed the
-app), they have no way to know. Five minutes after each admin message we check:
-if it is still unread and the client is not connected to the chat, we email
-them a "you have a new message" alert.
+app), they have no way to know. If an admin message stays unread for ~5
+minutes and the client is not connected to the chat, we email them a "you
+have a new message" alert.
 
-NOTE: Celery runs in ALWAYS_EAGER mode in this deployment (no worker process),
-so a countdown task would fire immediately. We use a daemon threading.Timer
-instead - the same pattern used for Telegram alerts elsewhere in the codebase.
-Pending timers are lost on process restart, which is an acceptable trade-off.
+HOW IT RUNS: production uses gunicorn with --max-requests, so worker processes
+restart frequently - in-memory timers do not survive. Instead, a sweep runs
+opportunistically on incoming requests (see middleware.py), at most once per
+SWEEP_INTERVAL, guarded by an atomic cache lock. All state lives in the DB
+(Message.status + Conversation.last_email_alert_at), so restarts lose nothing.
+
+Celery is configured ALWAYS_EAGER (no worker process), so this deliberately
+avoids Celery countdown tasks.
 """
 import threading
 from datetime import timedelta
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import escape
 
-# How long to wait before checking whether the message was read
-UNREAD_CHECK_DELAY_SECONDS = 5 * 60
+# A message must stay unread this long before we email about it
+UNREAD_AGE = timedelta(minutes=5)
 # At most one alert email per conversation per this window
 EMAIL_COOLDOWN = timedelta(hours=1)
+# Don't email about messages older than this (e.g. pre-feature backlog)
+MAX_AGE = timedelta(days=2)
+# Sweep at most once per this many seconds across all workers
+SWEEP_INTERVAL = 60
+
+_SWEEP_LOCK_KEY = 'chat:unread_email_sweep_lock'
 
 
 def _unread_email(client, message):
@@ -29,7 +40,8 @@ def _unread_email(client, message):
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
     chat_url     = f'{frontend_url}/messenger'
 
-    snippet = escape((message.body or 'You received an attachment.')[:120])
+    body    = message.body or 'You received an attachment.'
+    snippet = escape(body[:120])
 
     subject = '💬 New message from GMC Store support'
 
@@ -51,7 +63,7 @@ def _unread_email(client, message):
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#1c1c3e;border:1px solid rgba(123,47,255,0.3);border-radius:14px;">
             <tr><td style="padding:18px 22px;">
               <p style="color:#94a3b8;margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;">GMC Store Support</p>
-              <p style="color:#ffffff;margin:0;font-size:15px;line-height:1.6;">{snippet}{'…' if len(message.body or '') > 120 else ''}</p>
+              <p style="color:#ffffff;margin:0;font-size:15px;line-height:1.6;">{snippet}{'…' if len(body) > 120 else ''}</p>
             </td></tr>
           </table>
         </td></tr>
@@ -76,70 +88,117 @@ def _unread_email(client, message):
     plain = (
         f'Hi {name},\n\n'
         f'GMC Store support sent you a new message:\n\n'
-        f'"{snippet}"\n\n'
+        f'"{body[:120]}"\n\n'
         f'Open the chat to read and reply: {chat_url}\n'
     )
 
     return subject, plain, html
 
 
-def _check_and_send_unread_email(message_id):
-    """Runs in a daemon thread ~5 minutes after an admin message is sent."""
-    from django.db import connection
+def _claim_conversation(conv_id, now):
+    """Atomically claim the right to email this conversation (cooldown guard).
+
+    Returns True for exactly one caller even if the timer path and the sweep
+    race each other - the UPDATE only matches while the cooldown has lapsed.
+    """
+    from apps.chat.models import Conversation
+    return Conversation.objects.filter(pk=conv_id).filter(
+        Q(last_email_alert_at__isnull=True) |
+        Q(last_email_alert_at__lt=now - EMAIL_COOLDOWN)
+    ).update(last_email_alert_at=now) == 1
+
+
+def _client_is_online(client_id):
     try:
-        from apps.chat.models import Message, Conversation
-
-        try:
-            message = Message.objects.select_related('conversation__client').get(pk=message_id)
-        except Message.DoesNotExist:
-            return
-
-        # Already read in-app - nothing to do
-        if message.status == 'read':
-            return
-
-        conv   = message.conversation
-        client = conv.client
-
-        if not client.email:
-            return
-
-        # Client is actively connected to the chat - they will see it
-        try:
-            from django.core.cache import cache
-            if cache.get(f'presence:{client.id}') == 'online':
-                return
-        except Exception:
-            pass
-
-        # Cooldown: max one alert email per conversation per hour
-        now = timezone.now()
-        if conv.last_email_alert_at and now - conv.last_email_alert_at < EMAIL_COOLDOWN:
-            return
-
-        subject, plain, html = _unread_email(client, message)
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=plain,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[client.email],
-        )
-        msg.attach_alternative(html, 'text/html')
-        msg.send()
-
-        Conversation.objects.filter(pk=conv.pk).update(last_email_alert_at=now)
+        from django.core.cache import cache
+        return cache.get(f'presence:{client_id}') == 'online'
     except Exception:
-        pass
-    finally:
-        # This thread opened its own DB connection - release it
+        return False
+
+
+def _send_alert(conv, message, now):
+    """Presence + cooldown checks, then send. Assumes message is unread."""
+    client = conv.client
+    if not client.email:
+        return
+    if _client_is_online(client.id):
+        return
+    if not _claim_conversation(conv.pk, now):
+        return
+
+    subject, plain, html = _unread_email(client, message)
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=plain,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[client.email],
+    )
+    msg.attach_alternative(html, 'text/html')
+    msg.send()
+
+
+def sweep_unread_alerts():
+    """Email clients whose admin messages have been unread for UNREAD_AGE+.
+
+    Only messages newer than the conversation's last alert are considered, so
+    each batch of unread messages produces at most one email ever.
+    """
+    from apps.chat.models import Message
+
+    now    = timezone.now()
+    cutoff = now - UNREAD_AGE
+
+    candidates = (
+        Message.objects
+        .filter(
+            sender__role='admin',
+            status__in=['sent', 'delivered'],
+            created_at__lte=cutoff,
+            created_at__gte=now - MAX_AGE,
+        )
+        .select_related('conversation__client')
+        .order_by('conversation_id', '-created_at')
+    )
+
+    # One email max per conversation per sweep; newest unread message wins
+    seen_convs = set()
+    for message in candidates:
+        conv = message.conversation
+        if conv.pk in seen_convs:
+            continue
+        seen_convs.add(conv.pk)
+
+        # Only alert about messages the client hasn't already been emailed for
+        if conv.last_email_alert_at and message.created_at <= conv.last_email_alert_at:
+            continue
+
         try:
-            connection.close()
+            _send_alert(conv, message, now)
         except Exception:
             pass
 
 
-def schedule_unread_email_check(message_id):
-    """Call right after an admin message is saved. Fires the check in ~5 min."""
-    timer = threading.Timer(UNREAD_CHECK_DELAY_SECONDS, _check_and_send_unread_email, args=[message_id])
-    timer.daemon = True
-    timer.start()
+def start_sweep_if_due():
+    """Called from middleware on incoming requests. Runs the sweep in a
+    background thread at most once per SWEEP_INTERVAL across all workers
+    (atomic cache.add lock on Redis)."""
+    try:
+        from django.core.cache import cache
+        if not cache.add(_SWEEP_LOCK_KEY, 1, timeout=SWEEP_INTERVAL):
+            return
+    except Exception:
+        return
+
+    def _run():
+        from django.db import connection
+        try:
+            sweep_unread_alerts()
+        except Exception:
+            pass
+        finally:
+            try:
+                connection.close()
+            except Exception:
+                pass
+
+    threading.Thread(target=_run, daemon=True).start()

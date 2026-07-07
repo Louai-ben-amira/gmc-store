@@ -8,6 +8,28 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-pro
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
+# Django's built-in default logging only prints request tracebacks to the
+# console when DEBUG=True. In production (DEBUG=False) with no ADMINS
+# configured, unhandled view exceptions are otherwise logged nowhere -
+# they just become a bare 500 with nothing in the process logs. This makes
+# them show up in stdout (captured by Render/any platform's log tail).
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
+
 # ── HTTPS / Security (active when DEBUG=False) ───────────────────────────────
 if not DEBUG:
     SECURE_SSL_REDIRECT             = True
@@ -64,6 +86,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.chat.middleware.UnreadEmailSweepMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
