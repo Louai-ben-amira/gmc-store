@@ -61,14 +61,6 @@ class MessageListCreateView(generics.ListCreateAPIView):
         conv.save(update_fields=['last_message_at'])
         instance = serializer.save(sender=user, conversation=conv)
 
-        # Admin replied: if the client doesn't read it within ~5 min, email them
-        if user.role == 'admin':
-            try:
-                from apps.chat.tasks import schedule_unread_email_check
-                schedule_unread_email_check(instance.id)
-            except Exception:
-                pass
-
         # Broadcast the saved message to the conversation room so the
         # other party receives it in real-time without relying on WS send.
         try:
