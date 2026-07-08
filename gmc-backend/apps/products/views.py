@@ -409,9 +409,13 @@ def submit_review(request, pk):
         return Response({'detail': 'You have already reviewed this product.'}, status=status.HTTP_400_BAD_REQUEST)
 
     from apps.orders.models import Order
+    # Escrow orders end at 'closed' after the buyer confirms delivery;
+    # code orders end at 'completed'. Both count as a finished purchase.
     order = Order.objects.filter(
-        user=request.user, product=product, status='completed'
+        user=request.user, product=product, status__in=('completed', 'closed')
     ).first()
+    if order is None:
+        return Response({'detail': 'You can only review products you have purchased.'}, status=status.HTTP_403_FORBIDDEN)
 
     serializer = ReviewSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -423,7 +427,7 @@ def submit_review(request, pk):
 @permission_classes([permissions.IsAuthenticated])
 def review_eligibility(request, pk):
     from apps.orders.models import Order
-    has_order    = Order.objects.filter(user=request.user, product_id=pk, status='completed').exists()
+    has_order    = Order.objects.filter(user=request.user, product_id=pk, status__in=('completed', 'closed')).exists()
     has_reviewed = Review.objects.filter(user=request.user, product_id=pk).exists()
     return Response({'can_review': has_order and not has_reviewed, 'has_reviewed': has_reviewed})
 
