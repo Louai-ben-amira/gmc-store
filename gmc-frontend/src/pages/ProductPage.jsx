@@ -232,14 +232,18 @@ export default function ProductPage() {
     queryKey: ['product', id],
     queryFn: () => getProduct(id).then(r => r.data),
   })
+  // Review endpoints only accept a numeric product id, while the page URL may
+  // be a slug — so wait for the product to load and use its real id.
+  const productId = product?.id
   const { data: reviews = [] } = useQuery({
-    queryKey: ['reviews', id],
-    queryFn: () => getReviews(id).then(r => r.data?.results || r.data || []),
+    queryKey: ['reviews', productId],
+    queryFn: () => getReviews(productId).then(r => r.data?.results || r.data || []),
+    enabled: !!productId,
   })
   const { data: eligibility } = useQuery({
-    queryKey: ['review-eligibility', id],
-    queryFn: () => getReviewEligibility(id).then(r => r.data),
-    enabled: isAuthenticated(),
+    queryKey: ['review-eligibility', productId],
+    queryFn: () => getReviewEligibility(productId).then(r => r.data),
+    enabled: !!productId && isAuthenticated(),
   })
 
   const timer = useCountdown(product?.flash_sale_end)
@@ -308,11 +312,11 @@ export default function ProductPage() {
     if (reviewRating === 0) return toast.error('Please select a rating.')
     setReviewLoading(true)
     try {
-      await submitReview(id, { rating: reviewRating, body: reviewBody })
+      await submitReview(product.id, { rating: reviewRating, body: reviewBody })
       toast.success('Review submitted!')
       setReviewRating(0); setReviewBody('')
-      qc.invalidateQueries({ queryKey: ['reviews', id] })
-      qc.invalidateQueries({ queryKey: ['review-eligibility', id] })
+      qc.invalidateQueries({ queryKey: ['reviews', product.id] })
+      qc.invalidateQueries({ queryKey: ['review-eligibility', product.id] })
       qc.invalidateQueries({ queryKey: ['product', id] })
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to submit review.') }
     finally { setReviewLoading(false) }
