@@ -637,8 +637,12 @@ def admin_badge_counts(request):
     from apps.payments.models import CryptoPayment
 
     return Response({
-        # Escrow held = paid service order not yet delivered; disputed always needs attention
-        'orders': Order.objects.filter(Q(escrow_held=True) | Q(status='disputed')).count(),
+        # Escrow orders the ADMIN still has to deliver (once status hits
+        # 'completed' the ball is in the buyer's court to confirm, so it no
+        # longer counts) — plus disputes, which always need attention.
+        'orders': Order.objects.filter(
+            Q(escrow_held=True) & ~Q(status=Order.Status.COMPLETED) | Q(status='disputed')
+        ).count(),
         # Manual recharges only — crypto ones have their own badge
         'recharges': RechargeRequest.objects.filter(status='pending').exclude(method='crypto').count(),
         'crypto': CryptoPayment.objects.filter(status__in=['pending', 'confirming']).count(),

@@ -2,6 +2,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getMe, updateMe, changePassword, getReferralStats } from '../api/auth'
+import { getWishlist } from '../api/products'
+import ProductCard from '../components/ProductCard'
 import useAuthStore from '../store/authStore'
 import useThemeStore from '../store/themeStore'
 import useLanguageStore from '../store/languageStore'
@@ -14,6 +16,7 @@ import {
   TbEye, TbEyeOff, TbShieldLock, TbPhone, TbMail, TbAt,
   TbCircleCheck, TbUser, TbEdit, TbSparkles, TbFingerprint,
   TbCopy, TbCheck, TbUsers, TbGift, TbSun, TbMoon, TbLanguage,
+  TbHeart,
 } from 'react-icons/tb'
 
 /* ─── Smart input ────────────────────────────────────────────────────── */
@@ -161,6 +164,13 @@ export default function ProfilePage() {
     enabled: activeTab === 'referral',
     staleTime: 30_000,
   })
+
+  const { data: wishlistData, isLoading: wishlistLoading } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: () => getWishlist().then(r => r.data),
+    enabled: activeTab === 'favorites',
+  })
+
   const [avatarHover,    setAvatarHover]    = useState(false)
 
 
@@ -369,6 +379,7 @@ export default function ProfilePage() {
                   { id: 'info',     label: t('sections.personalInfo'), Icon: TbEdit },
                   { id: 'security', label: t('sections.security'),     Icon: TbFingerprint },
                   { id: 'referral', label: t('sections.referrals'),    Icon: TbUsers },
+                  { id: 'favorites', label: t('sections.favorites'),   Icon: TbHeart },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -548,6 +559,33 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ── Favorites (wishlist) ── */}
+              {activeTab === 'favorites' && (
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '1.5rem', backdropFilter: 'blur(20px)', animation: 'tabIn 0.25s ease both' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem' }}>
+                    <TbHeart size={16} color="#FF5060" />
+                    <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>{t('sections.favorites')}</span>
+                    {wishlistData && <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>({wishlistData.length})</span>}
+                  </div>
+
+                  {wishlistLoading && (
+                    <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem 0' }}>Loading…</p>
+                  )}
+                  {!wishlistLoading && wishlistData?.length === 0 && (
+                    <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem 0' }}>
+                      No favorites yet - tap the ♥ on any product to save it here.
+                    </p>
+                  )}
+                  {!wishlistLoading && wishlistData?.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                      {wishlistData.map((p, i) => (
+                        <ProductCard key={p.id} product={p} index={i} isAuthenticated={true} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
