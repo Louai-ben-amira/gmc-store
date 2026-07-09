@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder } from '../../api/admin'
+import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder, markAdminOrdersSeen } from '../../api/admin'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { Eye, EyeOff, MessageCircle, Ban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -155,6 +155,13 @@ export default function OrdersPage() {
   const [expandedId,   setExpandedId] = useState(null)
   const qc       = useQueryClient()
   const navigate = useNavigate()
+
+  // Opening this page marks all orders as seen and clears the sidebar badge
+  useEffect(() => {
+    markAdminOrdersSeen()
+      .then(() => qc.invalidateQueries({ queryKey: ['admin-badge-counts'] }))
+      .catch(() => {})
+  }, [qc])
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-orders', page, status, reqAcc],

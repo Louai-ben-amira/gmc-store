@@ -21,6 +21,9 @@ class User(AbstractUser):
     phone         = models.CharField(max_length=20, blank=True)
     created_at    = models.DateTimeField(auto_now_add=True)
     last_seen     = models.DateTimeField(null=True, blank=True)
+    # Admin only: when they last opened the admin Orders page - drives the
+    # "new orders" notification badge in the admin sidebar
+    orders_seen_at = models.DateTimeField(null=True, blank=True)
     referral_code      = models.CharField(max_length=12, unique=True, db_index=True, blank=True)
     theme_preference   = models.CharField(
                              max_length=5,

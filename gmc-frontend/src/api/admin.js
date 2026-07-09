@@ -5,6 +5,7 @@ export const getAdminUsers       = (params)   => api.get('/admin/users/', { para
 export const updateAdminUser     = (id, data) => api.patch(`/admin/users/${id}/`, data)
 export const deleteAdminUser     = (id)       => api.delete(`/admin/users/${id}/`)
 export const getAdminOrders      = (params)   => api.get('/admin/orders/', { params })
+export const markAdminOrdersSeen = ()         => api.post('/admin/orders/seen/')
 export const adminCancelOrder    = (id)       => api.post(`/admin/orders/${id}/cancel/`)
 export const getAdminRecharges      = (params)   => api.get('/payments/admin/recharges/', { params })
 export const approveAdminRecharge   = (id, data) => api.post(`/payments/admin/recharges/${id}/approve/`, data)

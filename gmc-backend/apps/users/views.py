@@ -636,17 +636,28 @@ def admin_badge_counts(request):
     from apps.orders.models import Order
     from apps.payments.models import CryptoPayment
 
+    # Orders badge = notification of NEW orders since the admin last opened
+    # the Orders page (cleared by admin_orders_seen below).
+    new_orders = Order.objects.all()
+    if request.user.orders_seen_at:
+        new_orders = new_orders.filter(created_at__gt=request.user.orders_seen_at)
+
     return Response({
-        # Escrow orders the ADMIN still has to deliver (once status hits
-        # 'completed' the ball is in the buyer's court to confirm, so it no
-        # longer counts) — plus disputes, which always need attention.
-        'orders': Order.objects.filter(
-            Q(escrow_held=True) & ~Q(status=Order.Status.COMPLETED) | Q(status='disputed')
-        ).count(),
+        'orders': new_orders.count(),
         # Manual recharges only — crypto ones have their own badge
         'recharges': RechargeRequest.objects.filter(status='pending').exclude(method='crypto').count(),
         'crypto': CryptoPayment.objects.filter(status__in=['pending', 'confirming']).count(),
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_orders_seen(request):
+    """Mark all orders as seen - clears the sidebar 'new orders' badge."""
+    from django.utils import timezone
+    request.user.orders_seen_at = timezone.now()
+    request.user.save(update_fields=['orders_seen_at'])
+    return Response({'detail': 'ok'})
 
 
 @api_view(['GET'])
