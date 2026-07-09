@@ -537,7 +537,7 @@ export default function MessengerPage() {
           {/* ── Action bar ─── */}
           {activeOrderId && !isThreadClosed && (
             <ActionBar orderId={activeOrderId} orderStatus={activeStatus} serviceStatus={activeServiceStatus} isAdmin={isAdmin}
-              onAction={() => { qc.invalidateQueries({ queryKey: ['messages', conversation?.id] }); qc.invalidateQueries({ queryKey: ['conversation'] }) }}
+              onAction={() => { qc.invalidateQueries({ queryKey: ['messages', conversation?.id] }); qc.invalidateQueries({ queryKey: ['conversation'] }); qc.invalidateQueries({ queryKey: ['pending-reviews'] }) }}
             />
           )}
 

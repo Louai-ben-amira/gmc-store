@@ -71,7 +71,10 @@ function CreditBreakdown({ r }) {
     return (
       <div>
         <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          {parseFloat(r.amount_sent).toFixed(2)} DT <span style={{ color: '#3DDC84' }}>no fee</span>
+          {parseFloat(r.amount_sent).toFixed(2)} DT{' '}
+          {parseFloat(r.tax_rate) > 0
+            ? <span style={{ color: '#ff4d6d' }}>–{Math.round(parseFloat(r.tax_rate) * 100)}%</span>
+            : <span style={{ color: '#3DDC84' }}>no fee</span>}
         </p>
         <p style={{ margin: '2px 0 0', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.125rem', color: '#3DDC84' }}>
           {parseFloat(r.wallet_credit).toFixed(2)} DT

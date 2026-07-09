@@ -513,8 +513,8 @@ function UserMenu({ user, onLogout }) {
 
   return (
     <div style={{ position: 'relative' }} onMouseEnter={openMenu} onMouseLeave={closeMenu}>
-      {/* Avatar trigger */}
-      <button style={{
+      {/* Avatar trigger - onClick toggle for touch devices where hover never fires */}
+      <button className="gmc-user-trigger" onClick={() => setOpen(o => !o)} style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '4px 8px 4px 4px', borderRadius: 9,
         background: open ? 'rgba(124,58,237,0.14)' : 'rgba(255,255,255,0.04)',
@@ -535,10 +535,10 @@ function UserMenu({ user, onLogout }) {
             : <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: 'var(--text-primary)' }}>{initial}</span>
           }
         </div>
-        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span className="gmc-user-name" style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {user.first_name || user.username}
         </span>
-        <TbChevronDown size={11} style={{ color: 'var(--text-muted)', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
+        <TbChevronDown className="gmc-user-chevron" size={11} style={{ color: 'var(--text-muted)', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
       </button>
 
       {/* Dropdown */}
@@ -914,7 +914,7 @@ const { t } = useTranslation('common')
       borderBottom: '1px solid rgba(255,255,255,0.07)',
       position: 'sticky', top: 0, zIndex: 200,
     }}>
-      <div style={{
+      <div className="gmc-topbar-inner" style={{
         height: 54,
         display: 'flex', alignItems: 'center',
         padding: '0 1.25rem', gap: '0.5rem',
@@ -959,14 +959,16 @@ const { t } = useTranslation('common')
           <SearchBox onQueryChange={onSearch} />
         </div>
 
-        {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {/* Right actions - marginInlineStart:auto keeps them anchored right
+            on mobile where the desktop nav (flex:1) is hidden */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginInlineStart: 'auto' }}>
 
 
           {/* Wallet chip - shown when logged in */}
           {authed && walletData != null && (
             <Link to="/wallet" style={{ textDecoration: 'none' }}>
               <div
+                className="gmc-wallet-chip"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '0 14px 0 10px', height: 36, borderRadius: 10,
@@ -990,7 +992,7 @@ const { t } = useTranslation('common')
                 }}
               >
                 {/* icon container */}
-                <div style={{
+                <div className="gmc-wallet-icon" style={{
                   width: 22, height: 22, borderRadius: 6,
                   background: 'rgba(61,220,132,0.15)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1001,7 +1003,7 @@ const { t } = useTranslation('common')
 
                 {/* amount */}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                  <span style={{
+                  <span className="gmc-wallet-amount" style={{
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize: '0.8125rem', fontWeight: 700,
                     color: '#3DDC84',

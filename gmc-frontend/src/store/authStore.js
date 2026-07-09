@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand'
 import useThemeStore from './themeStore'
 import useLanguageStore from './languageStore'
+import queryClient from '../lib/queryClient'
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -11,6 +12,9 @@ const useAuthStore = create((set, get) => ({
     localStorage.setItem('access_token', accessToken)
     localStorage.setItem('refresh_token', refreshToken)
     set({ user, accessToken, refreshToken })
+    // Cached API data (wishlist hearts, orders...) belongs to the previous
+    // session - drop it so everything refetches for this user
+    queryClient.clear()
     // Sync theme and language from DB on login
     if (user?.theme_preference) {
       useThemeStore.getState().syncFromUser(user.theme_preference)
@@ -24,6 +28,7 @@ const useAuthStore = create((set, get) => ({
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     set({ user: null, accessToken: null, refreshToken: null })
+    queryClient.clear()
   },
 
   updateUser: (updates) => set((state) => ({ user: { ...state.user, ...updates } })),

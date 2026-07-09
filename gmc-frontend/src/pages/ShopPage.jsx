@@ -1,12 +1,11 @@
 ﻿import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   TbShoppingBag, TbPackage, TbHeart,
   TbChevronLeft, TbChevronRight, TbFlame, TbStar, TbArrowRight,
-  TbHeartFilled, TbBrandWhatsapp, TbBrandMessenger, TbBrandInstagram,
+  TbHeartFilled,
 } from 'react-icons/tb'
 import {
   getProducts, getBundles, toggleWishlist,
@@ -44,10 +43,16 @@ function useCountdown(endTime) {
 function WishlistBtn({ product, isAuthenticated }) {
   const qc = useQueryClient(); const toast = useToast()
   const [on, setOn] = useState(product.is_wishlisted); const [busy, setBusy] = useState(false)
+  useEffect(() => { setOn(!!product.is_wishlisted) }, [product.is_wishlisted])
   if (!isAuthenticated) return null
   const handle = async (e) => {
     e.stopPropagation(); if (busy) return; setBusy(true)
-    try { const { data } = await toggleWishlist(product.id); setOn(data.wishlisted); qc.invalidateQueries({ queryKey: ['wishlist'] }) }
+    try {
+      const { data } = await toggleWishlist(product.id); setOn(data.wishlisted)
+      qc.invalidateQueries({ queryKey: ['wishlist'] })
+      qc.invalidateQueries({ queryKey: ['products'] })
+      qc.invalidateQueries({ queryKey: ['best-sellers'] })
+    }
     catch { toast.error('Could not update wishlist') }
     setBusy(false)
   }
@@ -815,42 +820,6 @@ function BestSellersStrip({ onViewAll }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-
-/* ══════════════════════════════════════════════════════════════════════
-   FLOATING BUTTONS
-══════════════════════════════════════════════════════════════════════ */
-function FloatingButtons() {
-  const buttons = [
-    { Icon: TbBrandWhatsapp, label: 'WhatsApp', color: '#25d366', bg: '#1a3d2b', href: 'https://wa.me/21624027209' },
-    { Icon: TbBrandInstagram, label: 'Instagram', color: '#e1306c', bg: '#3d1520', href: 'https://www.instagram.com/gmcvstorex' },
-  ]
-  return createPortal(
-    <div style={{ position: 'fixed', right: 18, bottom: 24, zIndex: 9000, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {buttons.map(btn => {
-        const Ic = btn.Icon
-        return (
-          <a key={btn.label} href={btn.href} target="_blank" rel="noopener noreferrer" title={btn.label} style={{
-            width: 44, height: 44, borderRadius: 13,
-            background: btn.bg,
-            border: '1px solid ' + btn.color + '40',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textDecoration: 'none',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1) translateX(-3px)'; e.currentTarget.style.boxShadow = '0 8px 24px ' + btn.color + '50' }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1) translateX(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.5)' }}
-          >
-            <Ic size={20} color={btn.color} />
-          </a>
-        )
-      })}
-    </div>,
-    document.body
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════════════
    FILTER SIDEBAR
 ══════════════════════════════════════════════════════════════════════ */
 
@@ -1230,8 +1199,6 @@ export default function ShopPage() {
 
         <Footer />
       </div>
-
-      <FloatingButtons />
     </div>
   )
 }

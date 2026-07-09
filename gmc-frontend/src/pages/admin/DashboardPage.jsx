@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getStats, getAdminOrders, getAdminRecharges, getAnalytics, getProducts } from '../../api/admin'
@@ -16,6 +16,22 @@ const CAT_COLORS = [
 ]
 const CAT_LABEL_COLORS = ['#B57BFF','#B57BFF','#36FFC0','#FFC84D','#00CFFF','#FF6BF5']
 
+const METHOD_LABELS = {
+  d17_number: 'D17 Phone', d17_address: 'D17 RIB', bank_transfer: 'Bank Transfer',
+  flouci: 'Flouci', ooredoo_ticket: 'Ooredoo Ticket', orange_ticket: 'Orange Ticket',
+  crypto: 'Crypto', edinar: 'E-Dinar', d17: 'D17 (legacy)', baridimob: 'BaridiMob', dahabia: 'Dahabia',
+}
+const ORDER_STATUS_META = {
+  completed:           { label: 'Completed',        color: '#36FFC0' },
+  paid_escrow:         { label: 'Paid - In Escrow',  color: '#B57BFF' },
+  in_progress:         { label: 'In Progress',       color: '#00CFFF' },
+  pending_credentials: { label: 'Pending Credentials', color: '#FFC84D' },
+  pending:             { label: 'Pending',           color: '#FFC84D' },
+  disputed:            { label: 'Disputed',          color: '#FF6B85' },
+  cancelled:           { label: 'Cancelled',         color: '#FF6B85' },
+  closed:              { label: 'Closed',            color: '#8A7AAE' },
+}
+
 /* ── SVG helpers ── */
 function buildPath(pts, w, h) {
   if (pts.length < 2) return { line: '', area: '' }
@@ -27,6 +43,93 @@ function buildPath(pts, w, h) {
   const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')
   const area = `${line} L${w},${h} L0,${h} Z`
   return { line, area }
+}
+
+/* ── Revenue line chart with hover tooltip ── */
+function RevenueChart({ data }) {
+  const [hover, setHover] = useState(null)
+  const W = 860, H = 170
+  const pts = data.map(d => d.revenue)
+  const { line, area } = buildPath(pts, W, H)
+  if (!line) return <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '3rem 0' }}>No data yet</div>
+
+  const max = Math.max(...pts, 1)
+  const min = Math.min(...pts)
+  const range = max - min || 1
+  const xFor = i => (i / (data.length - 1)) * W
+  const yFor = v => H - ((v - min) / range) * (H - 6) - 3
+
+  function onMove(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const i = Math.round(((e.clientX - rect.left) / rect.width) * (data.length - 1))
+    setHover(Math.max(0, Math.min(data.length - 1, i)))
+  }
+
+  const h = hover != null ? data[hover] : null
+  const hoverPct = hover != null ? (hover / (data.length - 1)) * 100 : 0
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+           onMouseMove={onMove} onMouseLeave={() => setHover(null)} style={{ display: 'block', cursor: 'crosshair' }}>
+        <defs>
+          <linearGradient id="revfill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#9B4FED" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#9B4FED" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1="0" y1={H * 0.25} x2={W} y2={H * 0.25} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <line x1="0" y1={H * 0.5}  x2={W} y2={H * 0.5}  stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <line x1="0" y1={H * 0.75} x2={W} y2={H * 0.75} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <path d={area} fill="url(#revfill)" />
+        <path d={line} fill="none" stroke="#B57BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {hover != null && (
+          <>
+            <line x1={xFor(hover)} y1="0" x2={xFor(hover)} y2={H} stroke="rgba(181,123,255,0.35)" strokeWidth="1" />
+            <circle cx={xFor(hover)} cy={yFor(data[hover].revenue)} r="4.5" fill="#B57BFF" stroke="#150C26" strokeWidth="2" />
+          </>
+        )}
+      </svg>
+      {h && (
+        <div style={{
+          position: 'absolute', top: 6, left: `${hoverPct}%`, transform: `translateX(${hoverPct > 75 ? '-105%' : '8px'})`,
+          background: '#1E1233', border: '1px solid rgba(155,79,237,0.4)', borderRadius: 8, padding: '7px 11px',
+          pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+        }}>
+          <div style={{ fontSize: 10, color: '#8A7AAE', marginBottom: 2 }}>
+            {new Date(h.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: '#B57BFF' }}>{formatCurrency(h.revenue)}</div>
+          <div style={{ fontSize: 10, color: '#7A6A9E', marginTop: 1 }}>{h.orders} order{h.orders !== 1 ? 's' : ''}</div>
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px', marginTop: 4 }}>
+        {data.filter((_, i) => i % 7 === 0 || i === data.length - 1).map(d => (
+          <span key={d.date} style={{ fontSize: 9, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
+            {new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── Mini bar chart (daily counts) ── */
+function MiniBars({ data, color = '#00CFFF', height = 64 }) {
+  const max = Math.max(...data.map(d => d.count), 1)
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height }}>
+      {data.map(d => (
+        <div key={d.date} title={`${new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} — ${d.count}`}
+          style={{
+            flex: 1, minWidth: 0, borderRadius: '3px 3px 0 0',
+            height: `${Math.max((d.count / max) * 100, d.count > 0 ? 8 : 3)}%`,
+            background: d.count > 0 ? color : 'rgba(255,255,255,0.06)',
+            opacity: d.count > 0 ? 0.85 : 1,
+          }} />
+      ))}
+    </div>
+  )
 }
 
 /* ── Avatar initials ── */
@@ -69,6 +172,10 @@ export default function DashboardPage() {
   const topClients     = analytics?.top_clients   || []
   const lowStockItems  = (products?.results || []).filter(p => (p.stock_count ?? 999) < 6).slice(0, 4)
   const maxCat         = catData.length ? Math.max(...catData.map(d => d.revenue)) : 1
+  const dailyRev       = analytics?.daily_revenue   || []
+  const rechargeAn     = analytics?.recharges       || null
+  const userGrowth     = analytics?.users_growth    || null
+  const ordersIns      = analytics?.orders_insights || null
 
   const vipTiers = useMemo(() => ({
     diamond: topClients.filter(c => c.total_spent >= 500).length,
@@ -80,16 +187,12 @@ export default function DashboardPage() {
   const trendPts = peakData.map(h => h.orders)
   const { line: trendLine, area: trendArea } = buildPath(trendPts, 860, 160)
 
-  const weekPts = [
-    rev?.last_week ? rev.last_week / 7 : 0,
-    rev?.last_week ? rev.last_week / 5 : 0,
-    rev?.last_week ? rev.last_week / 4 : 0,
-    rev?.yesterday ?? 0,
-    rev?.yesterday ?? 0,
-    rev?.this_week  ?? 0,
-    rev?.this_month ?? 0,
-  ]
+  const weekPts = dailyRev.slice(-14).map(d => d.revenue)
   const { line: sparkLine, area: sparkArea } = buildPath(weekPts, 420, 46)
+
+  const growthPct = rev && rev.last_month > 0
+    ? ((rev.this_month - rev.last_month) / rev.last_month) * 100
+    : null
 
   function refresh() {
     ['admin-stats', 'admin-analytics', 'admin-orders-recent', 'admin-recharges-pending', 'admin-products-stock']
@@ -159,9 +262,14 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 18, color: '#C39CF5', marginLeft: 4 }}>DT</span>
                 </div>
               </div>
-              {rev && rev.last_month > 0 && (
-                <div style={{ fontSize: 11, fontWeight: 600, background: 'rgba(54,255,192,0.12)', border: '1px solid rgba(54,255,192,0.35)', color: '#36FFC0', padding: '4px 10px', borderRadius: 20 }}>
-                  ↑ vs last month
+              {growthPct != null && (
+                <div style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20,
+                  ...(growthPct >= 0
+                    ? { background: 'rgba(54,255,192,0.12)', border: '1px solid rgba(54,255,192,0.35)', color: '#36FFC0' }
+                    : { background: 'rgba(255,68,102,0.12)', border: '1px solid rgba(255,68,102,0.35)', color: '#FF6B85' })
+                }}>
+                  {growthPct >= 0 ? '↑' : '↓'} {Math.abs(growthPct).toFixed(0)}% vs last month
                 </div>
               )}
             </div>
@@ -209,6 +317,166 @@ export default function DashboardPage() {
                 <div style={MINI_LABEL}>Active Users</div>
                 <div style={MINI_VAL}>{stats?.active_users ?? '-'}</div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2-COL: Revenue 30d + Orders Insights ── */}
+        <div className="admin-two-col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 14 }}>
+
+          {/* Revenue — last 30 days */}
+          <div style={PANEL}>
+            <div style={PANEL_HEAD}>
+              <div>
+                <div style={PANEL_TITLE}>💰 Revenue — Last 30 Days</div>
+                <div style={PANEL_SUB}>Daily revenue from completed orders · hover for detail</div>
+              </div>
+            </div>
+            <RevenueChart data={dailyRev} />
+          </div>
+
+          {/* Orders insights */}
+          <div style={PANEL}>
+            <div style={PANEL_HEAD}>
+              <div>
+                <div style={PANEL_TITLE}>🧮 Orders Insights</div>
+                <div style={PANEL_SUB}>Last 30 days</div>
+              </div>
+              <span onClick={() => navigate('/admin/orders')} style={PANEL_LINK}>View all →</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#B57BFF' }}>{ordersIns ? formatCurrency(ordersIns.aov) : '-'}</div>
+                <div style={INS_TILE_LABEL}>Avg Order</div>
+              </div>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#fff' }}>{ordersIns?.total ?? '-'}</div>
+                <div style={INS_TILE_LABEL}>Orders</div>
+              </div>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#FF6B85' }}>
+                  {ordersIns?.total > 0
+                    ? `${((((ordersIns.status_counts?.cancelled || 0) + (ordersIns.status_counts?.disputed || 0)) / ordersIns.total) * 100).toFixed(0)}%`
+                    : '-'}
+                </div>
+                <div style={INS_TILE_LABEL}>Cancel Rate</div>
+              </div>
+            </div>
+
+            {(() => {
+              const entries = Object.entries(ordersIns?.status_counts || {}).sort((a, b) => b[1] - a[1])
+              const maxStatus = entries.length ? entries[0][1] : 1
+              return entries.length === 0
+                ? <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '1.5rem 0' }}>No orders yet</div>
+                : entries.map(([st, count], i) => {
+                  const meta = ORDER_STATUS_META[st] || { label: st, color: '#8A7AAE' }
+                  return (
+                    <div key={st} style={{ marginBottom: i < entries.length - 1 ? 10 : 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
+                          <span style={{ fontSize: 12, fontWeight: 500, color: '#fff' }}>{meta.label}</span>
+                        </span>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600, color: '#B3A4D4' }}>{count}</span>
+                      </div>
+                      <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${(count / maxStatus) * 100}%`, background: meta.color, opacity: 0.8, borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  )
+                })
+            })()}
+          </div>
+        </div>
+
+        {/* ── 2-COL: Recharges + User Growth ── */}
+        <div className="admin-two-col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 14 }}>
+
+          {/* Recharges & wallet */}
+          <div style={PANEL}>
+            <div style={PANEL_HEAD}>
+              <div>
+                <div style={PANEL_TITLE}>💳 Recharges & Wallet</div>
+                <div style={PANEL_SUB}>Money in · last 30 days</div>
+              </div>
+              <span onClick={() => navigate('/admin/recharges')} style={PANEL_LINK}>Manage →</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: '#36FFC0' }}>
+                  {rechargeAn ? formatCurrency(rechargeAn.credited_this_month) : '-'}
+                </div>
+                <div style={{ fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>Credited this month</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { key: 'approved', label: 'Approved', color: '#36FFC0' },
+                  { key: 'pending',  label: 'Pending',  color: '#FFC84D' },
+                  { key: 'rejected', label: 'Rejected', color: '#FF6B85' },
+                ].map(({ key, label, color }) => (
+                  <span key={key} style={{ fontSize: 10.5, fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: `${color}1F`, border: `1px solid ${color}55`, color }}>
+                    {label} {rechargeAn?.status_counts?.[key] ?? 0}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {(() => {
+              const methods = rechargeAn?.by_method || []
+              const maxCredited = methods.length ? Math.max(...methods.map(m => m.credited)) : 1
+              return methods.length === 0
+                ? <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '1.5rem 0' }}>No approved recharges yet</div>
+                : methods.map((m, i) => (
+                  <div key={m.method} style={{ marginBottom: i < methods.length - 1 ? 12 : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                      <span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: '#fff' }}>{METHOD_LABELS[m.method] || m.method}</span>
+                        <span style={{ fontSize: 10, color: '#7A6A9E', marginLeft: 6 }}>{m.count} recharge{m.count !== 1 ? 's' : ''}</span>
+                      </span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: '#36FFC0' }}>{formatCurrency(m.credited)}</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${(m.credited / maxCredited) * 100}%`, background: 'linear-gradient(90deg,#0F9D6B,#36FFC0)', borderRadius: 4 }} />
+                    </div>
+                  </div>
+                ))
+            })()}
+          </div>
+
+          {/* User growth */}
+          <div style={PANEL}>
+            <div style={PANEL_HEAD}>
+              <div>
+                <div style={PANEL_TITLE}>🚀 User Growth</div>
+                <div style={PANEL_SUB}>Signups · last 30 days</div>
+              </div>
+              <span onClick={() => navigate('/admin/users')} style={PANEL_LINK}>View all →</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#fff' }}>{userGrowth?.total ?? '-'}</div>
+                <div style={INS_TILE_LABEL}>Total Users</div>
+              </div>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#00CFFF' }}>+{userGrowth?.new_this_month ?? '-'}</div>
+                <div style={INS_TILE_LABEL}>New This Month</div>
+              </div>
+              <div style={INS_TILE}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#36FFC0' }}>{userGrowth?.buyers ?? '-'}</div>
+                <div style={INS_TILE_LABEL}>Buyers</div>
+              </div>
+            </div>
+
+            <MiniBars data={userGrowth?.daily_signups || []} color="#00CFFF" height={72} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              {(userGrowth?.daily_signups || []).filter((_, i, arr) => i === 0 || i === arr.length - 1).map(d => (
+                <span key={d.date} style={{ fontSize: 9, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
+                  {new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -464,3 +732,5 @@ const MINI_ICON  = { width: 34, height: 34, borderRadius: 9, display: 'flex', al
 const MINI_LABEL = { fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em' }
 const MINI_VAL   = { fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: '#fff', marginTop: 1 }
 const QA_BTN     = { fontSize: 12, fontWeight: 600, color: '#fff', background: 'rgba(155,79,237,0.12)', border: '1px solid rgba(155,79,237,0.35)', padding: '8px 13px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }
+const INS_TILE   = { textAlign: 'center', padding: '11px 6px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }
+const INS_TILE_LABEL = { fontSize: 9, color: '#8A7AAE', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }

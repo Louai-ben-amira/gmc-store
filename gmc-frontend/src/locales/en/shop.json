@@ -43,6 +43,7 @@
     "howItWorks": "HOW IT WORKS",
     "step1Default": "Choose your product",
     "step1Account": "Enter your player ID",
+    "step1Variant": "Select your amount",
     "step2": "Pay via your method",
     "step3Account": "Service delivered",
     "step3Code": "{{name}} delivered",
@@ -127,5 +128,14 @@
   "announcements": {
     "freeDelivery": "Instant digital delivery on all orders",
     "support": "24/7 support available"
+  },
+  "reviewPrompt": {
+    "title": "Rate Your Purchase",
+    "subtitle": "How was your experience with this product?",
+    "placeholder": "Tell others about it (optional)",
+    "pickRating": "Please select a rating.",
+    "thanks": "Thanks for your review!",
+    "failed": "Failed to submit review.",
+    "later": "Maybe Later"
   }
 }

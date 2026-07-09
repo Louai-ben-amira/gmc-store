@@ -467,7 +467,17 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
 }
 
 /* ── Variants Panel ─────────────────────────────────────────────────────── */
-const EMPTY_VARIANT = { label: '', price: '', amount_value: '', stock_count: 0, is_active: true, order: 0, points_earned: 0 }
+const EMPTY_VARIANT = { label: '', price: '', amount_value: '', stock_count: 0, is_active: true, order: 0, points_earned: '' }
+
+/* Points follow the product rule: 1 DT = 1 point. Auto-fill from price unless
+   the admin typed a manual override in this form session. */
+const autoPoints = price => String(Math.round(parseFloat(price) || 0))
+const applyField = (form, key, value) => {
+  const next = { ...form, [key]: value }
+  if (key === 'price' && !form.points_touched) next.points_earned = autoPoints(value)
+  if (key === 'points_earned') next.points_touched = true
+  return next
+}
 
 function VariantsPanel({ productId, productName, onClose }) {
   const qc    = useQueryClient()
@@ -497,7 +507,7 @@ function VariantsPanel({ productId, productName, onClose }) {
         stock_count: parseInt(newForm.stock_count) || 0,
         is_active: newForm.is_active,
         order: parseInt(newForm.order) || 0,
-        points_earned: parseInt(newForm.points_earned) || 0,
+        points_earned: parseInt(newForm.points_earned) || parseInt(autoPoints(newForm.price)) || 0,
       })
       toast.success('Variant added.')
       setNewForm({ ...EMPTY_VARIANT })
@@ -510,7 +520,9 @@ function VariantsPanel({ productId, productName, onClose }) {
   const handleUpdate = async (id) => {
     setSaving(true)
     try {
-      await updateVariant(productId, id, editForm)
+      const { points_touched, ...payload } = editForm
+      payload.points_earned = parseInt(payload.points_earned) || parseInt(autoPoints(payload.price)) || 0
+      await updateVariant(productId, id, payload)
       toast.success('Variant updated.')
       setEditId(null)
       invalidate()
@@ -555,14 +567,14 @@ function VariantsPanel({ productId, productName, onClose }) {
               { k: 'price',         label: 'Price (DT) *', type: 'number', placeholder: '0.00' },
               { k: 'amount_value',  label: 'Amount',       type: 'number', placeholder: 'e.g. 2050' },
               { k: 'stock_count',   label: 'Stock',        type: 'number', placeholder: '0' },
-              { k: 'points_earned', label: '⭐ Points',    type: 'number', placeholder: '0' },
+              { k: 'points_earned', label: '⭐ Points',    type: 'number', placeholder: 'auto' },
               { k: 'order',         label: 'Order',        type: 'number', placeholder: '0' },
             ].map(f => (
               <div key={f.k}>
                 <label style={{ ...LBL, fontSize: '0.7rem' }}>{f.label}</label>
                 <input type={f.type} placeholder={f.placeholder}
                   value={newForm[f.k]}
-                  onChange={e => setNewForm(v => ({ ...v, [f.k]: e.target.value }))}
+                  onChange={e => setNewForm(v => applyField(v, f.k, e.target.value))}
                   style={{ ...INP, height: 32, fontSize: '0.8rem' }} />
               </div>
             ))}
@@ -613,7 +625,7 @@ function VariantsPanel({ productId, productName, onClose }) {
                         <td key={k} style={TD}>
                           <input type={k === 'label' ? 'text' : 'number'}
                             value={editForm[k] ?? ''}
-                            onChange={e => setEditForm(f => ({ ...f, [k]: e.target.value }))}
+                            onChange={e => setEditForm(f => applyField(f, k, e.target.value))}
                             style={{ width: k === 'label' ? 130 : 70, height: 28, fontSize: '0.8rem', boxSizing: 'border-box' }} />
                         </td>
                       ))}
@@ -636,7 +648,9 @@ function VariantsPanel({ productId, productName, onClose }) {
                       <td style={{ ...TD, color: '#3DDC84', fontWeight: 700 }}>{formatCurrency(v.price)}</td>
                       <td style={TD}>{v.amount_value ?? '--'}</td>
                       <td style={{ ...TD, color: v.stock_count === 0 ? '#ef4444' : 'var(--white-primary)', fontWeight: 600 }}>{v.stock_count}</td>
-                      <td style={{ ...TD, color: v.points_earned > 0 ? '#F5A623' : 'var(--muted)' }}>{v.points_earned || '--'}</td>
+                      <td style={{ ...TD, color: '#F5A623' }}>
+                        {v.points_earned > 0 ? v.points_earned : <>{Math.round(parseFloat(v.price) || 0)} <span style={{ color: 'var(--muted)', fontSize: '0.6875rem' }}>auto</span></>}
+                      </td>
                       <td style={{ ...TD, color: 'var(--muted)' }}>{v.order}</td>
                       <td style={TD}>
                         <span style={{ padding: '2px 7px', borderRadius: 999, fontSize: '0.6875rem', fontWeight: 600, background: v.is_active ? 'rgba(29,158,117,0.15)' : 'rgba(239,68,68,0.15)', color: v.is_active ? '#1D9E75' : '#ef4444' }}>
@@ -645,7 +659,7 @@ function VariantsPanel({ productId, productName, onClose }) {
                       </td>
                       <td style={TD}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => { setEditId(v.id); setEditForm({ label: v.label, price: v.price, amount_value: v.amount_value ?? '', stock_count: v.stock_count, is_active: v.is_active, order: v.order }) }}
+                          <button onClick={() => { setEditId(v.id); setEditForm({ label: v.label, price: v.price, amount_value: v.amount_value ?? '', stock_count: v.stock_count, is_active: v.is_active, order: v.order, points_earned: v.points_earned || autoPoints(v.price), points_touched: v.points_earned > 0 && v.points_earned !== Math.round(parseFloat(v.price) || 0) }) }}
                             style={ICON_BTN}><Edit2 size={13} /></button>
                           <button onClick={() => handleDelete(v.id)}
                             style={{ ...ICON_BTN, color: '#ef4444' }}><Trash2 size={13} /></button>
@@ -909,9 +923,23 @@ export default function ProductsPage() {
         actions={<QuickActionButton primary onClick={openCreate}><Plus size={14} /> New Product</QuickActionButton>}
       />
 
-      <div style={{ position: 'relative', marginBottom: '1.25rem', maxWidth: '340px' }}>
-        <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search products..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: '340px' }}>
+          <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search products..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+        </div>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '7px 14px', borderRadius: 8, whiteSpace: 'nowrap',
+          background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)',
+        }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.9375rem', fontWeight: 700, color: '#B57BFF' }}>
+            {totalCount}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: T.textMuted, fontWeight: 600 }}>
+            {search.trim() ? (totalCount === 1 ? 'result' : 'results') : (totalCount === 1 ? 'product' : 'products')}
+          </span>
+        </div>
       </div>
 
       <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>

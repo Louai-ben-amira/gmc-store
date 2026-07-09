@@ -17,7 +17,7 @@ import { StarPicker } from '../components/StarRating'
 import {
   TbCopy, TbCheck, TbArrowLeft, TbArrowRight, TbX, TbCircleCheck,
   TbShieldCheck, TbBolt, TbStar, TbChevronRight,
-  TbLock, TbTrophy,
+  TbLock, TbTrophy, TbCoins, TbCreditCard,
 } from 'react-icons/tb'
 
 /* ── Flash countdown ─────────────────────────────────────────────────── */
@@ -356,6 +356,7 @@ export default function ProductPage() {
       const phoneField  = product?.required_fields?.find(f => f.type === 'tel' || f.key === 'phone')
       const phoneNumber = phoneField ? (pendingCredentials?.[phoneField.key] || '') : ''
       setConfirmOpen(false); setPendingCredentials(null)
+      qc.invalidateQueries({ queryKey: ['pending-reviews'] })
       if (phoneField) {
         setTopupModal({ open: true, phone: phoneNumber, product: product.name })
       } else if (orderData.requires_account) {
@@ -481,18 +482,43 @@ export default function ProductPage() {
                 {/* HOW IT WORKS */}
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.25rem 1.5rem' }}>
                   <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 1rem' }}>{t('product.howItWorks')}</p>
-                  <div className="product-how-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                  <div className="product-how-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
                     {[
-                      { n: '01', label: product.requires_account ? t('product.step1Account') : t('product.step1Default'), icon: '🎯' },
-                      { n: '02', label: t('product.step2'), icon: '💳' },
-                      { n: '03', label: product.requires_account ? t('product.step3Account') : t('product.step3Code', { name: product.category_detail?.name || 'Code' }), icon: '⚡' },
-                    ].map(({ n, label, icon }) => (
-                      <div key={n} style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 10, padding: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '1.125rem', color: 'rgba(124,58,237,0.5)' }}>{n}</span>
-                          <span style={{ fontSize: '1rem' }}>{icon}</span>
+                      {
+                        n: '1',
+                        label: product.has_variants
+                          ? t('product.step1Variant')
+                          : product.requires_account ? t('product.step1Account') : t('product.step1Default'),
+                        Icon: TbCoins, color: '#7C3AED',
+                      },
+                      { n: '2', label: t('product.step2'), Icon: TbCreditCard, color: '#3DDC84' },
+                      {
+                        n: '3',
+                        label: product.requires_account ? t('product.step3Account') : t('product.step3Code', { name: product.category_detail?.name || 'Code' }),
+                        Icon: TbBolt, color: '#f59e0b',
+                      },
+                    ].map(({ n, label, Icon, color }) => (
+                      <div key={n} style={{
+                        position: 'relative', overflow: 'hidden',
+                        background: `linear-gradient(155deg, ${color}12 0%, ${color}05 60%, transparent 100%)`,
+                        border: `1px solid ${color}26`,
+                        borderRadius: 12, padding: '1.125rem 1rem 1rem',
+                      }}>
+                        {/* ghost step number */}
+                        <span aria-hidden style={{
+                          position: 'absolute', top: -6, insetInlineEnd: 10,
+                          fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '2.5rem',
+                          lineHeight: 1.3, color: `${color}1f`, userSelect: 'none',
+                        }}>{n}</span>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 10, marginBottom: 12,
+                          background: `${color}1c`, border: `1px solid ${color}33`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: `0 4px 14px ${color}22`,
+                        }}>
+                          <Icon size={19} color={color} />
                         </div>
-                        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{label}</p>
+                        <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.8438rem', color: 'var(--text-primary)', lineHeight: 1.45, margin: 0 }}>{label}</p>
                       </div>
                     ))}
                   </div>
