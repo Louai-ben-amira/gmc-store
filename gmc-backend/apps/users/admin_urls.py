@@ -10,6 +10,7 @@ urlpatterns = [
     path('badge-counts/',               views.admin_badge_counts,               name='admin_badge_counts'),
     path('analytics/',                  views.admin_analytics,                  name='admin_analytics'),
     path('orders/',                     views.admin_orders,                     name='admin_orders'),
+    path('orders/seen/',                views.admin_orders_seen,                name='admin_orders_seen'),
     path('orders/<int:pk>/cancel/',     views.admin_cancel_order,               name='admin_cancel_order'),
     path('conversations/',              views.admin_conversations,              name='admin_conversations'),
 ]

@@ -9,7 +9,9 @@ from apps.orders.models import Order
 User = get_user_model()
 
 
-class AdminBadgeCountsTests(TestCase):
+class AdminOrdersBadgeTests(TestCase):
+    """The orders badge is a 'new orders since last visit' notification."""
+
     def setUp(self):
         self.client_user = User.objects.create_user(
             username='client1', email='c1@test.com', password='pass12345'
@@ -22,24 +24,27 @@ class AdminBadgeCountsTests(TestCase):
         self.api = APIClient()
         self.api.force_authenticate(self.admin)
 
-    def make_order(self, status, escrow_held):
+    def make_order(self):
         return Order.objects.create(
             user=self.client_user, amount_paid=Decimal('10.00'),
-            status=status, escrow_held=escrow_held,
+            status=Order.Status.COMPLETED,
         )
 
-    def test_orders_badge_counts_only_actionable(self):
-        # Needs admin action: in escrow, not yet delivered
-        self.make_order(Order.Status.PAID_ESCROW, escrow_held=True)
-        self.make_order(Order.Status.IN_PROGRESS, escrow_held=True)
-        # Disputed always counts
-        self.make_order(Order.Status.DISPUTED, escrow_held=False)
-        # Delivered, waiting on the BUYER to confirm - must NOT count
-        self.make_order(Order.Status.COMPLETED, escrow_held=True)
-        self.make_order(Order.Status.COMPLETED, escrow_held=True)
-        # Fully closed - must not count
-        self.make_order(Order.Status.CLOSED, escrow_held=False)
-
+    def badge(self):
         resp = self.api.get('/api/admin/badge-counts/')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data['orders'], 3)
+        return resp.data['orders']
+
+    def test_new_orders_counted_then_cleared_on_seen(self):
+        self.make_order()
+        self.make_order()
+        self.assertEqual(self.badge(), 2)
+
+        # Admin opens the Orders page -> frontend calls the seen endpoint
+        resp = self.api.post('/api/admin/orders/seen/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.badge(), 0)
+
+        # A new order arrives afterwards -> badge shows exactly 1
+        self.make_order()
+        self.assertEqual(self.badge(), 1)
