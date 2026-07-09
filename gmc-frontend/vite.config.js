@@ -45,6 +45,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Real files/server routes must bypass the SPA navigation fallback,
+        // otherwise the installed service worker answers them with index.html.
+        navigateFallbackDenylist: [
+          /^\/robots\.txt$/,
+          /^\/sitemap\.xml$/,
+          /^\/api\//,
+          /^\/admin\//,
+          /^\/oauth\//,
+          /^\/media\//,
+        ],
         runtimeCaching: [
           {
             // API calls - network first, fall back to cache for up to 5 minutes
