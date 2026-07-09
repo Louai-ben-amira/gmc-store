@@ -150,8 +150,8 @@ def recharge_preview(request):
         elif method == 'd17_number':
             pct           = Decimal('0.01')
             fee           = (amount * pct).quantize(Decimal('0.01'))
-            total_to_send = (amount + fee).quantize(Decimal('0.01'))
-            return Response({'tax_rate': float(pct), 'tax_amount': float(fee), 'wallet_credit': float(amount), 'total_to_send': float(total_to_send)})
+            wallet_credit = max(amount - fee, Decimal('0')).quantize(Decimal('0.01'))
+            return Response({'tax_rate': float(pct), 'tax_amount': float(fee), 'wallet_credit': float(wallet_credit)})
         else:
             return Response({'tax_rate': 0, 'tax_amount': 0, 'wallet_credit': float(amount)})
     else:
@@ -372,8 +372,7 @@ def submit_tx_hash(request, pk):
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
     if crypto.is_expired:
-        crypto.status = 'expired'
-        crypto.save(update_fields=['status'])
+        _expire_stale_crypto(user=request.user)
         return Response({'detail': 'Payment expired. Please create a new one.'}, status=status.HTTP_400_BAD_REQUEST)
 
     tx_hash = request.data.get('tx_hash', '').strip()
@@ -400,9 +399,31 @@ def submit_tx_hash(request, pk):
     return Response(CryptoPaymentSerializer(crypto).data)
 
 
+def _expire_stale_crypto(user=None):
+    """Finalize crypto payments whose payment window has passed without a tx
+    hash: the payment becomes 'expired' and its recharge request 'rejected',
+    so admins never see (or have to manually reject) timed-out payments."""
+    qs = CryptoPayment.objects.filter(status='pending', expires_at__lt=timezone.now())
+    if user is not None:
+        qs = qs.filter(recharge_request__user=user)
+    stale = list(qs.values_list('pk', 'recharge_request_id'))
+    if not stale:
+        return
+    with db_transaction.atomic():
+        CryptoPayment.objects.filter(pk__in=[c for c, _ in stale]).update(status='expired')
+        RechargeRequest.objects.filter(
+            pk__in=[r for _, r in stale], status='pending'
+        ).update(
+            status='rejected',
+            admin_note='Expired automatically — payment window timed out.',
+            reviewed_at=timezone.now(),
+        )
+
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def my_crypto_payments(request):
+    _expire_stale_crypto(user=request.user)
     qs = CryptoPayment.objects.filter(
         recharge_request__user=request.user
     ).select_related('recharge_request').order_by('-created_at')
@@ -412,6 +433,7 @@ def my_crypto_payments(request):
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_crypto_list(request):
+    _expire_stale_crypto()
     qs = CryptoPayment.objects.select_related('recharge_request__user').order_by('-created_at')
     status_filter = request.query_params.get('status')
     if status_filter:
@@ -436,6 +458,15 @@ def admin_crypto_action(request, pk):
 
     if action == 'approve':
         from apps.users.models import WalletTransaction
+
+        # A confirmed payment must be traceable: require the TX hash / order ID
+        # (either already submitted by the client or entered by the admin now).
+        if not tx_hash and not crypto.tx_hash:
+            label = 'Binance Order ID' if crypto.currency == 'BINANCE' else 'TX hash'
+            return Response(
+                {'detail': f'{label} is required to approve this payment.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         with db_transaction.atomic():
             recharge = crypto.recharge_request

@@ -139,7 +139,8 @@ class RechargeRequest(models.Model):
         elif self.method == 'd17_number':
             self.tax_rate = Decimal('0.01')
             sent = self.amount_sent or Decimal('0')
-            self.wallet_credit = sent.quantize(Decimal('0.01'))  # fee is on top, credit = full amount
+            fee = (sent * self.tax_rate).quantize(Decimal('0.01'))
+            self.wallet_credit = max(sent - fee, Decimal('0')).quantize(Decimal('0.01'))
         else:
             self.tax_rate     = Decimal('0')
             self.wallet_credit = (self.amount_sent or Decimal('0')).quantize(Decimal('0.01'))

@@ -1,7 +1,8 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
+import queryClient from './lib/queryClient'
 import './index.css'
 import './i18n'
 
@@ -9,6 +10,8 @@ import api from './api/index'
 import useAuthStore from './store/authStore'
 import Toast from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
+import ContactFab from './components/ContactFab'
+import ReviewPromptModal from './components/ReviewPromptModal'
 
 // Customer pages
 import ShopPage       from './pages/ShopPage'
@@ -41,10 +44,6 @@ import CryptoPage       from './pages/admin/CryptoPage'
 import SettingsPage     from './pages/admin/SettingsPage'
 import GiftCardsPage    from './pages/admin/GiftCardsPage'
 import CategoriesPage   from './pages/admin/CategoriesPage'
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
-})
 
 // -- Guards ----------------------------------------------------------------
 function AuthRoute({ children }) {
@@ -93,6 +92,8 @@ function Layout({ children }) {
       flexDirection: 'column',
     }}>
       {children}
+      <ContactFab />
+      <ReviewPromptModal />
     </div>
   )
 }

@@ -11,6 +11,7 @@ urlpatterns = [
     path('recommendations/',           views.recommendations,                name='recommendations'),
     path('best-sellers/',              views.best_sellers,                   name='best_sellers'),
     path('wishlist/',                  views.wishlist_list,                  name='wishlist_list'),
+    path('reviews/pending/',           views.pending_reviews,                name='pending_reviews'),
     path('<int:pk>/',                  views.ProductDetailView.as_view(),    name='product_detail'),
     path('<slug:slug>/',               views.ProductDetailView.as_view(),    name='product_detail_slug'),
     path('<int:pk>/codes/',            views.bulk_upload_codes,              name='bulk_upload_codes'),

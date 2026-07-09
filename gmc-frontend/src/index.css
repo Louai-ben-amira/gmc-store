@@ -646,6 +646,32 @@ button, a, [role="button"] {
 /* ── Topbar responsive ──────────────────────────────── */
 .gmc-mobile-btn  { display: none !important; }
 
+/* Compact topbar on mobile/tablet: tighter padding, smaller controls,
+   avatar-only user chip (name shown inside the dropdown instead) */
+@media (max-width: 960px) {
+  .gmc-topbar-inner { padding: 0 0.75rem !important; gap: 8px !important; }
+  .gmc-mobile-btn   { width: 38px !important; height: 38px !important; border-radius: 10px !important; }
+  .gmc-user-name,
+  .gmc-user-chevron { display: none !important; }
+  .gmc-user-trigger { padding: 3px !important; border-radius: 50% !important; }
+  .gmc-user-trigger > div { width: 30px !important; height: 30px !important; }
+  .gmc-wallet-chip {
+    height: 32px !important;
+    padding: 0 10px 0 7px !important;
+    gap: 6px !important;
+    border-radius: 9px !important;
+  }
+  .gmc-wallet-icon   { width: 19px !important; height: 19px !important; }
+  .gmc-wallet-amount { font-size: 0.75rem !important; }
+}
+
+/* Very narrow phones: drop the wallet icon box, keep the amount */
+@media (max-width: 380px) {
+  .gmc-topbar-inner { padding: 0 0.5rem !important; gap: 6px !important; }
+  .gmc-wallet-icon  { display: none !important; }
+  .gmc-wallet-chip  { padding: 0 9px !important; }
+}
+
 /* ── Base grid classes ──────────────────────────────── */
 .cat-grid {
   display: grid;
@@ -663,6 +689,13 @@ button, a, [role="button"] {
   display: flex;
   gap: 1.5rem;
   align-items: flex-start;
+}
+
+/* ── Floating contact buttons (ContactFab) ───────────── */
+.contact-fab { bottom: 24px; }
+/* On mobile, sit above the fixed BottomNav (~64px + safe area) */
+@media (max-width: 767px) {
+  .contact-fab { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── Mobile-first stacked table cards ──────────────── */
@@ -1005,9 +1038,9 @@ img { max-width: 100%; height: auto; }
   .footer-logo  { height: 52px !important; }
   .footer-col   { min-width: 0 !important; }
 
-  /* bottom bar stacks on very small screens */
-  .footer-bottom       { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-  .footer-bottom-links { gap: 14px !important; flex-wrap: wrap !important; }
+  /* bottom bar stacks and centers on very small screens */
+  .footer-bottom       { flex-direction: column !important; align-items: center !important; text-align: center !important; gap: 10px !important; }
+  .footer-bottom-links { gap: 14px !important; flex-wrap: wrap !important; justify-content: center !important; }
 }
 
 /* ── Extra-small  ≤ 380px: single-col everything ───────────────── */

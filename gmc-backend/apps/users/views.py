@@ -411,15 +411,15 @@ class AdminRechargeApproveView(generics.GenericAPIView):
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_analytics(request):
-    from django.db.models import Sum, Count, Q
-    from django.db.models.functions import ExtractHour
+    from django.db.models import Sum, Count, Avg, Q
+    from django.db.models.functions import ExtractHour, TruncDate
     from django.utils import timezone
     from django.core.cache import cache
     from datetime import timedelta
     from apps.orders.models import Order
 
     # Dashboard data does not need to be real-time; serve a cached snapshot.
-    CACHE_KEY = 'admin_analytics_v1'
+    CACHE_KEY = 'admin_analytics_v2'
     cached = cache.get(CACHE_KEY)
     if cached is not None:
         return Response(cached)
@@ -508,12 +508,100 @@ def admin_analytics(request):
         )
     ]
 
+    # ── Daily revenue + orders (last 30 days, zero-filled) ─────────────────
+    thirty_days_ago = today_start - timedelta(days=29)
+    daily_qs = (
+        completed
+        .filter(created_at__gte=thirty_days_ago)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(revenue=Sum('amount_paid'), orders=Count('id'))
+    )
+    daily_map = {r['day'].isoformat(): r for r in daily_qs}
+    daily_revenue = []
+    for i in range(30):
+        d = (thirty_days_ago + timedelta(days=i)).date().isoformat()
+        row = daily_map.get(d)
+        daily_revenue.append({
+            'date':    d,
+            'revenue': float(row['revenue'] or 0) if row else 0.0,
+            'orders':  row['orders'] if row else 0,
+        })
+
+    # ── Recharge & wallet analytics (last 30 days) ─────────────────────────
+    recent_recharges = RechargeRequest.objects.filter(created_at__gte=thirty_days_ago)
+    recharge_by_method = [
+        {'method': r['method'], 'count': r['count'], 'credited': float(r['credited'] or 0)}
+        for r in (
+            recent_recharges
+            .filter(status='approved')
+            .values('method')
+            .annotate(count=Count('id'), credited=Sum('wallet_credit'))
+            .order_by('-credited')
+        )
+    ]
+    recharge_status = {
+        r['status']: r['count']
+        for r in recent_recharges.values('status').annotate(count=Count('id'))
+    }
+    credited_this_month = float(
+        RechargeRequest.objects
+        .filter(status='approved', created_at__gte=month_start)
+        .aggregate(total=Sum('wallet_credit'))['total'] or 0
+    )
+    recharges = {
+        'by_method':           recharge_by_method,
+        'status_counts':       recharge_status,
+        'credited_this_month': credited_this_month,
+    }
+
+    # ── User growth ────────────────────────────────────────────────────────
+    signup_qs = (
+        User.objects
+        .filter(date_joined__gte=thirty_days_ago)
+        .annotate(day=TruncDate('date_joined'))
+        .values('day')
+        .annotate(count=Count('id'))
+    )
+    signup_map = {r['day'].isoformat(): r['count'] for r in signup_qs}
+    daily_signups = []
+    for i in range(30):
+        d = (thirty_days_ago + timedelta(days=i)).date().isoformat()
+        daily_signups.append({'date': d, 'count': signup_map.get(d, 0)})
+    users_growth = {
+        'total':          User.objects.count(),
+        'new_this_month': User.objects.filter(date_joined__gte=month_start).count(),
+        'buyers':         completed.values('user').distinct().count(),
+        'daily_signups':  daily_signups,
+    }
+
+    # ── Orders insights (last 30 days, all statuses) ───────────────────────
+    recent_orders = Order.objects.filter(created_at__gte=thirty_days_ago)
+    order_status_counts = {
+        r['status']: r['count']
+        for r in recent_orders.values('status').annotate(count=Count('id'))
+    }
+    aov = float(
+        completed
+        .filter(created_at__gte=thirty_days_ago)
+        .aggregate(avg=Avg('amount_paid'))['avg'] or 0
+    )
+    orders_insights = {
+        'aov':           round(aov, 2),
+        'total':         recent_orders.count(),
+        'status_counts': order_status_counts,
+    }
+
     payload = {
-        'revenue':      revenue,
-        'by_category':  by_category,
-        'peak_hours':   peak_hours,
-        'best_sellers': best_sellers,
-        'top_clients':  top_clients,
+        'revenue':         revenue,
+        'by_category':     by_category,
+        'peak_hours':      peak_hours,
+        'best_sellers':    best_sellers,
+        'top_clients':     top_clients,
+        'daily_revenue':   daily_revenue,
+        'recharges':       recharges,
+        'users_growth':    users_growth,
+        'orders_insights': orders_insights,
     }
     cache.set(CACHE_KEY, payload, 120)  # 2-minute TTL
     return Response(payload)
@@ -537,6 +625,23 @@ def admin_stats(request):
         'total_orders': Order.objects.count(),
         'active_users': User.objects.filter(is_active=True).count(),
         'pending_recharges': RechargeRequest.objects.filter(status='pending').count(),
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_badge_counts(request):
+    """Sidebar notification badges: items awaiting admin action."""
+    from django.db.models import Q
+    from apps.orders.models import Order
+    from apps.payments.models import CryptoPayment
+
+    return Response({
+        # Escrow held = paid service order not yet delivered; disputed always needs attention
+        'orders': Order.objects.filter(Q(escrow_held=True) | Q(status='disputed')).count(),
+        # Manual recharges only — crypto ones have their own badge
+        'recharges': RechargeRequest.objects.filter(status='pending').exclude(method='crypto').count(),
+        'crypto': CryptoPayment.objects.filter(status__in=['pending', 'confirming']).count(),
     })
 
 
@@ -596,13 +701,25 @@ def admin_cancel_order(request, pk):
         user = locked.user
         refund = locked.amount_paid
         user.balance += refund
-        user.save(update_fields=['balance'])
+        # Reverse the points movement: take back points earned on this order,
+        # give back points the client redeemed on it. Clamp at 0 in case the
+        # earned points were already spent elsewhere.
+        points_delta = locked.points_used - locked.points_earned
+        user.points = max(0, user.points + points_delta)
+        user.save(update_fields=['balance', 'points'])
 
         WalletTransaction.objects.create(
             user=user, type='credit', amount=refund,
             method='refund',
             note=f'Admin cancelled Order #{locked.id}'
         )
+        if points_delta != 0:
+            WalletTransaction.objects.create(
+                user=user, type='credit' if points_delta > 0 else 'debit', amount=0,
+                method='points',
+                note=f'Points adjustment for cancelled order #{locked.id}: '
+                     f'{-locked.points_earned:+d} earned reversed, {locked.points_used:+d} redeemed returned'
+            )
 
         locked.status = Order.Status.CANCELLED
         locked.code   = None

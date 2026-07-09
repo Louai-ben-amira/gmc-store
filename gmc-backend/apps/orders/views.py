@@ -828,12 +828,24 @@ def cancel_order(request, pk):
         user = locked.user
         refund = locked.amount_paid
         user.balance += refund
-        user.save(update_fields=['balance'])
+        # Reverse the points movement: take back points earned on this order,
+        # give back points the client redeemed on it. Clamp at 0 in case the
+        # earned points were already spent elsewhere.
+        points_delta = locked.points_used - locked.points_earned
+        user.points = max(0, user.points + points_delta)
+        user.save(update_fields=['balance', 'points'])
 
         WalletTransaction.objects.create(
             user=user, type='credit', amount=refund,
             method='refund', note=f'Cancelled Order #{locked.id} - code not revealed'
         )
+        if points_delta != 0:
+            WalletTransaction.objects.create(
+                user=user, type='credit' if points_delta > 0 else 'debit', amount=0,
+                method='points',
+                note=f'Points adjustment for cancelled order #{locked.id}: '
+                     f'{-locked.points_earned:+d} earned reversed, {locked.points_used:+d} redeemed returned'
+            )
 
         locked.status = Order.Status.CANCELLED
         locked.code   = None

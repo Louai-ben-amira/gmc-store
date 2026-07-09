@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { TbArrowRight, TbBrandWhatsapp, TbBrandMessenger, TbBrandInstagram, TbDeviceMobile, TbWifi, TbBuildingBank, TbCurrencyBitcoin } from 'react-icons/tb'
+import { TbArrowRight, TbChevronDown, TbBrandWhatsapp, TbBrandMessenger, TbBrandInstagram, TbDeviceMobile, TbWifi, TbBuildingBank, TbCurrencyBitcoin } from 'react-icons/tb'
 import { SiVisa, SiMastercard } from 'react-icons/si'
 
 /* ── Payment ticker items ─────────────────────────────────────────────── */
@@ -99,11 +99,71 @@ function SocialBtn({ label, color, Icon, href = '#' }) {
   )
 }
 
+function useIsMobile(maxWidth = 640) {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${maxWidth}px)`).matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`)
+    const onChange = e => setMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [maxWidth])
+  return mobile
+}
+
+/* ── Mobile accordion section ────────────────────────────────────────── */
+function MobileFooterSection({ col }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0.9375rem 2px', gap: 8,
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: '0.9375rem' }}>{col.emoji}</span>
+          <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem', color: col.color }}>{col.title}</span>
+        </span>
+        <TbChevronDown size={16} style={{
+          color: 'var(--text-muted)', flexShrink: 0,
+          transition: 'transform 0.2s ease',
+          transform: open ? 'rotate(180deg)' : 'none',
+        }} />
+      </button>
+      {open && (
+        <ul style={{ listStyle: 'none', margin: 0, padding: '0 2px 0.75rem' }}>
+          {col.links.map(link => (
+            <li key={link.to}>
+              <Link to={link.to} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '0.625rem 4px', textDecoration: 'none',
+                fontFamily: 'Inter, sans-serif', fontSize: '0.8438rem',
+                color: link.accent ? col.color : 'var(--text-secondary)',
+                fontWeight: link.accent ? 600 : 400,
+              }}>
+                <TbArrowRight size={11} style={{ opacity: link.accent ? 0.9 : 0.35, flexShrink: 0, transform: document.documentElement.dir === 'rtl' ? 'scaleX(-1)' : 'none' }} />
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    FOOTER
 ═══════════════════════════════════════════════════════════════════════ */
 export default function Footer() {
   const { t } = useTranslation('common')
+  const isMobile = useIsMobile()
 
   const FOOTER_COLS = [
     {
@@ -161,48 +221,77 @@ export default function Footer() {
       {/* Payment ticker */}
       <PaymentTicker />
 
-      {/* Main grid */}
-      <div className="footer-outer" style={{ padding: '2rem 1.5rem' }}>
-        <div className="footer-grid" style={{ maxWidth: 1400, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.5fr repeat(5, 1fr)', gap: '1.75rem' }}>
+      {/* Main content: accordion on mobile, grid on desktop */}
+      {isMobile ? (
+        <div style={{ padding: '1.5rem 1rem 1rem' }}>
 
-          {/* ── Brand column ────────────────────────────── */}
-          <div className="footer-brand">
-            <div style={{ marginBottom: '1rem' }}>
-              <img src="/logo png.png" alt="GMC Store" className="footer-logo" style={{ height: 80, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(124,58,237,0.35))' }} />
-            </div>
-
-            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.7, margin: '0 0 1.25rem', maxWidth: 260 }}>
+          {/* ── Brand - centered ─────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '1.25rem' }}>
+            <img src="/logo png.png" alt="GMC Store" style={{ height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(124,58,237,0.35))', marginBottom: '0.625rem' }} />
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.65, margin: '0 0 1rem', maxWidth: 300 }}>
               {t('footer.tagline')}
             </p>
-
-            <div style={{ display: 'flex', gap: 10, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>
               <SocialBtn label="WhatsApp" color="#25d366" Icon={TbBrandWhatsapp} href="https://wa.me/21624027209" />
               <SocialBtn label="Facebook" color="#0084ff" Icon={TbBrandMessenger} href="https://www.facebook.com/profile.php?id=61590296486053" />
               <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcvstorex" />
             </div>
-
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(61,220,132,0.07)', border: '1px solid rgba(61,220,132,0.18)', borderRadius: 100, padding: '6px 14px' }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#3DDC84', boxShadow: '0 0 6px #3DDC84', animation: 'dot-pulse 2s infinite', flexShrink: 0 }} />
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#3DDC84' }}>{t('footer.supportOnline')}</span>
             </div>
           </div>
 
-          {/* ── Category columns ─────────────────────────── */}
-          {FOOTER_COLS.map(col => (
-            <div key={col.title} className="footer-col">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.875rem', paddingBottom: '0.75rem', borderBottom: `1px solid ${col.color}22` }}>
-                <span style={{ fontSize: '0.9rem' }}>{col.emoji}</span>
-                <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: col.color }}>{col.title}</span>
-              </div>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {col.links.map(link => (
-                  <li key={link.to}><FooterLink link={link} color={col.color} /></li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* ── Collapsible category sections ───────────── */}
+          <div style={{ borderTop: '1px solid var(--border)' }}>
+            {FOOTER_COLS.map(col => (
+              <MobileFooterSection key={col.title} col={col} />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="footer-outer" style={{ padding: '2rem 1.5rem' }}>
+          <div className="footer-grid" style={{ maxWidth: 1400, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.5fr repeat(5, 1fr)', gap: '1.75rem' }}>
+
+            {/* ── Brand column ────────────────────────────── */}
+            <div className="footer-brand">
+              <div style={{ marginBottom: '1rem' }}>
+                <img src="/logo png.png" alt="GMC Store" className="footer-logo" style={{ height: 80, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(124,58,237,0.35))' }} />
+              </div>
+
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.7, margin: '0 0 1.25rem', maxWidth: 260 }}>
+                {t('footer.tagline')}
+              </p>
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                <SocialBtn label="WhatsApp" color="#25d366" Icon={TbBrandWhatsapp} href="https://wa.me/21624027209" />
+                <SocialBtn label="Facebook" color="#0084ff" Icon={TbBrandMessenger} href="https://www.facebook.com/profile.php?id=61590296486053" />
+                <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcvstorex" />
+              </div>
+
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(61,220,132,0.07)', border: '1px solid rgba(61,220,132,0.18)', borderRadius: 100, padding: '6px 14px' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#3DDC84', boxShadow: '0 0 6px #3DDC84', animation: 'dot-pulse 2s infinite', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#3DDC84' }}>{t('footer.supportOnline')}</span>
+              </div>
+            </div>
+
+            {/* ── Category columns ─────────────────────────── */}
+            {FOOTER_COLS.map(col => (
+              <div key={col.title} className="footer-col">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.875rem', paddingBottom: '0.75rem', borderBottom: `1px solid ${col.color}22` }}>
+                  <span style={{ fontSize: '0.9rem' }}>{col.emoji}</span>
+                  <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: col.color }}>{col.title}</span>
+                </div>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {col.links.map(link => (
+                    <li key={link.to}><FooterLink link={link} color={col.color} /></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom bar ──────────────────────────────────── */}
       <div style={{ background: 'var(--bg-elevated)', borderTop: '1px solid var(--border)', padding: '0.875rem 1.5rem' }}>

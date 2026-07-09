@@ -39,18 +39,19 @@ function DetailModal({ payment, onClose, onAction }) {
   const [rejectNote,    setRejectNote]    = useState('')
   const [txHashInput,   setTxHashInput]   = useState(payment.tx_hash || '')
   const [showReject,    setShowReject]    = useState(false)
-  const toast = useToast()
 
   const ss = STATUS_STYLE[payment.status] || STATUS_STYLE.pending
   const canAct = ['pending', 'confirming'].includes(payment.status)
+  // Approval must be traceable to an on-chain TX / Binance order
+  const hasTxHash = !!(payment.tx_hash || txHashInput.trim())
 
   const handle = async (action) => {
     setActionLoading(action)
     try {
       await onAction(payment.id, action, action === 'reject' ? rejectNote : '', txHashInput)
       onClose()
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Action failed.')
+    } catch {
+      // onAction already toasts the error; keep the modal open for a retry
     } finally {
       setActionLoading(null)
     }
@@ -144,8 +145,8 @@ function DetailModal({ payment, onClose, onAction }) {
             <input
               value={txHashInput}
               onChange={e => setTxHashInput(e.target.value)}
-              placeholder={payment.currency === 'BINANCE' ? 'Paste Binance Order ID manually (optional)' : 'Paste TX hash manually (optional)'}
-              style={{ width: '100%', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', background: '#0d0d14', border: '1px solid #2a2a3e', color: 'var(--white-primary)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
+              placeholder={payment.currency === 'BINANCE' ? 'Paste Binance Order ID (required to approve)' : 'Paste TX hash (required to approve)'}
+              style={{ width: '100%', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', background: '#0d0d14', border: `1px solid ${hasTxHash ? '#2a2a3e' : 'rgba(217,119,6,0.5)'}`, color: 'var(--white-primary)', borderRadius: '0.375rem', padding: '0.5rem 0.75rem', boxSizing: 'border-box' }}
             />
           ) : (
             <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>-</span>
@@ -163,9 +164,10 @@ function DetailModal({ payment, onClose, onAction }) {
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
               onClick={() => handle('approve')}
-              disabled={!!actionLoading}
-              style={{ flex: 1, padding: '0.75rem', borderRadius: '0.625rem', border: 'none', cursor: 'pointer', background: 'rgba(29,158,117,0.2)', color: '#1D9E75', fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'background 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(29,158,117,0.35)'}
+              disabled={!!actionLoading || !hasTxHash}
+              title={hasTxHash ? undefined : (payment.currency === 'BINANCE' ? 'Enter the Binance Order ID to approve' : 'Enter the TX hash to approve')}
+              style={{ flex: 1, padding: '0.75rem', borderRadius: '0.625rem', border: 'none', cursor: hasTxHash ? 'pointer' : 'not-allowed', background: 'rgba(29,158,117,0.2)', color: '#1D9E75', fontWeight: 700, fontSize: '0.9375rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: 'background 0.15s', opacity: hasTxHash ? 1 : 0.45 }}
+              onMouseEnter={e => { if (hasTxHash) e.currentTarget.style.background = 'rgba(29,158,117,0.35)' }}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(29,158,117,0.2)'}
             >
               {actionLoading === 'approve' ? 'Approving…' : <><CheckCircle size={16} /> Approve & Credit</>}
@@ -306,6 +308,9 @@ export default function CryptoPage() {
       qc.invalidateQueries({ queryKey: ['admin-crypto'] })
       qc.invalidateQueries({ queryKey: ['admin-recharges'] })
       toast.success(action === 'approve' ? 'Approved! Balance credited.' : 'Payment rejected.')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Action failed.')
+      throw err // let the detail modal know the action did not go through
     } finally {
       setActionLoading(null)
     }
@@ -382,9 +387,9 @@ export default function CryptoPage() {
                     {canAct && (
                       <div style={{ display: 'flex', gap: '0.375rem' }}>
                         <button
-                          onClick={() => handleAction(p.id, 'approve')}
+                          onClick={() => p.tx_hash ? handleAction(p.id, 'approve') : setSelected(p)}
                           disabled={isActing}
-                          title="Approve & credit balance"
+                          title={p.tx_hash ? 'Approve & credit balance' : 'TX hash required - open details to enter it'}
                           style={{ background: T.successDim, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '0.375rem', padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}
                         >
                           <CheckCircle size={12} /> {isActing ? '…' : 'Approve'}

@@ -1,10 +1,12 @@
 ﻿import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users,
   Wallet, MessageCircle, LogOut, Store, ChevronRight, Tag, Flame, Bitcoin, Settings, Gift, Menu, X, FolderOpen,
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
+import api from '../../api/index'
 
 const nav = [
   { to: '/admin',               icon: LayoutDashboard, label: 'Dashboard',   exact: true },
@@ -13,20 +15,41 @@ const nav = [
   { to: '/admin/bundles',       icon: Store,           label: 'Bundles'      },
   { to: '/admin/flash-sales',   icon: Flame,           label: 'Flash Sales'  },
   { to: '/admin/promo-codes',   icon: Tag,             label: 'Promo Codes'  },
-  { to: '/admin/orders',        icon: ShoppingCart,    label: 'Orders'       },
+  { to: '/admin/orders',        icon: ShoppingCart,    label: 'Orders',      badge: 'orders'    },
   { to: '/admin/users',         icon: Users,           label: 'Users'        },
-  { to: '/admin/recharges',     icon: Wallet,          label: 'Recharges'    },
-  { to: '/admin/crypto',        icon: Bitcoin,         label: 'Crypto'       },
+  { to: '/admin/recharges',     icon: Wallet,          label: 'Recharges',   badge: 'recharges' },
+  { to: '/admin/crypto',        icon: Bitcoin,         label: 'Crypto',      badge: 'crypto'    },
   { to: '/admin/gift-cards',    icon: Gift,            label: 'Gift Cards'   },
   { to: '/admin/inbox',         icon: MessageCircle,   label: 'Inbox'        },
   { to: '/admin/settings',      icon: Settings,        label: 'Settings'     },
 ]
+
+function NavBadge({ count }) {
+  if (!count) return null
+  return (
+    <span style={{
+      marginLeft: 'auto', minWidth: 18, height: 18, padding: '0 5px',
+      borderRadius: 999, background: '#EF4444', color: '#fff',
+      fontSize: '0.6875rem', fontWeight: 700, lineHeight: '18px',
+      textAlign: 'center', flexShrink: 0,
+    }}>
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
 
 function SidebarContent({ onClose }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const handleLogout = () => { logout(); navigate('/') }
+
+  const { data: badges = {} } = useQuery({
+    queryKey: ['admin-badge-counts'],
+    queryFn: () => api.get('/admin/badge-counts/').then(r => r.data),
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+  })
 
   const isActive = ({ to, exact }) =>
     exact ? location.pathname === to : location.pathname.startsWith(to)
@@ -51,8 +74,9 @@ function SidebarContent({ onClose }) {
       </div>
 
       <nav style={{ flex: 1, padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto' }}>
-        {nav.map(({ to, icon: Icon, label, exact }) => {
+        {nav.map(({ to, icon: Icon, label, exact, badge }) => {
           const active = isActive({ to, exact })
+          const count = badge ? badges[badge] : 0
           return (
             <Link key={to} to={to} onClick={onClose} style={{
               display: 'flex', alignItems: 'center', gap: '0.625rem',
@@ -70,7 +94,8 @@ function SidebarContent({ onClose }) {
             >
               <Icon size={16} />
               {label}
-              {active && <ChevronRight size={12} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+              <NavBadge count={count} />
+              {active && !count && <ChevronRight size={12} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
             </Link>
           )
         })}

@@ -217,7 +217,7 @@ function CreditPreview({ method, ticketValue, amountSent }) {
   if (!preview) return null
 
   const hasFee       = preview.tax_rate > 0 || preview.tax_amount > 0
-  const feeOnTop     = method === 'd17_number'   // fee added on top, not deducted
+  const pctFee       = method === 'd17_number'    // percentage fee deducted
   const flatFee      = method === 'bank_transfer' // flat fee deducted
 
   return (
@@ -231,23 +231,15 @@ function CreditPreview({ method, ticketValue, amountSent }) {
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{inputVal.toFixed(2)} DT</span>
         </div>
 
-        {hasFee && feeOnTop && (
+        {hasFee && pctFee && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: '#f59e0b' }}>
-                Service fee ({(preview.tax_rate * 100).toFixed(0)}%) - add to transfer
-              </span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: '#f59e0b' }}>+{preview.tax_amount.toFixed(2)} DT</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: '#ff4d6d' }}>Service fee ({(preview.tax_rate * 100).toFixed(0)}%)</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', color: '#ff4d6d' }}>−{preview.tax_amount.toFixed(2)} DT</span>
             </div>
-            <div style={{ borderTop: '1px solid rgba(61,220,132,0.2)', marginTop: 4, paddingTop: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)' }}>Total to send to D17</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.9375rem', fontWeight: 800, color: '#f59e0b' }}>{(preview.total_to_send ?? (inputVal + preview.tax_amount)).toFixed(2)} DT</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>You'll receive</span>
-                <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: '#3DDC84' }}>{preview.wallet_credit.toFixed(2)} DT</span>
-              </div>
+            <div style={{ borderTop: '1px solid rgba(61,220,132,0.2)', marginTop: 4, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>You'll receive</span>
+              <span style={{ fontFamily: 'Sora, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: '#3DDC84' }}>{preview.wallet_credit.toFixed(2)} DT</span>
             </div>
           </>
         )}

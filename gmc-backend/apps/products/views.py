@@ -432,6 +432,39 @@ def review_eligibility(request, pk):
     return Response({'can_review': has_order and not has_reviewed, 'has_reviewed': has_reviewed})
 
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def pending_reviews(request):
+    """Finished purchases the user hasn't reviewed yet — drives the
+    post-purchase review prompt on the storefront."""
+    from apps.orders.models import Order
+    reviewed = Review.objects.filter(user=request.user).values_list('product_id', flat=True)
+    orders = (
+        Order.objects
+        .filter(user=request.user, status__in=('completed', 'closed'),
+                product__isnull=False, product__visible=True)
+        .exclude(product_id__in=reviewed)
+        .select_related('product')
+        .order_by('-created_at')
+    )
+    seen, items = set(), []
+    for o in orders:
+        if o.product_id in seen:
+            continue
+        seen.add(o.product_id)
+        items.append({
+            'order_id':      o.id,
+            'product_id':    o.product_id,
+            'product_name':  o.product.name,
+            'product_slug':  o.product.slug,
+            'product_image': o.product.image.url if o.product.image else None,
+            'purchased_at':  o.created_at,
+        })
+        if len(items) >= 10:
+            break
+    return Response(items)
+
+
 # ── Wishlist ─────────────────────────────────────────────────────────────────
 
 @api_view(['POST'])

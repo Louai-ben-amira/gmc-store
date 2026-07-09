@@ -7,6 +7,7 @@ urlpatterns = [
     path('recharges/',                  views.AdminRechargesListView.as_view(), name='admin_recharges'),
     path('recharges/<int:pk>/',         views.AdminRechargeApproveView.as_view(), name='admin_recharge_approve'),
     path('stats/',                      views.admin_stats,                      name='admin_stats'),
+    path('badge-counts/',               views.admin_badge_counts,               name='admin_badge_counts'),
     path('analytics/',                  views.admin_analytics,                  name='admin_analytics'),
     path('orders/',                     views.admin_orders,                     name='admin_orders'),
     path('orders/<int:pk>/cancel/',     views.admin_cancel_order,               name='admin_cancel_order'),

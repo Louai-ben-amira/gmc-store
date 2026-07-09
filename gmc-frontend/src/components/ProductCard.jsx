@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -288,6 +288,9 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
 
   const [liked, setLiked] = useState(!!product.is_wishlisted)
   const [lBusy, setLBusy] = useState(false)
+  // Server data is the source of truth - resync when a refetch (login,
+  // logout, cache invalidation) delivers a different wishlist state
+  useEffect(() => { setLiked(!!product.is_wishlisted) }, [product.is_wishlisted])
 
   const doWish = async (e) => {
     e.stopPropagation()
@@ -301,6 +304,9 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
       const { data } = await toggleWishlist(product.id)
       setLiked(data.wishlisted)
       qc.invalidateQueries({ queryKey: ['wishlist'] })
+      // Product lists cache is_wishlisted - refresh them so hearts stay correct
+      qc.invalidateQueries({ queryKey: ['products'] })
+      qc.invalidateQueries({ queryKey: ['best-sellers'] })
     } catch { toast.error('Could not update wishlist') }
     setLBusy(false)
   }
