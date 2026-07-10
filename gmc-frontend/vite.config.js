@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'favicon-96.png', 'icons/*.png'],
       manifest: {
         name: 'GMC Store',
         short_name: 'GMC Store',
