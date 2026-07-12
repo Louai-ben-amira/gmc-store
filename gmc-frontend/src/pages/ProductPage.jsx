@@ -742,7 +742,19 @@ export default function ProductPage() {
                           style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', cursor: qty <= 1 ? 'default' : 'pointer', opacity: qty <= 1 ? 0.4 : 1, fontSize: '1rem', lineHeight: 1 }}>
                           −
                         </button>
-                        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', minWidth: 20, textAlign: 'center' }}>{qty}</span>
+                        <input
+                          type="text" inputMode="numeric" pattern="[0-9]*"
+                          value={quantity === '' ? '' : qty}
+                          onChange={e => {
+                            const digits = e.target.value.replace(/\D/g, '')
+                            if (digits === '') { setQuantity(''); return }
+                            const n = Math.min(maxQty, Math.max(1, parseInt(digits, 10)))
+                            setQuantity(n)
+                            if (n > 1) setPointsToUse(0)
+                          }}
+                          onBlur={() => setQuantity(qty)}
+                          style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', width: 44, textAlign: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 2px', outline: 'none' }}
+                        />
                         <button type="button" onClick={() => { setQuantity(q => Math.min(maxQty, q + 1)); setPointsToUse(0) }} disabled={qty >= maxQty}
                           style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', cursor: qty >= maxQty ? 'default' : 'pointer', opacity: qty >= maxQty ? 0.4 : 1, fontSize: '1rem', lineHeight: 1 }}>
                           +

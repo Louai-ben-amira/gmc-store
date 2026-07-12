@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getAdminConversations, getAdminMessages, sendAdminMessage, markAdminMessagesRead,
@@ -220,6 +221,18 @@ export default function InboxPage() {
   const [showCanned,   setShowCanned]   = useState(false)
   const [showContext,  setShowContext]  = useState(true)
   const [mobileView,   setMobileView]  = useState('list') // 'list' | 'chat'
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Deep link: /admin/inbox?conversation=<id> opens that conversation directly
+  useEffect(() => {
+    const cid = searchParams.get('conversation')
+    if (cid) {
+      setSelectedId(Number(cid))
+      setMobileView('chat')
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const bottomRef      = useRef(null)
   const messagesBoxRef = useRef(null)
