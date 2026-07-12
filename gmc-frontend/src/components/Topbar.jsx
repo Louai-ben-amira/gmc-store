@@ -881,7 +881,7 @@ const { t } = useTranslation('common')
             to: `/?cat=${c.slug}`,
             emoji: c.icon,
             Icon: group.fallbackIcon,
-            color: c.color || group.fallbackColor || group.color,
+            color: group.fallbackColor || c.color || group.color,
           }))
         return { ...group, items }
       })
