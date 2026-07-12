@@ -672,6 +672,13 @@ def admin_orders(request):
         orders = orders.filter(status=status_filter)
     if req_acc:
         orders = orders.filter(requires_account=True)
+    search = request.query_params.get('search', '').strip()
+    if search:
+        term = search.lstrip('#').strip()
+        if term.isdigit():
+            orders = orders.filter(id=int(term))
+        else:
+            orders = orders.filter(user__username__icontains=term)
     from rest_framework.pagination import PageNumberPagination
     paginator = PageNumberPagination()
     paginator.page_size = 12

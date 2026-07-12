@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder, markAdminOrdersSeen } from '../../api/admin'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Eye, EyeOff, MessageCircle, Ban, ChevronDown, ChevronRight } from 'lucide-react'
+import { Eye, EyeOff, MessageCircle, Ban, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, DataTable, StatusPill, Pagination, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
@@ -173,6 +173,14 @@ export default function OrdersPage() {
   const [reqAcc,       setReqAcc]     = useState(false)
   const [expandedId,   setExpandedId] = useState(null)
   const [openBatches,  setOpenBatches] = useState(() => new Set())
+  const [search,       setSearch]     = useState('')
+  const [searchInput,  setSearchInput] = useState('')
+
+  // Debounce: apply the typed value 350ms after the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
   const qc       = useQueryClient()
   const navigate = useNavigate()
 
@@ -184,11 +192,12 @@ export default function OrdersPage() {
   }, [qc])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-orders', page, status, reqAcc],
+    queryKey: ['admin-orders', page, status, reqAcc, search],
     queryFn:  () => getAdminOrders({
       page,
       status:           status || undefined,
       requires_account: reqAcc || undefined,
+      search:           search || undefined,
     }).then(r => r.data),
     keepPreviousData: true,
   })
@@ -226,6 +235,20 @@ export default function OrdersPage() {
         >
           🔑 Account Required {reqAcc ? '✓' : ''}
         </button>
+
+        <div style={{ position: 'relative', marginLeft: 'auto' }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search #order or user…"
+            style={{
+              padding: '0.375rem 0.75rem 0.375rem 2rem', borderRadius: '0.625rem',
+              background: T.bgPanel, border: `1px solid ${T.border}`,
+              color: T.textPrimary, fontSize: '0.8125rem', outline: 'none', width: 200,
+            }}
+          />
+        </div>
       </div>
 
       <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -368,7 +391,7 @@ export default function OrdersPage() {
         <td style={{ ...TD_STYLE, color: T.textMuted, whiteSpace: 'nowrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            #{members[members.length - 1].id}–#{first.id}
+            #{members[members.length - 1].id}
           </span>
         </td>
         <td style={{ ...TD_STYLE, color: T.textPrimary, fontWeight: 500 }}>{first.user_username || first.user}</td>
