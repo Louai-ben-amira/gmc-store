@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder, markAdminOrdersSeen } from '../../api/admin'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Eye, EyeOff, MessageCircle, Ban } from 'lucide-react'
+import { Eye, EyeOff, MessageCircle, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, DataTable, StatusPill, Pagination, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
@@ -148,11 +148,31 @@ function AdminCancelButton({ order, onDone }) {
   )
 }
 
+/* ── Group multi-quantity purchases (same batch_id) into one row ───────── */
+function groupOrders(orders) {
+  const groups = []
+  const indexByBatch = new Map()
+  for (const order of orders) {
+    if (order.batch_id) {
+      if (indexByBatch.has(order.batch_id)) {
+        groups[indexByBatch.get(order.batch_id)].orders.push(order)
+      } else {
+        indexByBatch.set(order.batch_id, groups.length)
+        groups.push({ isGroup: true, batch_id: order.batch_id, orders: [order] })
+      }
+    } else {
+      groups.push({ isGroup: false, order })
+    }
+  }
+  return groups
+}
+
 export default function OrdersPage() {
   const [page,         setPage]       = useState(1)
   const [status,       setStatus]     = useState('')
   const [reqAcc,       setReqAcc]     = useState(false)
   const [expandedId,   setExpandedId] = useState(null)
+  const [openBatches,  setOpenBatches] = useState(() => new Set())
   const qc       = useQueryClient()
   const navigate = useNavigate()
 
@@ -222,22 +242,41 @@ export default function OrdersPage() {
               <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>Loading…</td></tr>
             ) : orders.length === 0 ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No orders found.</td></tr>
-            ) : orders.map(o => {
-              const expanded = expandedId === o.id
-              const canExpand = o.requires_account || (o.code_value && o.is_revealed)
-              return [
+            ) : groupOrders(orders).map(item => {
+              if (item.isGroup && item.orders.length > 1) return renderBatchRows(item)
+              return renderOrderRow(item.isGroup ? item.orders[0] : item.order)
+            })}
+          </tbody>
+        </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      </div>
+    </PageShell>
+  )
+
+  function renderOrderRow(o, indent = false) {
+    const expanded = expandedId === o.id
+    const canExpand = o.requires_account || (o.code_value && o.is_revealed)
+    return [
                 <tr key={o.id}
                   onClick={() => canExpand && setExpandedId(expanded ? null : o.id)}
                   style={{ cursor: canExpand ? 'pointer' : 'default' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,79,219,0.04)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ ...TD_STYLE, color: T.textMuted }}>
+                  <td style={{ ...TD_STYLE, color: T.textMuted, ...(indent ? { paddingLeft: '2.25rem' } : {}) }}>
+                    {indent && <span style={{ color: T.textMuted, marginRight: 4 }}>└</span>}
                     #{o.id}
                     {o.requires_account && <span title="Requires account" style={{ marginLeft: 4, fontSize: '0.75rem' }}>🔑</span>}
                   </td>
                   <td style={{ ...TD_STYLE, color: T.textPrimary, fontWeight: 500 }}>{o.user_username || o.user}</td>
-                  <td style={{ ...TD_STYLE, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.product_name || o.product}</td>
+                  <td style={{ ...TD_STYLE, maxWidth: '220px' }}>
+                    <span style={{ display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>{o.product_name || o.product}</span>
+                    {o.variant_label && (
+                      <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 6px', borderRadius: '0.375rem', background: 'rgba(155,79,237,0.12)', border: `1px solid ${T.border}`, color: T.purpleText, fontSize: '0.6875rem', fontWeight: 600 }}>
+                        {o.variant_label}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(o.amount_paid)}</td>
                   <td style={{ ...TD_STYLE, color: T.purpleText }}>{o.points_earned ?? 0} pts</td>
                   <td style={TD_STYLE}>{formatDate(o.created_at)}</td>
@@ -262,7 +301,7 @@ export default function OrdersPage() {
                   <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                     {o.requires_account && o.conversation_id && (
                       <button
-                        onClick={e => { e.stopPropagation(); navigate('/admin/inbox') }}
+                        onClick={e => { e.stopPropagation(); navigate(`/admin/inbox?conversation=${o.conversation_id}`) }}
                         title="Open chat"
                         style={{ background: 'rgba(155,79,237,0.1)', border: `1px solid ${T.border}`, color: T.purpleText, borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
                       >
@@ -301,13 +340,73 @@ export default function OrdersPage() {
                     </td>
                   </tr>
                 )
-              ]
-            })}
-          </tbody>
-        </table>
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-      </div>
-    </PageShell>
-  )
+    ]
+  }
+
+  function renderBatchRows(group) {
+    const members  = group.orders
+    const first    = members[0]
+    const open     = openBatches.has(group.batch_id)
+    const total    = members.reduce((s, o) => s + Number(o.amount_paid || 0), 0)
+    const points   = members.reduce((s, o) => s + (o.points_earned ?? 0), 0)
+    const revealed = members.filter(o => o.is_revealed).length
+    const statuses = new Set(members.map(o => o.status))
+    const toggle = () => setOpenBatches(prev => {
+      const next = new Set(prev)
+      if (next.has(group.batch_id)) next.delete(group.batch_id)
+      else next.add(group.batch_id)
+      return next
+    })
+
+    const summaryRow = (
+      <tr key={'batch-' + group.batch_id}
+        onClick={toggle}
+        style={{ cursor: 'pointer', background: open ? 'rgba(139,79,219,0.06)' : 'transparent' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,79,219,0.08)'}
+        onMouseLeave={e => e.currentTarget.style.background = open ? 'rgba(139,79,219,0.06)' : 'transparent'}
+      >
+        <td style={{ ...TD_STYLE, color: T.textMuted, whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            #{members[members.length - 1].id}–#{first.id}
+          </span>
+        </td>
+        <td style={{ ...TD_STYLE, color: T.textPrimary, fontWeight: 500 }}>{first.user_username || first.user}</td>
+        <td style={{ ...TD_STYLE, maxWidth: '220px' }}>
+          <span style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{first.product_name || first.product}</span>
+          <span style={{
+            marginLeft: 6, padding: '1px 6px', borderRadius: '0.375rem',
+            background: 'rgba(155,79,237,0.15)', border: `1px solid ${T.border}`,
+            color: T.purpleText, fontSize: '0.6875rem', fontWeight: 700,
+          }}>×{members.length}</span>
+          {first.variant_label && (
+            <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 6px', borderRadius: '0.375rem', background: 'rgba(155,79,237,0.12)', border: `1px solid ${T.border}`, color: T.purpleText, fontSize: '0.6875rem', fontWeight: 600 }}>
+              {first.variant_label}
+            </span>
+          )}
+        </td>
+        <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(total)}</td>
+        <td style={{ ...TD_STYLE, color: T.purpleText }}>{points} pts</td>
+        <td style={TD_STYLE}>{formatDate(first.created_at)}</td>
+        <td style={TD_STYLE}>
+          {statuses.size === 1
+            ? <StatusPill status={first.status} />
+            : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>Mixed</span>
+          }
+          {!first.requires_account && (
+            <div style={{ marginTop: 3 }}>
+              <span style={{ fontSize: '0.5625rem', color: revealed === members.length ? '#22C55E' : '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>
+                👁 {revealed}/{members.length} revealed
+              </span>
+            </div>
+          )}
+        </td>
+        <td style={TD_STYLE}><span style={{ color: T.textMuted, fontSize: '0.75rem' }}>-</span></td>
+        <td style={{ ...TD_STYLE, color: T.textMuted, fontSize: '0.6875rem' }}>{open ? 'Hide items' : 'View items'}</td>
+      </tr>
+    )
+
+    return open ? [summaryRow, ...members.map(o => renderOrderRow(o, true))] : [summaryRow]
+  }
 }
 
