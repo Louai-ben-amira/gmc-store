@@ -715,10 +715,12 @@ def admin_cancel_order(request, pk):
         # with "FOR UPDATE cannot be applied to the nullable side of an outer join".
         locked = Order.objects.select_for_update(of=('self',)).select_related('code', 'user').get(pk=order.pk)
 
-        code = locked.code
-        if code:
+        # Return every code attached to this order (quantity>1 orders hold several)
+        returned_codes = list(locked.codes.all()) or ([locked.code] if locked.code else [])
+        for code in returned_codes:
             code.status = 'available'
-            code.save(update_fields=['status'])
+            code.order  = None
+            code.save(update_fields=['status', 'order'])
 
         user = locked.user
         refund = locked.amount_paid
@@ -750,7 +752,7 @@ def admin_cancel_order(request, pk):
         if locked.product:
             from apps.products.models import Product
             Product.objects.filter(pk=locked.product_id).update(
-                stock_count=db_models.F('stock_count') + 1
+                stock_count=db_models.F('stock_count') + max(len(returned_codes), 1)
             )
 
     return Response(OrderSerializer(locked, context={'request': request}).data)

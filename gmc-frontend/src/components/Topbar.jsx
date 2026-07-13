@@ -64,7 +64,7 @@ export const NAV_ITEMS = [
       { label: 'Valorant',      to: '/?cat=valorant-accounts',  Icon: SiValorant,   color: '#FF4655' },
       { label: 'Fortnite',      to: '/?cat=fortnite-accounts',  Icon: SiEpicgames,  color: '#00D4FF' },
       { label: 'Roblox',        to: '/?cat=roblox-accounts',    Icon: SiRoblox,     color: '#E2231A' },
-      { label: 'EA FC',         to: '/?cat=ea-fc-accounts',     Icon: PiSoccerBallBold, color: '#3DDC84' },
+      { label: 'Rocket League', to: '/?cat=rocket-league-accounts', Icon: PiRocketBold, color: '#1F8EF1' },
     ],
     viewAll: { labelKey: 'nav.viewAllLogin', label: 'View All Login', to: '/?cat=game-accounts' },
   },

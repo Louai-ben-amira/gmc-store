@@ -181,7 +181,7 @@ export default function Footer() {
       links: [
         { label: 'Valorant', to: '/?cat=valorant' },
         { label: 'Fortnite', to: '/?cat=fortnite' },
-        { label: 'Rocket League', to: '/?cat=rocket-league' },
+        { label: 'Rocket League', to: '/?cat=rocket-league-accounts' },
         { label: 'Roblox', to: '/?cat=roblox' },
         { label: t('footer.viewAll'), to: '/?cat=login-games', accent: true },
       ],
