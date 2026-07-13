@@ -1,4 +1,3 @@
-import uuid
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -38,6 +37,7 @@ def _order_list_queryset():
         'code', 'bundle', 'promo_code', 'variant',
         'user__conversation', 'credentials',
     ).prefetch_related(
+        'codes',
         Prefetch('product', queryset=Product.objects.select_related('category').with_card_data())
     )
 
@@ -382,53 +382,48 @@ class OrderListCreateView(generics.ListCreateAPIView):
             user.points  += (points_earned * quantity) - points_to_use
             user.save()
 
-            batch_id = uuid.uuid4() if quantity > 1 else None
+            # One order per purchase: quantity>1 creates a single order holding
+            # all N codes (Code.order FK). Money/points fields store totals.
+            if needs_credentials:
+                order = Order.objects.create(
+                    user=user, product=product,
+                    variant=selected_variant,
+                    amount_paid=final_price,
+                    service_fee=service_fee,
+                    discount_amount=promo_discount,
+                    points_earned=points_earned,
+                    points_used=points_to_use,
+                    promo_code=promo_obj,
+                    status=Order.Status.PAID_ESCROW,
+                    escrow_held=True,
+                    requires_account=True,
+                    service_status='pending',
+                    quantity=1,
+                )
+            else:
+                order = Order.objects.create(
+                    user=user, product=product,
+                    variant=selected_variant,
+                    amount_paid=total_price,
+                    service_fee=(service_fee * quantity).quantize(Decimal('0.01')),
+                    discount_amount=(promo_discount * quantity).quantize(Decimal('0.01')),
+                    points_earned=points_earned * quantity,
+                    points_used=points_to_use,
+                    promo_code=promo_obj,
+                    status=Order.Status.COMPLETED,
+                    escrow_held=False,
+                    requires_account=False,
+                    service_status='pending',
+                    quantity=quantity,
+                )
 
-            orders = []
-            for i in range(quantity):
-                if needs_credentials:
-                    order = Order.objects.create(
-                        user=user, product=product,
-                        variant=selected_variant,
-                        amount_paid=final_price,
-                        service_fee=service_fee,
-                        discount_amount=promo_discount,
-                        points_earned=points_earned,
-                        points_used=points_to_use,
-                        promo_code=promo_obj,
-                        status=Order.Status.PAID_ESCROW,
-                        escrow_held=True,
-                        requires_account=True,
-                        service_status='pending',
-                        batch_id=batch_id,
-                    )
-                else:
-                    order = Order.objects.create(
-                        user=user, product=product,
-                        variant=selected_variant,
-                        amount_paid=final_price,
-                        service_fee=service_fee,
-                        discount_amount=promo_discount,
-                        points_earned=points_earned,
-                        # A single purchase's redeemed points apply to quantity=1 only
-                        points_used=points_to_use if i == 0 else 0,
-                        promo_code=promo_obj,
-                        status=Order.Status.COMPLETED,
-                        escrow_held=False,
-                        requires_account=False,
-                        service_status='pending',
-                        batch_id=batch_id,
-                    )
-
-                if codes:
-                    code = codes[i]
-                    code.status = 'sold'
-                    code.order  = order
-                    code.save()
-                    order.code = code
-                    order.save()
-
-                orders.append(order)
+            for code in codes:
+                code.status = 'sold'
+                code.order  = order
+                code.save(update_fields=['status', 'order'])
+            if codes:
+                order.code = codes[0]
+                order.save(update_fields=['code'])
 
             if codes:
                 # Keep stock_count accurate: count remaining available codes
@@ -453,15 +448,13 @@ class OrderListCreateView(generics.ListCreateAPIView):
             if points_earned > 0:
                 WalletTransaction.objects.create(
                     user=user, type='credit', amount=0,
-                    method='points', note=f'Points earned: {points_earned * quantity} for order #{orders[0].id}'
+                    method='points', note=f'Points earned: {points_earned * quantity} for order #{order.id}'
                 )
 
             if needs_credentials and credentials:
-                creds = OrderCredentials(order=orders[0])
+                creds = OrderCredentials(order=order)
                 creds.set_data(credentials)
                 creds.save()
-
-        order = orders[0]
 
         # Auto-open chat for credential orders
         if needs_credentials:
@@ -474,8 +467,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
         try:
             from apps.orders.tasks import send_order_confirmation_email
-            for o in orders:
-                _fire(send_order_confirmation_email.delay, o.id)
+            _fire(send_order_confirmation_email.delay, order.id)
         except Exception:
             pass
 
@@ -503,11 +495,6 @@ class OrderListCreateView(generics.ListCreateAPIView):
         except Exception:
             pass
 
-        if quantity > 1:
-            return Response(
-                {'orders': OrderSerializer(orders, many=True).data, 'count': quantity},
-                status=status.HTTP_201_CREATED,
-            )
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -750,11 +737,16 @@ def reveal_code(request, pk):
     Code is never sent in the standard list/detail response; only via this endpoint.
     """
     try:
-        order = Order.objects.select_related('code').get(pk=pk, user=request.user)
+        order = Order.objects.select_related('code').prefetch_related('codes').get(pk=pk, user=request.user)
     except Order.DoesNotExist:
         return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    if not order.code:
+    # All codes attached to this order (quantity>1 orders hold several).
+    code_values = [c.code for c in sorted(order.codes.all(), key=lambda c: c.id)]
+    if not code_values and order.code:
+        code_values = [order.code.code]
+
+    if not code_values:
         return Response({'detail': 'No code available for this order.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if order.status != Order.Status.COMPLETED:
@@ -777,7 +769,8 @@ def reveal_code(request, pk):
                 order.code_viewed_at = now  # sync local obj for serializer
 
     return Response({
-        'code':             order.code.code,
+        'code':             code_values[0],
+        'codes':            code_values,
         'already_revealed': already,
         'viewed_at':        order.code_viewed_at,
     })
@@ -820,10 +813,12 @@ def cancel_order(request, pk):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        code = locked.code
-        if code:
+        # Return every code attached to this order (quantity>1 orders hold several)
+        returned_codes = list(locked.codes.all()) or ([locked.code] if locked.code else [])
+        for code in returned_codes:
             code.status = 'available'
-            code.save(update_fields=['status'])
+            code.order  = None
+            code.save(update_fields=['status', 'order'])
 
         user = locked.user
         refund = locked.amount_paid
@@ -855,7 +850,7 @@ def cancel_order(request, pk):
         if locked.product:
             from apps.products.models import Product
             Product.objects.filter(pk=locked.product_id).update(
-                stock_count=models.F('stock_count') + 1
+                stock_count=models.F('stock_count') + max(len(returned_codes), 1)
             )
 
     return Response(OrderSerializer(locked, context={'request': request}).data)

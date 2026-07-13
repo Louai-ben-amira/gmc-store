@@ -17,6 +17,7 @@ class PromoCodeSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     product_detail     = ProductSerializer(source='product', read_only=True)
     code_value         = serializers.SerializerMethodField()
+    code_values        = serializers.SerializerMethodField()
     bundle_name        = serializers.SerializerMethodField()
     product_name       = serializers.SerializerMethodField()
     user_username      = serializers.CharField(source='user.username', read_only=True)
@@ -36,7 +37,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'variant', 'variant_label',
             'amount_paid', 'service_fee', 'discount_amount', 'points_earned', 'points_used',
             'status', 'service_status', 'requires_account',
-            'code_value', 'is_revealed', 'is_refund_eligible',
+            'quantity', 'code_value', 'code_values', 'is_revealed', 'is_refund_eligible',
             'code_viewed_at', 'code_view_ip',
             'promo_code_str', 'has_credentials',
             'conversation_id', 'created_at', 'batch_id',
@@ -57,6 +58,15 @@ class OrderSerializer(serializers.ModelSerializer):
         if self._is_admin_request() or obj.code_viewed_at is not None:
             return obj.code.code
         return None
+
+    def get_code_values(self, obj):
+        """All codes attached to this order (quantity>1 orders hold several)."""
+        if not self._is_admin_request() and obj.code_viewed_at is None:
+            return []
+        values = [c.code for c in sorted(obj.codes.all(), key=lambda c: c.id)]
+        if not values and obj.code:
+            values = [obj.code.code]
+        return values
 
     def get_is_revealed(self, obj):
         return obj.code_viewed_at is not None

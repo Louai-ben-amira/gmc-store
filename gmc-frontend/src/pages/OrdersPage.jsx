@@ -64,26 +64,28 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
   const toast    = useToast()
   const qc       = useQueryClient()
   const [revealStep,    setRevealStep]    = useState('idle')   // idle | warn | revealed
-  const [revealedCode,  setRevealedCode]  = useState(null)
+  const [revealedCodes, setRevealedCodes] = useState(null)
   const [revealLoading, setRevealLoading] = useState(false)
   const [cancelLoading, setCancelLoading] = useState(false)
 
   useEffect(() => {
-    if (isOpen) { setRevealStep('idle'); setRevealedCode(null) }
+    if (isOpen) { setRevealStep('idle'); setRevealedCodes(null) }
   }, [isOpen, order?.id])
 
   if (!order) return null
   const cfg = STATUS_CFG[order.status] || STATUS_CFG.pending
   const StatusIcon = cfg.Icon
 
-  const displayCode = revealedCode || order.code_value
+  const displayCodes = revealedCodes
+    || (order.code_values?.length ? order.code_values : null)
+    || (order.code_value ? [order.code_value] : null)
   const hasCode = order.status === 'completed' && !order.requires_account
 
   const handleReveal = async () => {
     setRevealLoading(true)
     try {
       const { data } = await revealCode(order.id)
-      setRevealedCode(data.code)
+      setRevealedCodes(data.codes?.length ? data.codes : [data.code])
       setRevealStep('revealed')
       qc.invalidateQueries({ queryKey: ['orders'] })
       onOrderUpdated?.()
@@ -121,7 +123,12 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
             }
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{order.product_detail?.name || order.bundle_name || 'Bundle Order'}</p>
+            <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {order.product_detail?.name || order.bundle_name || 'Bundle Order'}
+              {order.quantity > 1 && (
+                <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', verticalAlign: 'middle' }}>×{order.quantity}</span>
+              )}
+            </p>
             <p style={{ margin: '2px 0 0', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>{t('labels.orderId')}{order.id}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: cfg.color + '14', border: '1px solid ' + cfg.color + '30', borderRadius: 8, padding: '5px 10px' }}>
@@ -147,8 +154,8 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
 
         {/* Code section */}
         {hasCode && (
-          displayCode ? (
-            <CodeBox code={displayCode} />
+          displayCodes ? (
+            displayCodes.map((c, i) => <CodeBox key={i} code={c} />)
           ) : revealStep === 'warn' ? (
             <div style={{ marginTop: 16 }}>
               <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '0.875rem', marginBottom: '0.875rem' }}>
@@ -171,7 +178,7 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
                 onClick={() => setRevealStep('warn')}
                 style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
               >
-                <TbEye size={15} /> Reveal Code
+                <TbEye size={15} /> {order.quantity > 1 ? `Reveal ${order.quantity} Codes` : 'Reveal Code'}
               </button>
               {order.is_refund_eligible && (
                 <button
@@ -251,9 +258,16 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {order.product_detail?.name || order.bundle_name || 'Bundle Order'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {order.product_detail?.name || order.bundle_name || 'Bundle Order'}
+            </p>
+            {order.quantity > 1 && (
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
+                ×{order.quantity}
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>#{order.id}</span>
             <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
@@ -353,9 +367,13 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
           ))}
           {order.status === 'completed' && !order.requires_account && (
             <div style={{ flex: '1 1 100%' }}>
-              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Code</p>
-              {order.code_value
-                ? <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{order.code_value}</code>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{order.quantity > 1 ? 'Codes' : 'Code'}</p>
+              {(order.code_values?.length || order.code_value)
+                ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {(order.code_values?.length ? order.code_values : [order.code_value]).map((c, i) => (
+                      <code key={i} style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{c}</code>
+                    ))}
+                  </div>
                 : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '3px 8px' }}>
                     <TbLock size={11} /> Not yet revealed - tap to view
                   </span>

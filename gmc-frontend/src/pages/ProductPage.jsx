@@ -361,9 +361,9 @@ export default function ProductPage() {
         setTopupModal({ open: true, phone: phoneNumber, product: product.name })
       } else if (orderData.requires_account) {
         toast.success('Order placed! Check your chat.'); navigate('/orders')
-      } else if (Array.isArray(orderData.orders)) {
+      } else if (orderData.quantity > 1) {
         setQuantity(1)
-        toast.success(`${orderData.count} orders placed! View your codes in Orders.`)
+        toast.success(`Order #${orderData.id} placed! Your ${orderData.quantity} codes are in Orders.`)
         navigate('/orders')
       } else {
         setCodeModal({ open: true, orderId: orderData.id, order: orderData }); toast.success('Order placed!')

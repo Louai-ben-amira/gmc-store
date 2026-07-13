@@ -81,6 +81,9 @@ class Order(models.Model):
                            default='pending', blank=True
                        )
     requires_account = models.BooleanField(default=False)
+    # Units purchased in this order. A quantity>1 purchase is ONE order holding
+    # N codes (Code.order FK); amount_paid / points fields store purchase totals.
+    quantity         = models.PositiveIntegerField(default=1)
     # Code reveal tracking - set on first client reveal
     code_viewed_at   = models.DateTimeField(null=True, blank=True)
     code_view_ip     = models.GenericIPAddressField(null=True, blank=True)

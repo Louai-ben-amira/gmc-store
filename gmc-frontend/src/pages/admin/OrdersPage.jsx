@@ -293,7 +293,16 @@ export default function OrdersPage() {
                   </td>
                   <td style={{ ...TD_STYLE, color: T.textPrimary, fontWeight: 500 }}>{o.user_username || o.user}</td>
                   <td style={{ ...TD_STYLE, maxWidth: '220px' }}>
-                    <span style={{ display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>{o.product_name || o.product}</span>
+                    <span style={{ display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      {o.product_name || o.product}
+                      {o.quantity > 1 && (
+                        <span style={{
+                          marginLeft: 6, padding: '1px 6px', borderRadius: '0.375rem',
+                          background: 'rgba(155,79,237,0.15)', border: `1px solid ${T.border}`,
+                          color: T.purpleText, fontSize: '0.6875rem', fontWeight: 700,
+                        }}>×{o.quantity}</span>
+                      )}
+                    </span>
                     {o.variant_label && (
                       <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 6px', borderRadius: '0.375rem', background: 'rgba(155,79,237,0.12)', border: `1px solid ${T.border}`, color: T.purpleText, fontSize: '0.6875rem', fontWeight: 600 }}>
                         {o.variant_label}
@@ -351,8 +360,14 @@ export default function OrdersPage() {
                       )}
                       {o.code_value && !o.requires_account && (
                         <div style={{ paddingTop: '0.5rem' }}>
-                          <p style={{ color: T.textMuted, fontSize: '0.6875rem', margin: '0 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Code (admin view)</p>
-                          <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: '#22C55E' }}>{o.code_value}</code>
+                          <p style={{ color: T.textMuted, fontSize: '0.6875rem', margin: '0 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {(o.code_values?.length || 1) > 1 ? `Codes ×${o.code_values.length} (admin view)` : 'Code (admin view)'}
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {(o.code_values?.length ? o.code_values : [o.code_value]).map((c, i) => (
+                              <code key={i} style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.875rem', color: '#22C55E' }}>{c}</code>
+                            ))}
+                          </div>
                           {o.is_revealed && (
                             <p style={{ margin: '6px 0 0', fontSize: '0.6875rem', color: T.textMuted }}>
                               Revealed: {formatDate(o.code_viewed_at)} · IP: {o.code_view_ip || '-'}
