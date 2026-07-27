@@ -239,8 +239,8 @@ if (typeof document !== 'undefined' && !document.getElementById('pcard-style')) 
       .pcard-orig      { font-size: 9px; }
       .pcard-footer    { flex-direction: column; align-items: stretch; gap: 6px; }
       .pcard-btn       { height: 32px; padding: 0 8px; font-size: 10.5px; gap: 4px; border-radius: 8px; }
-      .pcard-btn-basket { display: none; }
-      .pcard-btn-buy   { width: 100%; }
+      .pcard-btn-basket { width: 32px; padding: 0; flex-shrink: 0; }
+      .pcard-btn-buy   { flex: 1; width: auto; }
       .pcard-wish      { width: 28px; height: 28px; top: 7px; right: 7px; }
       .pcard-wish svg  { width: 12px; height: 12px; }
       .pcard-chip      { font-size: 7.5px; padding: 2px 6px; gap: 3px; }
