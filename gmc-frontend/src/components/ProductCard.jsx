@@ -237,8 +237,10 @@ if (typeof document !== 'undefined' && !document.getElementById('pcard-style')) 
       .pcard-price     { font-size: 15px; }
       .pcard-cur       { font-size: 9px; }
       .pcard-orig      { font-size: 9px; }
-      .pcard-footer    { gap: 6px; }
-      .pcard-btn       { height: 32px; padding: 0 8px; font-size: 10px; gap: 4px; border-radius: 8px; }
+      .pcard-footer    { flex-direction: column; align-items: stretch; gap: 6px; }
+      .pcard-btn       { height: 32px; padding: 0 8px; font-size: 10.5px; gap: 4px; border-radius: 8px; }
+      .pcard-btn-basket { display: none; }
+      .pcard-btn-buy   { width: 100%; }
       .pcard-wish      { width: 28px; height: 28px; top: 7px; right: 7px; }
       .pcard-wish svg  { width: 12px; height: 12px; }
       .pcard-chip      { font-size: 7.5px; padding: 2px 6px; gap: 3px; }
@@ -516,7 +518,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             {stock !== 0 && (
               <button
-                className="pcard-btn"
+                className="pcard-btn pcard-btn-basket"
                 onClick={doAddToBasket}
                 title={t('product.addToBasket', 'Add to Basket')}
                 style={{
@@ -531,7 +533,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
               </button>
             )}
             <button
-              className="pcard-btn"
+              className="pcard-btn pcard-btn-buy"
               onClick={doBuy}
               disabled={stock === 0 || unverified}
               title={unverified ? 'Verify your email to enable purchases' : undefined}
