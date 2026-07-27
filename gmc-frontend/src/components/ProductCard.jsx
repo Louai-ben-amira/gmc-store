@@ -226,6 +226,24 @@ if (typeof document !== 'undefined' && !document.getElementById('pcard-style')) 
       -webkit-backdrop-filter: blur(10px);
       white-space: nowrap;
     }
+
+    /* ── mobile scaling (2-col grid on phones) ── */
+    @media (max-width: 640px) {
+      .pcard-img       { height: 120px; }
+      .pcard-body      { padding: 10px 10px 11px; gap: 5px; }
+      .pcard-name      { font-size: 12.5px; -webkit-line-clamp: 1; }
+      .pcard-desc      { display: none; }
+      .pcard-plabel    { font-size: 7.5px; margin-bottom: 0; }
+      .pcard-price     { font-size: 15px; }
+      .pcard-cur       { font-size: 9px; }
+      .pcard-orig      { font-size: 9px; }
+      .pcard-footer    { gap: 6px; }
+      .pcard-btn       { height: 32px; padding: 0 8px; font-size: 10px; gap: 4px; border-radius: 8px; }
+      .pcard-wish      { width: 28px; height: 28px; top: 7px; right: 7px; }
+      .pcard-wish svg  { width: 12px; height: 12px; }
+      .pcard-chip      { font-size: 7.5px; padding: 2px 6px; gap: 3px; }
+      .pcard-chip svg  { width: 7px; height: 7px; }
+    }
   `
   document.head.appendChild(s)
 }
