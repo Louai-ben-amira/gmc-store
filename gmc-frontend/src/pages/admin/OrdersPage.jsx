@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminOrders, getOrderCredentials, updateServiceStatus, adminCancelOrder, markAdminOrdersSeen } from '../../api/admin'
+import { adminCreateTicket } from '../../api/tickets'
+import Modal from '../../components/Modal'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Eye, EyeOff, MessageCircle, Ban, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { Eye, EyeOff, MessageCircle, MessageSquare, Ban, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, DataTable, StatusPill, Pagination, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
@@ -200,6 +202,9 @@ export default function OrdersPage() {
   const [search,       setSearch]     = useState('')
   const [searchInput,  setSearchInput] = useState('')
   const [showFinancials, setShowFinancials] = useState(false)
+  const [msgOrder,     setMsgOrder]    = useState(null)
+  const [msgBody,      setMsgBody]     = useState('')
+  const [sendingMsg,   setSendingMsg]  = useState(false)
 
   // Debounce: apply the typed value 350ms after the user stops typing
   useEffect(() => {
@@ -208,6 +213,7 @@ export default function OrdersPage() {
   }, [searchInput])
   const qc       = useQueryClient()
   const navigate = useNavigate()
+  const toast    = useToast()
 
   // Opening this page marks all orders as seen and clears the sidebar badge
   useEffect(() => {
@@ -226,6 +232,25 @@ export default function OrdersPage() {
     }).then(r => r.data),
     keepPreviousData: true,
   })
+
+  const handleSendOrderMessage = async () => {
+    if (!msgBody.trim()) return
+    setSendingMsg(true)
+    try {
+      await adminCreateTicket({
+        order_id: msgOrder.id,
+        subject: `Order #${msgOrder.id} — ${msgOrder.product_name || 'your order'}`,
+        body: msgBody.trim(),
+      })
+      toast.success(`Message sent to ${msgOrder.user_username} — ticket opened on Order #${msgOrder.id}.`)
+      setMsgOrder(null); setMsgBody('')
+      qc.invalidateQueries({ queryKey: ['admin-orders'] })
+      navigate('/admin/order-tickets')
+    } catch {
+      toast.error('Failed to send message.')
+    }
+    setSendingMsg(false)
+  }
 
   const orders     = data?.results || []
   const totalPages = data ? Math.ceil(data.count / 12) : 1
@@ -315,6 +340,34 @@ export default function OrdersPage() {
         </table>
         <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
+
+      {/* ── Message customer about an order (opens an order ticket) ── */}
+      <Modal isOpen={!!msgOrder} onClose={() => setMsgOrder(null)} title={`Message ${msgOrder?.user_username || ''} — Order #${msgOrder?.id || ''}`} size="sm">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p style={{ margin: 0, color: T.textSub, fontSize: '0.8125rem', lineHeight: 1.5 }}>
+            This opens a ticket on <strong style={{ color: T.textPrimary }}>Order #{msgOrder?.id}</strong> ({msgOrder?.product_name}).
+            The customer gets a notification and an email, and replies from their Support page.
+            When the conversation is done, close the ticket from the Order Tickets page.
+          </p>
+          <div>
+            <label style={{ display: 'block', color: '#B3A4D4', fontSize: '0.8125rem', marginBottom: '0.375rem', fontWeight: 500 }}>Message</label>
+            <textarea
+              value={msgBody}
+              onChange={e => setMsgBody(e.target.value)}
+              placeholder="Write your message to the customer..."
+              rows={5}
+              autoFocus
+              style={{ width: '100%', resize: 'vertical', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, padding: '10px 12px', outline: 'none', fontSize: '0.875rem', fontFamily: 'inherit' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button className="btn-secondary" onClick={() => setMsgOrder(null)} disabled={sendingMsg}>Cancel</button>
+            <button className="btn-primary" onClick={handleSendOrderMessage} disabled={sendingMsg || !msgBody.trim()}>
+              {sendingMsg ? 'Sending...' : 'Send Message'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </PageShell>
   )
 
@@ -375,6 +428,13 @@ export default function OrdersPage() {
                     }
                   </td>
                   <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setMsgOrder(o); setMsgBody('') }}
+                      title="Message this customer about this order"
+                      style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38BDF8', borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
+                    >
+                      <MessageSquare size={12} /> Message
+                    </button>
                     {o.requires_account && o.open_ticket_id && (
                       <button
                         onClick={e => { e.stopPropagation(); navigate(`/admin/order-tickets`) }}

@@ -239,6 +239,69 @@ def support_ticket_set_status(request, pk):
     return Response(SupportTicketSerializer(ticket).data)
 
 
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_create_ticket(request):
+    """Admin proactively opens a ticket to contact a client.
+
+    Body: user_id, subject, body (first message), optional category,
+    optional order_id (creates an OrderTicket on that order instead).
+    """
+    from django.contrib.auth import get_user_model
+    from apps.notifications.services import notify
+
+    subject = (request.data.get('subject') or '').strip()
+    body    = (request.data.get('body') or '').strip()
+    if not subject or not body:
+        return Response({'detail': 'subject and body are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    order_id = request.data.get('order_id')
+    if order_id:
+        try:
+            order = Order.objects.select_related('user').get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            ticket = OrderTicket.objects.filter(order=order, status__in=OPEN_STATUSES).first()
+            if not ticket:
+                ticket = OrderTicket.objects.create(order=order, user=order.user, subject=subject)
+            OrderTicketMessage.objects.create(ticket=ticket, sender=request.user, body=body)
+            ticket.save()  # bump updated_at
+
+        _fire(send_order_ticket_reply_email.delay, ticket.id)
+        notify(
+            ticket.user, 'ticket_reply', 'Message from GMC Store',
+            f'GMC Store opened a ticket about your Order #{order.id} — {subject}',
+            link=f'/support/order/{ticket.id}',
+        )
+        return Response(OrderTicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
+
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response({'detail': 'user_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        client = get_user_model().objects.get(pk=user_id)
+    except get_user_model().DoesNotExist:
+        return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    category = request.data.get('category') or 'other'
+    if category not in dict(SupportTicket.CATEGORY_CHOICES):
+        category = 'other'
+
+    with transaction.atomic():
+        ticket = SupportTicket.objects.create(user=client, category=category, subject=subject)
+        SupportTicketMessage.objects.create(ticket=ticket, sender=request.user, body=body)
+
+    _fire(send_support_ticket_reply_email.delay, ticket.id)
+    notify(
+        client, 'ticket_reply', 'Message from GMC Store',
+        f'GMC Store opened a ticket for you — {subject}',
+        link=f'/support/general/{ticket.id}',
+    )
+    return Response(SupportTicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
+
+
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_support_tickets(request):

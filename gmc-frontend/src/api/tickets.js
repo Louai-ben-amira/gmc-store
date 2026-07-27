@@ -47,3 +47,6 @@ export const setSupportTicketStatus = (id, status) => api.patch(`/tickets/suppor
 // -- Admin --------------------------------------------------------------------
 export const getAdminOrderTickets   = (params) => api.get('/admin/tickets/order/', { params })
 export const getAdminSupportTickets = (params) => api.get('/admin/tickets/support/', { params })
+// Admin proactively opens a ticket to message a client.
+// { user_id, subject, body, category? } or { order_id, subject, body }
+export const adminCreateTicket = (data) => api.post('/admin/tickets/create/', data)
