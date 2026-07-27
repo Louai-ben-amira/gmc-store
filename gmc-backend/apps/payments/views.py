@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from config.throttles import RechargeRateThrottle
 
-from .models import RechargeRequest, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
+from .models import RechargeRequest, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard, get_fee_setting
 from apps.products.models import Product, Category, Code as ProductCode
 from .serializers import (
     RechargeRequestSerializer, RechargePreviewSerializer,
@@ -20,7 +20,7 @@ from .serializers import (
     GiftCardBatchSerializer, GiftCardSerializer, CreateGiftCardBatchSerializer,
     TICKET_METHODS, D17_METHODS,
 )
-from apps.users.permissions import IsAdmin
+from apps.users.permissions import IsAdmin, require_verified_email
 
 
 # ── Payment methods info ───────────────────────────────────────────────────
@@ -34,10 +34,12 @@ def payment_methods(request):
     keys = [
         'TICKET_TAX_RATE', 'D17_PHONE_ENABLED', 'D17_ADDRESS_ENABLED',
         'BANK_TRANSFER_ENABLED', 'FLOUCI_ENABLED', 'OOREDOO_INSTRUCTIONS',
-        'ORANGE_INSTRUCTIONS', 'D17_PHONE_NUMBER', 'D17_PHONE_NUMBER_2',
+        'ORANGE_INSTRUCTIONS', 'TT_INSTRUCTIONS', 'D17_PHONE_NUMBER', 'D17_PHONE_NUMBER_2',
         'D17_PHONE_NUMBER_3', 'D17_ADDRESS', 'D17_ADDRESS_LABEL',
         'BANK_ACCOUNT_NUMBER', 'BANK_ACCOUNT_NAME', 'BANK_TRANSFER_INSTRUCTIONS',
         'FLOUCI_PHONE_NUMBER', 'FLOUCI_INSTRUCTIONS',
+        'D17_NUMBER_FEE_RATE', 'D17_ADDRESS_FEE_RATE', 'BANK_TRANSFER_FLAT_FEE',
+        'FLOUCI_FEE_RATE',
     ]
     stored = dict(
         SiteSettings.objects.filter(key__in=keys).values_list('key', 'value')
@@ -46,16 +48,23 @@ def payment_methods(request):
     def s(key, default=''):
         return stored.get(key, default)
 
-    tax_rate_str = s('TICKET_TAX_RATE', '0.11')
-    try:
-        tax_rate = float(tax_rate_str)
-    except ValueError:
-        tax_rate = 0.11
+    def f(key, default):
+        try:
+            return float(s(key, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    tax_rate = f('TICKET_TAX_RATE', 0.11)
 
     phone_enabled        = s('D17_PHONE_ENABLED',     'true').lower() == 'true'
     address_enabled      = s('D17_ADDRESS_ENABLED',   'true').lower() == 'true'
     bank_enabled         = s('BANK_TRANSFER_ENABLED', 'true').lower() == 'true'
     flouci_enabled       = s('FLOUCI_ENABLED',        'true').lower() == 'true'
+
+    d17_number_fee_rate  = f('D17_NUMBER_FEE_RATE',    0.01)
+    d17_address_fee_rate = f('D17_ADDRESS_FEE_RATE',   0)
+    bank_flat_fee        = f('BANK_TRANSFER_FLAT_FEE', 2.5)
+    flouci_fee_rate      = f('FLOUCI_FEE_RATE',        0)
 
     return Response({
         'ooredoo_ticket': {
@@ -70,6 +79,12 @@ def payment_methods(request):
             'tax_rate':     tax_rate,
             'instructions': s('ORANGE_INSTRUCTIONS'),
         },
+        'tt_ticket': {
+            'label':        'Tunisie Telecom Ticket',
+            'type':         'ticket',
+            'tax_rate':     tax_rate,
+            'instructions': s('TT_INSTRUCTIONS'),
+        },
         'd17_number': {
             'label':    'D17 - Phone',
             'type':     'transfer',
@@ -80,7 +95,7 @@ def payment_methods(request):
                 s('D17_PHONE_NUMBER_2'),
                 s('D17_PHONE_NUMBER_3'),
             ] if n],
-            'tax_rate': 0.01,
+            'tax_rate': d17_number_fee_rate,
             'flat_fee': 0,
         },
         'd17_address': {
@@ -89,7 +104,7 @@ def payment_methods(request):
             'enabled':       address_enabled,
             'value':         s('D17_ADDRESS'),
             'address_label': s('D17_ADDRESS_LABEL', 'D17 Account Address'),
-            'tax_rate':      0,
+            'tax_rate':      d17_address_fee_rate,
             'flat_fee':      0,
         },
         'bank_transfer': {
@@ -100,7 +115,7 @@ def payment_methods(request):
             'bank_name':    s('BANK_ACCOUNT_NAME'),
             'instructions': s('BANK_TRANSFER_INSTRUCTIONS'),
             'tax_rate':     0,
-            'flat_fee':     2.5,
+            'flat_fee':     bank_flat_fee,
         },
         'flouci': {
             'label':        'Flouci',
@@ -108,7 +123,7 @@ def payment_methods(request):
             'enabled':      flouci_enabled,
             'value':        s('FLOUCI_PHONE_NUMBER'),
             'instructions': s('FLOUCI_INSTRUCTIONS'),
-            'tax_rate':     0,
+            'tax_rate':     flouci_fee_rate,
             'flat_fee':     0,
         },
     })
@@ -125,13 +140,9 @@ def recharge_preview(request):
     data   = serializer.validated_data
     method = data['method']
 
-    TRANSFER_METHODS_LOCAL = {'d17_number', 'd17_address', 'bank_transfer', 'flouci'}
+    TRANSFER_METHODS_LOCAL = {'d17_number', 'd17_address', 'bank_transfer', 'flouci', 'edinar'}
     if method in TICKET_METHODS:
-        tax_str = SiteSettings.get('TICKET_TAX_RATE', '0.11')
-        try:
-            tax_rate = Decimal(tax_str)
-        except Exception:
-            tax_rate = Decimal('0.11')
+        tax_rate      = get_fee_setting('TICKET_TAX_RATE')
         base          = data['ticket_value']
         tax_amount    = (base * tax_rate).quantize(Decimal('0.01'))
         wallet_credit = (base - tax_amount).quantize(Decimal('0.01'))
@@ -143,12 +154,12 @@ def recharge_preview(request):
     elif method in TRANSFER_METHODS_LOCAL:
         amount = data['amount_sent']
         if method == 'bank_transfer':
-            flat_fee      = Decimal('2.5')
+            flat_fee      = get_fee_setting('BANK_TRANSFER_FLAT_FEE')
             tax_amount    = flat_fee
             wallet_credit = max(amount - flat_fee, Decimal('0')).quantize(Decimal('0.01'))
             return Response({'tax_rate': 0, 'tax_amount': float(tax_amount), 'wallet_credit': float(wallet_credit)})
-        elif method == 'd17_number':
-            pct           = Decimal('0.01')
+        elif method in RechargeRequest.PERCENTAGE_FEE_METHODS:
+            pct           = get_fee_setting(RechargeRequest.PERCENTAGE_FEE_METHODS[method])
             fee           = (amount * pct).quantize(Decimal('0.01'))
             wallet_credit = max(amount - fee, Decimal('0')).quantize(Decimal('0.01'))
             return Response({'tax_rate': float(pct), 'tax_amount': float(fee), 'wallet_credit': float(wallet_credit)})
@@ -164,6 +175,10 @@ class RechargeCreateView(generics.CreateAPIView):
     serializer_class   = RechargeRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes   = [RechargeRateThrottle]
+
+    def create(self, request, *args, **kwargs):
+        require_verified_email(request.user)
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         recharge = serializer.save(user=self.request.user)
@@ -245,6 +260,13 @@ def admin_recharge_approve(request, pk):
     except Exception:
         pass
 
+    from apps.notifications.services import notify
+    notify(
+        user, 'recharge_approved', 'Recharge Approved',
+        f'{recharge.wallet_credit} DT has been added to your wallet.',
+        link='/wallet',
+    )
+
     return Response({'detail': 'Approved and balance credited.', 'wallet_credit': str(recharge.wallet_credit)})
 
 
@@ -253,7 +275,7 @@ def admin_recharge_approve(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def admin_recharge_reject(request, pk):
-    """Reject a recharge - admin_note is required to explain why."""
+    """Reject a recharge - admin_note is optional context for the client."""
     try:
         recharge = RechargeRequest.objects.get(pk=pk)
     except RechargeRequest.DoesNotExist:
@@ -263,14 +285,18 @@ def admin_recharge_reject(request, pk):
         return Response({'detail': f'Recharge is already {recharge.status}.'}, status=status.HTTP_400_BAD_REQUEST)
 
     admin_note = request.data.get('admin_note', '').strip()
-    if not admin_note:
-        return Response({'detail': 'admin_note is required when rejecting.'}, status=status.HTTP_400_BAD_REQUEST)
 
     recharge.status      = 'rejected'
     recharge.admin_note  = admin_note
     recharge.reviewed_at = timezone.now()
     recharge.reviewed_by = request.user
     recharge.save(update_fields=['status', 'admin_note', 'reviewed_at', 'reviewed_by'])
+
+    from apps.notifications.services import notify
+    message = 'Your recharge request was rejected.'
+    if admin_note:
+        message += f' Reason: {admin_note}'
+    notify(recharge.user, 'recharge_rejected', 'Recharge Rejected', message, link='/wallet')
 
     return Response({'detail': 'Rejected.'})
 
@@ -286,6 +312,8 @@ MOCK_RATES_DT = {
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_crypto(request):
+    require_verified_email(request.user)
+
     serializer = InitiateCryptoSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -579,6 +607,8 @@ def public_gift_card_batches(request):
 @permission_classes([permissions.IsAuthenticated])
 def redeem_gift_card(request):
     """Client redeems a gift card code - instantly credits wallet."""
+    require_verified_email(request.user)
+
     code_str = request.data.get('code', '').strip().upper()
     if not code_str:
         return Response({'detail': 'code is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -621,6 +651,54 @@ def redeem_gift_card(request):
         'detail': f'+{amount} DT credited to your wallet.',
         'amount': str(amount),
         'balance': str(user.balance),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def redeem_points(request):
+    """Client converts loyalty points into wallet balance (100 pts = 2 DT)."""
+    require_verified_email(request.user)
+
+    from django.conf import settings
+    from apps.users.models import WalletTransaction
+
+    redeem_min  = getattr(settings, 'POINTS_REDEEM_MIN', 100)
+    redeem_rate = Decimal(str(getattr(settings, 'POINTS_REDEEM_RATE', 0.02)))
+
+    try:
+        points_to_redeem = int(request.data.get('points'))
+    except (TypeError, ValueError):
+        return Response({'detail': 'points must be a whole number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if points_to_redeem < redeem_min or points_to_redeem % redeem_min != 0:
+        return Response({'detail': f'Points must be redeemed in multiples of {redeem_min}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    with db_transaction.atomic():
+        user = type(request.user).objects.select_for_update().get(pk=request.user.pk)
+
+        if points_to_redeem > user.points:
+            return Response({'detail': 'You do not have enough points.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = (Decimal(points_to_redeem) * redeem_rate).quantize(Decimal('0.01'))
+        user.points  -= points_to_redeem
+        user.balance += amount
+        user.save(update_fields=['points', 'balance'])
+
+        WalletTransaction.objects.create(
+            user          = user,
+            type          = 'credit',
+            amount        = amount,
+            balance_after = user.balance,
+            method        = 'points',
+            note          = f'{points_to_redeem} points redeemed for wallet credit',
+        )
+
+    return Response({
+        'detail': f'+{amount} DT credited to your wallet.',
+        'amount': str(amount),
+        'balance': str(user.balance),
+        'points': user.points,
     })
 
 

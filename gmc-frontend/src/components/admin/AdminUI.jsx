@@ -165,7 +165,7 @@ export function StatCard({ icon, label, value, accent = T.warning, style = {} })
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+        <div style={{ fontSize: 12, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
         <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 18, color: T.textPrimary, marginTop: 1 }}>{value ?? '-'}</div>
       </div>
     </div>
@@ -219,8 +219,8 @@ export const TD_STYLE = {
 export function DataTable({ headers, children, empty = 'No data.', loading = false, colSpan }) {
   const cols = colSpan || headers.length
   return (
-    <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: 14, overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className="admin-table-wrap" style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
         <thead>
           <tr>{headers.map(h => <th key={h} style={TH_STYLE}>{h}</th>)}</tr>
         </thead>
@@ -296,7 +296,11 @@ export function ProductCell({ icon = '🎮', name, sub }) {
 
 export function FilterTabs({ tabs, value, onChange, style = {} }) {
   return (
-    <div style={{ display: 'flex', gap: '0.375rem', background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.625rem', padding: '4px', width: 'fit-content', ...style }}>
+    <div className="admin-filter-tabs" style={{
+      display: 'flex', gap: '0.375rem', background: T.bgPanel, border: `1px solid ${T.border}`,
+      borderRadius: '0.625rem', padding: '4px', width: 'fit-content', maxWidth: '100%',
+      overflowX: 'auto', WebkitOverflowScrolling: 'touch', ...style,
+    }}>
       {tabs.map(t => {
         const active = value === (t.value ?? t)
         const label  = t.label ?? t
@@ -304,7 +308,7 @@ export function FilterTabs({ tabs, value, onChange, style = {} }) {
         return (
           <button key={val} onClick={() => onChange(val)} style={{
             padding: '0.375rem 0.875rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer',
-            fontSize: '0.8125rem', fontWeight: 600, transition: 'all 0.15s',
+            fontSize: '0.8125rem', fontWeight: 600, transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0,
             background: active ? 'linear-gradient(135deg,#6D28D9,#9B4FED)' : 'transparent',
             color: active ? '#fff' : T.purpleText,
           }}>{label}</button>

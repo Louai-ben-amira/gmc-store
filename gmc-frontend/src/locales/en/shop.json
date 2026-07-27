@@ -99,6 +99,7 @@
   },
   "filters": {
     "sortBy": "Sort by",
+    "daily": "SORT: DAILY PICKS",
     "newest": "SORT: NEWEST",
     "popular": "SORT: POPULAR",
     "priceLow": "SORT: PRICE ↑",

@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('',                          views.OrderListCreateView.as_view(),  name='order_list_create'),
+    path('basket-checkout/',          views.BasketCheckoutView.as_view(),   name='basket_checkout'),
     path('<int:pk>/',                 views.OrderDetailView.as_view(),      name='order_detail'),
     path('<int:pk>/reorder/',         views.reorder,                        name='reorder'),
     path('<int:pk>/reveal-code/',     views.reveal_code,                    name='order_reveal_code'),

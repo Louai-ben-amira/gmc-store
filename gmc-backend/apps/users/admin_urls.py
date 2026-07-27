@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from apps.products.views import admin_products_margins
 
 urlpatterns = [
     path('users/',                      views.AdminUsersListView.as_view(),     name='admin_users'),
@@ -12,5 +13,6 @@ urlpatterns = [
     path('orders/',                     views.admin_orders,                     name='admin_orders'),
     path('orders/seen/',                views.admin_orders_seen,                name='admin_orders_seen'),
     path('orders/<int:pk>/cancel/',     views.admin_cancel_order,               name='admin_cancel_order'),
-    path('conversations/',              views.admin_conversations,              name='admin_conversations'),
+    path('dashboard/financials/',       views.admin_dashboard_financials,       name='admin_dashboard_financials'),
+    path('products/margins/',           admin_products_margins,                 name='admin_products_margins'),
 ]

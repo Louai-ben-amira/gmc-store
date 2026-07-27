@@ -9,6 +9,7 @@ import { PageShell, PageHeader, FilterTabs, StatusPill, T } from '../../componen
 const METHOD_META = {
   ooredoo_ticket: { label: 'Ooredoo Ticket',    color: '#e53e3e', type: 'ticket'   },
   orange_ticket:  { label: 'Orange Ticket',     color: '#f97316', type: 'ticket'   },
+  tt_ticket:      { label: 'Tunisie Telecom Ticket', color: '#7C3AED', type: 'ticket' },
   d17_number:     { label: 'D17 – Phone',       color: '#7C3AED', type: 'transfer' },
   d17_address:    { label: 'D17 – Address',     color: '#7C3AED', type: 'transfer' },
   bank_transfer:  { label: 'Bancaire',          color: '#3b82f6', type: 'transfer' },
@@ -35,7 +36,7 @@ function MethodBadge({ method }) {
 }
 
 function CreditBreakdown({ r }) {
-  const isTicket = r.method === 'ooredoo_ticket' || r.method === 'orange_ticket'
+  const isTicket = r.method === 'ooredoo_ticket' || r.method === 'orange_ticket' || r.method === 'tt_ticket'
   const isD17    = r.method === 'd17_number' || r.method === 'd17_address'
 
   if (isTicket && r.ticket_items?.length) {
@@ -173,7 +174,6 @@ export default function RechargesPage() {
 
   const handleReject = async (id) => {
     const note = (noteMap[id] || '').trim()
-    if (!note) { toast.error('Admin note is required when rejecting.'); return }
     setLoading(l => ({ ...l, [id]: true }))
     try {
       await rejectAdminRecharge(id, { admin_note: note })
@@ -247,7 +247,7 @@ export default function RechargesPage() {
                       <input
                         value={noteMap[r.id] || ''}
                         onChange={e => setNoteMap(m => ({ ...m, [r.id]: e.target.value }))}
-                        placeholder="Admin note (required to reject)…"
+                        placeholder="Admin note (optional)…"
                         style={{ fontSize: '0.8125rem', padding: '0.375rem 0.625rem', width: '100%', minWidth: 0, boxSizing: 'border-box', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 6, color: T.textPrimary, outline: 'none' }}
                       />
                       <div style={{ display: 'flex', gap: '0.5rem' }}>

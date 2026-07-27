@@ -36,15 +36,15 @@ export default function ContactFab() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  // The chat page has its own full-screen conversation UI
-  if (pathname.startsWith('/messenger') || pathname.startsWith('/chat')) return null
+  // The support page has its own full-screen ticket UI
+  if (pathname.startsWith('/support')) return null
 
   return (
     <div className="contact-fab" style={{
       position: 'fixed', right: 12,
       display: 'flex', flexDirection: 'column', gap: 12, zIndex: 95,
     }}>
-      <FabButton label="Chat" color="var(--accent)" Icon={TbMessageCircle} onClick={() => navigate('/messenger')} />
+      <FabButton label="Support" color="var(--accent)" Icon={TbMessageCircle} onClick={() => navigate('/support')} />
       <FabButton label="WhatsApp" color="#25d366" Icon={TbBrandWhatsapp} href={WHATSAPP_URL} />
       <FabButton label="Instagram" Icon={TbBrandInstagram} href={INSTAGRAM_URL}
                  color="linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)" />

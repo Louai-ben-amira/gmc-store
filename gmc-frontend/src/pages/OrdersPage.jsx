@@ -2,7 +2,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getOrders, reorder, revealCode, cancelOrder } from '../api/orders'
+import { getOrders, reorder, revealCode, cancelOrder, confirmDelivery, openDispute } from '../api/orders'
+import { createOrderTicket } from '../api/tickets'
 import { StatusBadge } from '../components/Badge'
 import Modal from '../components/Modal'
 import Topbar from '../components/Topbar'
@@ -13,6 +14,7 @@ import {
   TbPackage, TbCopy, TbCheck, TbShoppingBag, TbRefresh,
   TbMessageCircle, TbBolt, TbClock, TbCircleCheck, TbX,
   TbReceipt, TbChevronDown, TbChevronUp, TbStar, TbLock, TbEye,
+  TbAlertTriangle, TbLifebuoy,
 } from 'react-icons/tb'
 
 /* ── Status configs ──────────────────────────────────────────────────── */
@@ -38,7 +40,7 @@ function CodeBox({ code }) {
   }
   return (
     <div style={{ marginTop: 16 }}>
-      <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-muted)', textTransform: 'uppercase', margin: '0 0 8px' }}>{t('modal.yourCode')}</p>
+      <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-muted)', textTransform: 'uppercase', margin: '0 0 8px' }}>{t('modal.yourCode')}</p>
       <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', marginBottom: 10 }}>
         <code style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1rem', color: 'var(--accent)', wordBreak: 'break-all', flex: 1 }}>{code}</code>
         <button onClick={copy} style={{
@@ -126,14 +128,14 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
             <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
               {order.product_detail?.name || order.bundle_name || 'Bundle Order'}
               {order.quantity > 1 && (
-                <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', verticalAlign: 'middle' }}>×{order.quantity}</span>
+                <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', verticalAlign: 'middle' }}>×{order.quantity}</span>
               )}
             </p>
-            <p style={{ margin: '2px 0 0', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>{t('labels.orderId')}{order.id}</p>
+            <p style={{ margin: '2px 0 0', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{t('labels.orderId')}{order.id}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: cfg.color + '14', border: '1px solid ' + cfg.color + '30', borderRadius: 8, padding: '5px 10px' }}>
             <StatusIcon size={12} color={cfg.color} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
           </div>
         </div>
 
@@ -146,7 +148,7 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
             [t('table.payment') || 'Payment', order.payment_method || 'Wallet', 'rgba(255,255,255,0.5)'],
           ].map(([label, value, color]) => (
             <div key={label} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
-              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{label}</p>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{label}</p>
               <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color }}>{value}</p>
             </div>
           ))}
@@ -201,6 +203,99 @@ function ViewCodeModal({ isOpen, onClose, order, onOrderUpdated }) {
   )
 }
 
+/* ── View Codes Modal (batch orders - many suborders, one code each) ──── */
+function GroupCodeModal({ isOpen, onClose, group, onOrdersUpdated }) {
+  const { t }    = useTranslation('orders')
+  const toast    = useToast()
+  const qc       = useQueryClient()
+  const [revealStep,    setRevealStep]    = useState('idle')   // idle | warn | revealed
+  const [revealedCodes, setRevealedCodes] = useState(null)     // [{ orderId, codes: [] }]
+  const [revealLoading, setRevealLoading] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) { setRevealStep('idle'); setRevealedCodes(null) }
+  }, [isOpen, group?.batch_id])
+
+  if (!group) return null
+  const orders = group.orders
+  const first  = orders[0]
+
+  const handleReveal = async () => {
+    setRevealLoading(true)
+    try {
+      const results = await Promise.all(orders.map(o => revealCode(o.id)))
+      setRevealedCodes(results.map((r, i) => ({
+        orderId: orders[i].id,
+        codes:   r.data.codes?.length ? r.data.codes : [r.data.code],
+      })))
+      setRevealStep('revealed')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      onOrdersUpdated?.()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not reveal codes.')
+    } finally {
+      setRevealLoading(false)
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={t('modal.orderDetails')} size="md">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {/* Product header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '0 0 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 16 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: '#181825', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {first.product_detail?.image
+              ? <img src={mediaUrl(first.product_detail.image)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <TbShoppingBag size={22} color="rgba(255,255,255,0.15)" />
+            }
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {first.product_detail?.name || first.bundle_name || 'Bundle Order'}
+              <span style={{ marginLeft: 8, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', verticalAlign: 'middle' }}>×{orders.length}</span>
+            </p>
+            <p style={{ margin: '2px 0 0', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{orders.length} {t('labels.codes') || 'codes'} · #{orders.map(o => o.id).join(', #')}</p>
+          </div>
+        </div>
+
+        {revealedCodes ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {revealedCodes.map(({ orderId, codes }) => (
+              <div key={orderId}>
+                <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('labels.orderId')}{orderId}</p>
+                {codes.map((c, i) => <CodeBox key={i} code={c} />)}
+              </div>
+            ))}
+          </div>
+        ) : revealStep === 'warn' ? (
+          <div>
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '0.875rem', marginBottom: '0.875rem' }}>
+              <p style={{ margin: '0 0 4px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.8125rem', color: '#f87171' }}>⚠️ Read before revealing</p>
+              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'rgba(248,113,113,0.85)', lineHeight: 1.55 }}>
+                Once revealed, <strong>these orders cannot be cancelled or refunded</strong>.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.625rem' }}>
+              <button className="btn-secondary" onClick={() => setRevealStep('idle')} style={{ flex: 1, fontSize: '0.8125rem' }}>Back</button>
+              <button className="btn-primary" onClick={handleReveal} disabled={revealLoading} style={{ flex: 1, justifyContent: 'center', fontSize: '0.8125rem' }}>
+                {revealLoading ? 'Revealing…' : 'Confirm & Reveal'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="btn-primary"
+            onClick={() => setRevealStep('warn')}
+            style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
+          >
+            <TbEye size={15} /> {`Reveal ${orders.length} Codes`}
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 /* ── Reorder success modal ───────────────────────────────────────────── */
 function ReorderSuccessModal({ isOpen, onClose, order }) {
   if (!order) return null
@@ -222,16 +317,81 @@ function ReorderSuccessModal({ isOpen, onClose, order }) {
   )
 }
 
+/* ── Dispute reason modal ────────────────────────────────────────────── */
+function DisputeModal({ isOpen, onClose, onSubmit, loading }) {
+  const [reason, setReason] = useState('')
+  useEffect(() => { if (isOpen) setReason('') }, [isOpen])
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Open Dispute" size="sm">
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '0.875rem' }}>
+        Describe the issue. Payment stays in escrow until an admin resolves it.
+      </p>
+      <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="What went wrong?" rows={3}
+        style={{ width: '100%', resize: 'vertical', marginBottom: '1rem', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn-secondary" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+        <button disabled={loading || !reason.trim()} onClick={() => onSubmit(reason)}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, background: 'rgba(255,77,109,0.15)', border: '1px solid rgba(255,77,109,0.3)', color: '#ff4d6d', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+          <TbAlertTriangle size={14} /> Open Dispute
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 /* ── Order row ───────────────────────────────────────────────────────── */
 function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
   const { t } = useTranslation('orders')
+  const navigate = useNavigate()
+  const toast = useToast()
+  const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
+  const [disputeOpen, setDisputeOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
   const cfg = STATUS_CFG[order.status] || STATUS_CFG.pending
   const svcCfg = SERVICE_CFG[order.service_status] || SERVICE_CFG.pending
   const StatusIcon = cfg.Icon
   const SvcIcon = svcCfg.Icon
   const isReordering = reorderingId === order.id
   const canReorder = order.status === 'completed' && order.product_detail && !order.requires_account
+
+  const handleOpenTicket = async (e) => {
+    e.stopPropagation()
+    if (order.open_ticket_id) { navigate(`/support/order/${order.open_ticket_id}`); return }
+    try {
+      const { data } = await createOrderTicket(order.id, {})
+      navigate(`/support/order/${data.id}`)
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not open ticket.')
+    }
+  }
+
+  const handleConfirmDelivery = async (e) => {
+    e.stopPropagation()
+    if (!window.confirm('Confirm you have received your service in full? This releases payment to the seller.')) return
+    setBusy(true)
+    try {
+      await confirmDelivery(order.id)
+      toast.success('Order confirmed! Payment released.')
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not confirm delivery.')
+    } finally { setBusy(false) }
+  }
+
+  const handleOpenDispute = async (reason) => {
+    setBusy(true)
+    try {
+      await openDispute(order.id, { reason })
+      toast.success('Dispute opened.')
+      setDisputeOpen(false)
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not open dispute.')
+    } finally { setBusy(false) }
+  }
+
+  const escrowActive = order.escrow_held
 
   return (
     <div style={{
@@ -263,19 +423,19 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
               {order.product_detail?.name || order.bundle_name || 'Bundle Order'}
             </p>
             {order.quantity > 1 && (
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
                 ×{order.quantity}
               </span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>#{order.id}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>#{order.id}</span>
             <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(order.created_at)}</span>
             {order.requires_account && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: svcCfg.color + '14', border: '1px solid ' + svcCfg.color + '28', borderRadius: 6, padding: '2px 7px' }}>
                 <SvcIcon size={10} color={svcCfg.color} />
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, color: svcCfg.color, letterSpacing: '0.06em' }}>{svcCfg.label.toUpperCase()}</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, color: svcCfg.color, letterSpacing: '0.06em' }}>{svcCfg.label.toUpperCase()}</span>
               </div>
             )}
           </div>
@@ -286,14 +446,36 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
           <p style={{ margin: '0 0 5px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#3DDC84' }}>{formatCurrency(order.amount_paid)}</p>
           <div className="order-status-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cfg.color + '12', border: '1px solid ' + cfg.color + '28', borderRadius: 7, padding: '3px 8px' }}>
             <StatusIcon size={10} color={cfg.color} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.05em' }}>{t('status.' + order.status, cfg.label).toUpperCase()}</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.05em' }}>{t('status.' + order.status, cfg.label).toUpperCase()}</span>
           </div>
         </div>
 
         {/* Actions */}
         <div className="order-actions" style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {order.requires_account && order.conversation_id && (
-            <button onClick={e => { e.stopPropagation(); window.location.href = '/messenger' }} style={{
+          {escrowActive && (
+            <>
+              <button onClick={handleConfirmDelivery} disabled={busy} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', borderRadius: 8,
+                background: 'rgba(61,220,132,0.1)', border: '1px solid rgba(61,220,132,0.25)',
+                color: '#3DDC84', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.13s',
+              }}>
+                <TbCircleCheck size={13} /> Confirm Delivery
+              </button>
+              <button onClick={e => { e.stopPropagation(); setDisputeOpen(true) }} disabled={busy} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', borderRadius: 8,
+                background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.22)',
+                color: '#ff4d6d', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.13s',
+              }}>
+                <TbAlertTriangle size={13} /> Dispute
+              </button>
+            </>
+          )}
+          {order.status !== 'cancelled' && (
+            <button onClick={handleOpenTicket} style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '6px 12px', borderRadius: 8,
               background: 'rgba(27,154,238,0.1)', border: '1px solid rgba(27,154,238,0.25)',
@@ -303,7 +485,7 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(27,154,238,0.18)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(27,154,238,0.1)'}
             >
-              <TbMessageCircle size={13} /> {t('actions.support')}
+              <TbLifebuoy size={13} /> {order.open_ticket_id ? 'View Ticket' : 'Open Ticket'}
             </button>
           )}
           {canReorder && (
@@ -361,13 +543,13 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
             [t('table.status'),    t('status.' + order.status, cfg.label)],
           ].map(([label, value]) => (
             <div key={label}>
-              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
               <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{value}</p>
             </div>
           ))}
           {order.status === 'completed' && !order.requires_account && (
             <div style={{ flex: '1 1 100%' }}>
-              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{order.quantity > 1 ? 'Codes' : 'Code'}</p>
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{order.quantity > 1 ? 'Codes' : 'Code'}</p>
               {(order.code_values?.length || order.code_value)
                 ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {(order.code_values?.length ? order.code_values : [order.code_value]).map((c, i) => (
@@ -382,6 +564,13 @@ function OrderRow({ order, idx, onView, onReorder, reorderingId }) {
           )}
         </div>
       )}
+
+      <DisputeModal
+        isOpen={disputeOpen}
+        onClose={() => setDisputeOpen(false)}
+        onSubmit={handleOpenDispute}
+        loading={busy}
+      />
     </div>
   )
 }
@@ -406,7 +595,7 @@ function groupOrders(orders) {
 }
 
 /* ── Grouped order card (one purchase, many codes) ──────────────────────── */
-function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
+function OrderGroupRow({ group, idx, onView, onViewGroup, onReorder, reorderingId }) {
   const { t } = useTranslation('orders')
   const [expanded, setExpanded] = useState(false)
   const orders = group.orders
@@ -416,6 +605,7 @@ function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
   const allSameStatus = orders.every(o => o.status === first.status)
   const cfg = STATUS_CFG[allSameStatus ? first.status : 'pending'] || STATUS_CFG.pending
   const StatusIcon = cfg.Icon
+  const canViewCodes = !first.requires_account && orders.every(o => o.status === 'completed')
 
   return (
     <div style={{
@@ -442,12 +632,12 @@ function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
             <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {first.product_detail?.name || first.bundle_name || 'Bundle Order'}
             </p>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: '#A78BFA', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>
               x{orders.length}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)' }}>{orders.length} codes</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{orders.length} codes</span>
             <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(first.created_at)}</span>
           </div>
@@ -457,11 +647,26 @@ function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
           <p style={{ margin: '0 0 5px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#3DDC84' }}>{formatCurrency(totalAmount)}</p>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cfg.color + '12', border: '1px solid ' + cfg.color + '28', borderRadius: 7, padding: '3px 8px' }}>
             <StatusIcon size={10} color={cfg.color} />
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.05em' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, color: cfg.color, letterSpacing: '0.05em' }}>
               {allSameStatus ? t('status.' + first.status, cfg.label).toUpperCase() : 'MIXED'}
             </span>
           </div>
         </div>
+
+        {canViewCodes && (
+          <button onClick={e => { e.stopPropagation(); onViewGroup(group) }} style={{
+            display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+            padding: '6px 12px', borderRadius: 8,
+            background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.25)',
+            color: 'var(--accent)', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+            fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.13s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.18)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,58,237,0.1)'}
+          >
+            <TbReceipt size={13} /> {t('actions.viewCode')}
+          </button>
+        )}
 
         <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }} style={{
           width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -497,6 +702,7 @@ function OrderGroupRow({ group, idx, onView, onReorder, reorderingId }) {
 export default function OrdersPage() {
   const { t } = useTranslation('orders')
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [selectedGroup, setSelectedGroup] = useState(null)
   const [reorderResult, setReorderResult] = useState(null)
   const [reorderingId,  setReorderingId]  = useState(null)
   const [filter, setFilter] = useState('all')
@@ -570,7 +776,7 @@ export default function OrdersPage() {
                     <Icon size={18} color={color} />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
+                    <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
                     <p style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1rem', color }}>{value}</p>
                   </div>
                 </div>
@@ -593,7 +799,7 @@ export default function OrdersPage() {
                 }}>
                   <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: active ? 600 : 400, color: active ? '#A78BFA' : 'var(--text-muted)' }}>{tab.label}</span>
                   {tab.count > 0 && (
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, background: active ? dotColor + '25' : 'rgba(255,255,255,0.06)', color: active ? dotColor : 'var(--text-muted)', borderRadius: 5, padding: '1px 6px' }}>{tab.count}</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, background: active ? dotColor + '25' : 'rgba(255,255,255,0.06)', color: active ? dotColor : 'var(--text-muted)', borderRadius: 5, padding: '1px 6px' }}>{tab.count}</span>
                   )}
                 </button>
               )
@@ -635,6 +841,7 @@ export default function OrdersPage() {
                     group={item}
                     idx={i}
                     onView={setSelectedOrder}
+                    onViewGroup={setSelectedGroup}
                     onReorder={handleReorder}
                     reorderingId={reorderingId}
                   />
@@ -661,6 +868,12 @@ export default function OrdersPage() {
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
         onOrderUpdated={() => setSelectedOrder(null)}
+      />
+      <GroupCodeModal
+        isOpen={!!selectedGroup}
+        onClose={() => setSelectedGroup(null)}
+        group={selectedGroup}
+        onOrdersUpdated={() => setSelectedGroup(null)}
       />
       <ReorderSuccessModal isOpen={!!reorderResult} onClose={() => setReorderResult(null)} order={reorderResult} />
 

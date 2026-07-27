@@ -1,4 +1,5 @@
 ﻿import random
+import secrets
 import string
 from decimal import Decimal
 
@@ -10,6 +11,11 @@ def _generate_referral_code():
     chars = string.ascii_uppercase + string.digits
     suffix = ''.join(random.choices(chars, k=6))
     return f'GMC-{suffix}'
+
+
+def generate_verify_token():
+    """Cryptographically secure, url-safe token for email verification links."""
+    return secrets.token_urlsafe(32)
 
 
 class User(AbstractUser):
@@ -39,6 +45,16 @@ class User(AbstractUser):
                         'self', null=True, blank=True,
                         on_delete=models.SET_NULL, related_name='referrals'
                     )
+
+    # ── Email verification (new accounts only - see migration 0008) ─────────
+    is_email_verified    = models.BooleanField(default=False)
+    email_verify_token   = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    # Timestamp of most recent verification email sent - used to expire the link
+    email_verify_sent_at = models.DateTimeField(null=True, blank=True)
+    # How many times the client requested a resend - caps at 3, then soft-blocked
+    email_resend_count   = models.IntegerField(default=0)
+    # When they verified - audit trail
+    email_verified_at    = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

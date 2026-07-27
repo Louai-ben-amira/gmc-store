@@ -424,7 +424,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem' }}>
         <div style={{ width: 3, height: 22, borderRadius: 2, background: 'linear-gradient(to bottom, #7C3AED, #1b9aee)' }} />
         <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.0625rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Browse Categories</span>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginLeft: 4 }}>ALL PRODUCTS</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginLeft: 4 }}>ALL PRODUCTS</span>
       </div>
 
       {/* Skeleton */}
@@ -499,7 +499,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
                 {cat.children?.length > 0 && (
                   <p style={{
                     margin: '0 0 10px', fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '0.5625rem', color: color + '90', letterSpacing: '0.06em',
+                    fontSize: '0.6875rem', color: color + '90', letterSpacing: '0.06em',
                   }}>
                     {cat.children.length} sub-categories
                   </p>
@@ -559,7 +559,7 @@ function CategorySection({ onCategoryClick, onFlashClick }) {
             <p style={{ margin: '0 0 4px', fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.25 }}>
               Flash Sales
             </p>
-            <p style={{ margin: '0 0 10px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--urgent)', letterSpacing: '0.06em' }}>
+            <p style={{ margin: '0 0 10px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--urgent)', letterSpacing: '0.06em' }}>
               Limited time
             </p>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 14px', borderRadius: 7, background: 'rgba(255,77,109,0.10)', border: '1px solid rgba(255,77,109,0.20)', color: '#ff4d6d', fontFamily: 'Inter, sans-serif', fontSize: '0.6875rem', fontWeight: 600, marginTop: 'auto' }}>
@@ -668,7 +668,7 @@ function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false
         <div style={{
           position: 'absolute', top: flash ? 22 : 8, left: 8, zIndex: 8,
           background: badgeColor, borderRadius: 5, padding: '2px 7px',
-          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 800,
+          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 800,
           color: 'var(--text-primary)', letterSpacing: '0.05em',
         }}>{badge}</div>
 
@@ -678,7 +678,7 @@ function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false
           display: 'inline-flex', alignItems: 'center',
           background: 'rgba(7,3,16,0.72)', border: '1px solid rgba(160,95,255,0.2)',
           borderRadius: 5, padding: '2px 7px',
-          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.45rem', fontWeight: 700,
+          fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700,
           color: 'var(--accent)', letterSpacing: '0.06em', textTransform: 'uppercase',
           backdropFilter: 'blur(10px)',
         }}>{product.category_detail?.name || 'Digital'}</div>
@@ -698,27 +698,31 @@ function StripCard({ product, badge, badgeColor = 'var(--accent)', large = false
           display: 'inline-flex', alignItems: 'center', gap: 3, alignSelf: 'flex-start',
           background: 'rgba(61,220,132,0.07)', border: '1px solid rgba(61,220,132,0.15)',
           borderRadius: 4, padding: '1px 6px',
-          fontFamily: 'Inter, sans-serif', fontSize: '0.47rem', fontWeight: 700,
+          fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 700,
           color: '#3DDC84', letterSpacing: '0.04em',
         }}>⚡ {t('product.instantDelivery')}</span>
 
         {/* Price + Buy */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', gap: 4 }}>
           <div>
-            {orig > price && (
-              <span style={{
-                display: 'block', fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.55rem', color: 'var(--text-muted)', textDecoration: 'line-through',
-              }}>{orig.toFixed(2)}</span>
+            {!product.has_variants && (
+              <>
+                {orig > price && (
+                  <span style={{
+                    display: 'block', fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '0.6875rem', color: 'var(--text-muted)', textDecoration: 'line-through',
+                  }}>{orig.toFixed(2)}</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '0.9375rem',
+                    color: flash ? '#FF5C70' : '#7C3AED',
+                    textShadow: flash ? '0 0 14px rgba(255,60,80,0.35)' : '0 0 14px rgba(124,58,237,0.4)',
+                  }}>{price.toFixed(2)}</span>
+                  <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:'9px', fontWeight:600, color:'rgba(130,100,185,0.6)' }}>DT</span>
+                </div>
+              </>
             )}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-              <span style={{
-                fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '0.9375rem',
-                color: flash ? '#FF5C70' : '#7C3AED',
-                textShadow: flash ? '0 0 14px rgba(255,60,80,0.35)' : '0 0 14px rgba(124,58,237,0.4)',
-              }}>{price.toFixed(2)}</span>
-              <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:'9px', fontWeight:600, color:'rgba(130,100,185,0.6)' }}>DT</span>
-            </div>
           </div>
           <button
             onClick={e => { e.stopPropagation(); navigate(`/product/${product.slug || product.id}`) }}
@@ -774,7 +778,7 @@ function BestSellersStrip({ onViewAll }) {
           </div>
           <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.0625rem', color: 'var(--text-primary)' }}>{t('sections.bestSellers')}</span>
           <span style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', color: 'var(--urgent)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--urgent)',
             letterSpacing: '0.1em', textTransform: 'uppercase',
             background: 'rgba(220,50,50,0.1)', border: '1px solid rgba(220,50,50,0.2)',
             borderRadius: 4, padding: '1px 7px',
@@ -825,7 +829,7 @@ function BestSellersStrip({ onViewAll }) {
 
 function SidebarLabel({ children }) {
   return (
-    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
       {children}
     </p>
   )
@@ -896,7 +900,7 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
           background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.2)',
-          color: '#ff4d6d', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem',
+          color: '#ff4d6d', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem',
           fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', width: '100%',
           transition: 'background 0.15s',
         }}
@@ -956,8 +960,8 @@ function FilterSidebar({ activeSlug, onSelect, priceRange, onPriceChange }) {
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', color: 'var(--text-muted)' }}>{t('filters.min')}</span>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', color: priceRange >= 500 ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.7)' }}>{priceRange >= 500 ? t('filters.noLimit') : 'MAX ' + priceRange + ' DT'}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{t('filters.min')}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: priceRange >= 500 ? 'rgba(255,255,255,0.2)' : 'rgba(124,58,237,0.7)' }}>{priceRange >= 500 ? t('filters.noLimit') : 'MAX ' + priceRange + ' DT'}</span>
         </div>
       </div>
 
@@ -993,6 +997,7 @@ function SortDropdown({ value, onChange }) {
   const { t } = useTranslation('shop')
   return (
     <select value={value} onChange={e => onChange(e.target.value)} style={{ width: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', padding: '5px 10px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+      <option value="daily">{t('filters.daily')}</option>
       <option value="popular">{t('filters.popular')}</option>
       <option value="price_asc">{t('filters.priceLow')}</option>
       <option value="price_desc">{t('filters.priceHigh')}</option>
@@ -1022,7 +1027,7 @@ export default function ShopPage() {
   const [activeTab,     setActiveTab]     = useState(() => searchParams.get('flash') ? 'flash' : 'shop')
   const [activeSlug,    setActiveSlug]    = useState(() => searchParams.get('cat') || null)
   const [localSearch,   setLocalSearch]   = useState('')
-  const [sort,          setSort]          = useState('popular')
+  const [sort,          setSort]          = useState('daily')
   const [priceRange,    setPriceRange]    = useState(500)
 
   const { isAuthenticated } = useAuthStore()
@@ -1043,7 +1048,7 @@ export default function ShopPage() {
     setActiveTab('shop')
     setSort('popular')
   }
-  const handleTabChange = (key) => { setActiveTab(key); if (key !== 'shop') setActiveSlug(null); setSort('popular') }
+  const handleTabChange = (key) => { setActiveTab(key); if (key !== 'shop') setActiveSlug(null); setSort('daily') }
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', activeSlug, localSearch, activeTab, sort],
@@ -1054,6 +1059,7 @@ export default function ShopPage() {
       if (sort === 'price_desc') params.ordering = '-price'
       if (sort === 'newest')     params.ordering = '-created_at'
       if (sort === 'popular')    params.ordering = 'popular'
+      if (sort === 'daily')      params.ordering = 'daily'
       return getProducts(params).then(r => r.data)
     },
     enabled: activeTab !== 'bundles',
@@ -1171,7 +1177,7 @@ export default function ShopPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem' }}>
               <div style={{ width: 3, height: 22, borderRadius: 2, background: 'linear-gradient(to bottom, #7C3AED, #ff4d6d)' }} />
               <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.0625rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{t('sections.allProducts')}</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginLeft: 4 }}>{t('sections.browseEverything')}</span>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginLeft: 4 }}>{t('sections.browseEverything')}</span>
               <div style={{ marginLeft: 'auto' }}>
                 <SortDropdown value={sort} onChange={setSort} />
               </div>

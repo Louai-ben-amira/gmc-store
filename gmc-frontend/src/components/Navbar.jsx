@@ -1,11 +1,14 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, MessageCircle, User, Wallet, Bell, Menu, X, LogOut, Package, LayoutDashboard } from 'lucide-react'
+import { ShoppingBag, LifeBuoy, ShoppingCart, User, Wallet, Menu, X, LogOut, Package, LayoutDashboard } from 'lucide-react'
 import useAuthStore from '../store/authStore'
+import useBasketStore, { selectItemCount } from '../store/basketStore'
+import useBasketDrawerStore from '../store/basketDrawerStore'
 import { useQuery } from '@tanstack/react-query'
 import { getWallet } from '../api/wallet'
 import { mediaUrl } from '../utils/formatters'
 import UserAvatar from './UserAvatar'
+import NotificationBell from './NotificationBell'
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore()
@@ -13,6 +16,8 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const itemCount = useBasketStore(selectItemCount)
+  const openBasketDrawer = useBasketDrawerStore(s => s.openDrawer)
 
   const { data: walletData } = useQuery({
     queryKey: ['wallet'],
@@ -68,10 +73,31 @@ export default function Navbar() {
           )}
 
           {isAuthenticated() && (
-            <Link to="/messenger" style={{ textDecoration: 'none', color: '#9E9C94', display: 'flex', alignItems: 'center' }}>
-              <MessageCircle size={20} />
+            <Link to="/support" style={{ textDecoration: 'none', color: '#9E9C94', display: 'flex', alignItems: 'center' }}>
+              <LifeBuoy size={20} />
             </Link>
           )}
+
+          <NotificationBell isAuthenticated={isAuthenticated()} />
+
+          <button
+            onClick={openBasketDrawer}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: '#9E9C94',
+              display: 'flex', alignItems: 'center', position: 'relative', padding: 0,
+            }}
+          >
+            <ShoppingCart size={20} />
+            {itemCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16, padding: '0 3px',
+                borderRadius: 999, background: '#7C3AED', color: '#fff',
+                fontSize: '0.75rem', fontWeight: 700, lineHeight: '16px', textAlign: 'center',
+              }}>
+                {itemCount > 99 ? '99+' : itemCount}
+              </span>
+            )}
+          </button>
 
           {isAuthenticated() ? (
             <div ref={dropdownRef} style={{ position: 'relative' }}>

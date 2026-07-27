@@ -5,7 +5,8 @@ from .models import Category, Product, Code, Bundle, Review, Wishlist, ProductVa
 from .serializers import (
     CategorySerializer, ProductSerializer, CodeSerializer,
     BulkCodeUploadSerializer, BundleSerializer, ReviewSerializer,
-    ProductVariantSerializer,
+    ProductVariantSerializer, AdminProductSerializer, AdminProductVariantSerializer,
+    _margin_pct,
 )
 from apps.users.permissions import IsAdmin
 
@@ -100,8 +101,11 @@ def category_products(request, slug):
 
 # ── Products ────────────────────────────────────────────────────────────────
 
+def _is_admin(request):
+    return request.user.is_authenticated and getattr(request.user, 'role', '') == 'admin'
+
+
 class ProductListView(generics.ListCreateAPIView):
-    serializer_class = ProductSerializer
     filter_backends  = [filters.SearchFilter]
     search_fields    = ['name', 'description']
 
@@ -109,6 +113,11 @@ class ProductListView(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return [IsAdmin()]
         return [permissions.AllowAny()]
+
+    def get_serializer_class(self):
+        # Cost price / margin are admin-only - never leak them to the public
+        # shop by returning the admin serializer for an anonymous/client request.
+        return AdminProductSerializer if _is_admin(self.request) else ProductSerializer
 
     def get_queryset(self):
         user     = self.request.user
@@ -151,6 +160,18 @@ class ProductListView(generics.ListCreateAPIView):
             qs = qs.order_by(ordering)
         elif ordering == 'popular':
             qs = qs.order_by('-_review_count', '-created_at')
+        elif ordering == 'daily':
+            # Deterministic shuffle reseeded once per calendar day: every
+            # visitor sees the same order all day (so pagination/sharing a
+            # link stays consistent), and it reshuffles automatically at
+            # midnight without any cron job or stored state.
+            import random
+            from datetime import date
+            from django.db.models import Case, When
+            ids = list(qs.values_list('id', flat=True))
+            random.Random(date.today().isoformat()).shuffle(ids)
+            preserved_order = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(ids)])
+            qs = qs.filter(pk__in=ids).order_by(preserved_order)
         else:
             qs = qs.order_by('-created_at')
 
@@ -166,13 +187,15 @@ class ProductListView(generics.ListCreateAPIView):
 
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset         = Product.objects.select_related('category').with_card_data()
-    serializer_class = ProductSerializer
+    queryset = Product.objects.select_related('category').with_card_data()
 
     def get_permissions(self):
         if self.request.method == 'GET':
             return [permissions.AllowAny()]
         return [IsAdmin()]
+
+    def get_serializer_class(self):
+        return AdminProductSerializer if _is_admin(self.request) else ProductSerializer
 
     def get_object(self):
         lookup = self.kwargs.get('pk') or self.kwargs.get('slug')
@@ -184,6 +207,42 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
             obj = generics.get_object_or_404(qs, pk=lookup)
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def perform_update(self, serializer):
+        product = self.get_object()
+        was_flash_sale  = product.is_flash_sale and product.flash_sale_active
+        old_price       = product.effective_price
+
+        instance = serializer.save()
+
+        if instance.is_flash_sale and instance.flash_sale_active and not was_flash_sale:
+            self._notify_flash_sale_started(instance)
+        elif instance.effective_price < old_price:
+            self._notify_wishlist_price_drop(instance)
+
+    def _notify_flash_sale_started(self, product):
+        from django.contrib.auth import get_user_model
+        from apps.notifications.services import notify_bulk
+        User = get_user_model()
+        pct = 0
+        if product.price:
+            pct = int((1 - float(product.flash_sale_price) / float(product.price)) * 100)
+        user_ids = User.objects.filter(is_active=True).values_list('id', flat=True)
+        notify_bulk(
+            user_ids, 'flash_sale', 'Flash Sale Started',
+            f'Flash Sale live now — {product.name} {pct}% off for a limited time!',
+            link=f'/products/{product.slug}',
+        )
+
+    def _notify_wishlist_price_drop(self, product):
+        from apps.notifications.services import notify
+        wishlisters = Wishlist.objects.filter(product=product).values_list('user_id', flat=True)
+        for user_id in wishlisters:
+            notify(
+                user_id, 'wishlist_price_drop', 'Wishlist Price Drop',
+                f'{product.name} dropped to {product.effective_price} DT — it\'s in your wishlist.',
+                link=f'/products/{product.slug}',
+            )
 
 
 @api_view(['GET', 'POST'])
@@ -320,6 +379,47 @@ def sync_stock(request, pk):
     })
 
 
+# ── Profit margins (admin) ──────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_products_margins(request):
+    """
+    Every product with its cost/selling price and calculated margin, for the
+    bulk cost-price setup page. `missing_cost` flags products (and, if it has
+    variants, any variant) that still need a cost_price filled in.
+    """
+    products = Product.objects.select_related('category').prefetch_related('variants').order_by('name')
+    results = []
+    for p in products:
+        variants = list(p.variants.all())
+        if variants:
+            variant_rows = [{
+                'id':          v.id,
+                'label':       v.label,
+                'price':       str(v.price),
+                'cost_price':  str(v.cost_price) if v.cost_price is not None else None,
+                'margin_pct':  _margin_pct(v.price, v.cost_price),
+            } for v in variants]
+            missing = any(v.cost_price is None for v in variants)
+        else:
+            variant_rows = []
+            missing = p.cost_price is None
+
+        results.append({
+            'id':           p.id,
+            'name':         p.name,
+            'category':     p.category.name if p.category else None,
+            'has_variants': p.has_variants,
+            'price':        str(p.effective_price),
+            'cost_price':   str(p.cost_price) if p.cost_price is not None else None,
+            'margin_pct':   _margin_pct(p.effective_price, p.cost_price) if not variants else None,
+            'variants':     variant_rows,
+            'missing_cost': missing,
+        })
+    return Response(results)
+
+
 # ── Product Variants (admin) ────────────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
@@ -332,9 +432,9 @@ def product_variants(request, pk):
 
     if request.method == 'GET':
         variants = product.variants.all().order_by('order', 'amount_value')
-        return Response(ProductVariantSerializer(variants, many=True).data)
+        return Response(AdminProductVariantSerializer(variants, many=True).data)
 
-    serializer = ProductVariantSerializer(data=request.data)
+    serializer = AdminProductVariantSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     serializer.save(product=product)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -352,7 +452,7 @@ def product_variant_detail(request, pk, variant_id):
         variant.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    serializer = ProductVariantSerializer(variant, data=request.data, partial=True)
+    serializer = AdminProductVariantSerializer(variant, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)

@@ -5,9 +5,13 @@ from . import hero
 from .models import RechargeRequest, RechargeTicketItem, CryptoPayment, SiteSettings, GiftCardBatch, GiftCard
 
 
-TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket'}
+TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket', 'tt_ticket'}
 D17_METHODS      = {'d17_number', 'd17_address'}
 TRANSFER_METHODS = {'d17_number', 'd17_address', 'bank_transfer', 'edinar', 'flouci'}
+
+# Real recharge tickets never exceed this - catches typos like "94340" meant
+# as "94.340" (comma used as a thousands separator).
+MAX_TICKET_VALUE = Decimal('999.99')
 
 
 class RechargeTicketItemSerializer(serializers.ModelSerializer):
@@ -72,6 +76,8 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
                     value = None
                 if value is None or value <= 0:
                     raise serializers.ValidationError({'tickets': f'Ticket "{code}" needs a value greater than 0.'})
+                if value > MAX_TICKET_VALUE:
+                    raise serializers.ValidationError({'tickets': f'Ticket "{code}" value looks wrong ({value} DT) - max is {MAX_TICKET_VALUE} DT per ticket.'})
                 if code in seen_codes:
                     raise serializers.ValidationError({'tickets': f'Ticket code "{code}" was submitted twice.'})
                 seen_codes.add(code)
@@ -88,7 +94,7 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
             amount_sent = attrs.get('amount_sent')
             if amount_sent is None or amount_sent <= 0:
                 raise serializers.ValidationError({'amount_sent': 'Amount sent must be greater than 0.'})
-            if not attrs.get('reference_code', '').strip():
+            if method != 'bank_transfer' and not attrs.get('reference_code', '').strip():
                 raise serializers.ValidationError({'reference_code': 'Transaction reference number is required.'})
 
         return attrs
@@ -118,6 +124,8 @@ class RechargePreviewSerializer(serializers.Serializer):
         method = attrs['method']
         if method in TICKET_METHODS and not attrs.get('ticket_value'):
             raise serializers.ValidationError({'ticket_value': 'ticket_value is required for ticket methods.'})
+        if method in TICKET_METHODS and attrs.get('ticket_value') and attrs['ticket_value'] > MAX_TICKET_VALUE:
+            raise serializers.ValidationError({'ticket_value': f'Max is {MAX_TICKET_VALUE} DT per ticket.'})
         if method in TRANSFER_METHODS and not attrs.get('amount_sent'):
             raise serializers.ValidationError({'amount_sent': 'amount_sent is required for transfer methods.'})
         return attrs

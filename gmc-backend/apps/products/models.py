@@ -83,6 +83,10 @@ class Product(models.Model):
                            on_delete=models.SET_NULL, related_name='products'
                        )
     price            = models.DecimalField(max_digits=10, decimal_places=2)
+    # What the admin pays to source this product (prix d'achat) - admin-only,
+    # never serialized to clients. Null = not set yet ("—" in the admin UI),
+    # distinct from 0 which would mean "costs nothing".
+    cost_price       = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     description      = models.TextField(blank=True)
     image            = models.ImageField(upload_to='products/', null=True, blank=True)
     stock_count      = models.IntegerField(default=0)
@@ -149,6 +153,8 @@ class ProductVariant(models.Model):
     label         = models.CharField(max_length=100)
     amount_value  = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     price         = models.DecimalField(max_digits=10, decimal_places=2)
+    # Overrides the product-level cost_price for this specific variant, if set.
+    cost_price    = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     points_earned = models.IntegerField(default=0)
     stock_count   = models.IntegerField(default=0)
     is_active     = models.BooleanField(default=True)
@@ -159,6 +165,19 @@ class ProductVariant(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.label}"
+
+
+def get_effective_cost(product, variant=None):
+    """
+    Returns the effective cost price (admin's prix d'achat) for this
+    product/variant combo, or None if neither level has one set.
+    A variant's own cost_price always overrides the product-level one.
+    """
+    if variant is not None and variant.cost_price is not None:
+        return variant.cost_price
+    if product is not None and product.cost_price is not None:
+        return product.cost_price
+    return None
 
 
 class Bundle(models.Model):
@@ -223,6 +242,7 @@ class Code(models.Model):
         ('battlenet', 'Battle.net'),
         ('ubisoft',   'Ubisoft Connect'),
         ('ea',        'EA App'),
+        ('riot',      'Riot'),
         ('other',     'Other'),
     ]
     product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='codes')

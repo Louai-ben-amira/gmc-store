@@ -126,7 +126,7 @@ export default function BundlePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     {originalPrice > 0 && <span style={{ color: 'var(--muted)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem', textDecoration: 'line-through' }}>{formatCurrency(originalPrice)}</span>}
                     <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--violet-light)' }}>{formatCurrency(basePrice)}</span>
-                    {bundle.discount_percentage > 0 && <span style={{ background: 'rgba(123,47,255,0.2)', color: 'var(--violet-light)', border: '1px solid rgba(123,47,255,0.4)', fontSize: '0.625rem', fontWeight: 700, padding: '2px 8px', borderRadius: '999px' }}>-{bundle.discount_percentage}%</span>}
+                    {bundle.discount_percentage > 0 && <span style={{ background: 'rgba(123,47,255,0.2)', color: 'var(--violet-light)', border: '1px solid rgba(123,47,255,0.4)', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '999px' }}>-{bundle.discount_percentage}%</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.375rem 0' }}>

@@ -12,8 +12,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role',
                   'balance', 'points', 'avatar', 'phone', 'created_at',
                   'referral_code', 'referrals_count', 'referral_earned',
-                  'theme_preference', 'language_preference']
-        read_only_fields = ['id', 'balance', 'points', 'role', 'created_at', 'referral_code']
+                  'theme_preference', 'language_preference',
+                  'is_email_verified', 'email_resend_count']
+        read_only_fields = ['id', 'balance', 'points', 'role', 'created_at', 'referral_code',
+                             'is_email_verified', 'email_resend_count']
 
     def get_referrals_count(self, obj):
         return obj.referrals.count()
@@ -123,5 +125,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'role', 'balance', 'points',
                   'is_active', 'orders_count', 'created_at',
-                  'referral_code', 'referred_by_username']
-        read_only_fields = ['id', 'created_at', 'referral_code', 'referred_by_username', 'orders_count']
+                  'referral_code', 'referred_by_username',
+                  'is_email_verified', 'email_resend_count', 'email_verified_at']
+        read_only_fields = ['id', 'created_at', 'referral_code', 'referred_by_username', 'orders_count',
+                             'email_verified_at']
