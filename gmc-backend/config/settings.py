@@ -62,14 +62,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'channels',
     'django_celery_beat',
     # Local apps
     'apps.users',
     'apps.products',
     'apps.orders',
-    'apps.chat',
+    'apps.tickets',
     'apps.payments',
+    'apps.notifications',
     # Auto-deletes old files from storage (R2) when a model row is deleted or
     # its FileField/ImageField changes. MUST stay last so its signals are
     # registered after every model is loaded.
@@ -86,7 +86,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.chat.middleware.UnreadEmailSweepMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -186,17 +185,6 @@ else:
             'LOCATION': REDIS_URL,
         }
     }
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [REDIS_URL],
-            'capacity': 1500,
-            'expiry': 10,
-        },
-    },
-}
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -329,7 +317,9 @@ if DEBUG and not EMAIL_HOST_USER:
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-POINTS_RATE        = 1    # points earned per DT spent
+POINTS_RATE          = 1      # points earned per DT spent
+POINTS_REDEEM_RATE   = 0.02   # DT credited per point redeemed (100 pts = 2 DT)
+POINTS_REDEEM_MIN    = 100    # minimum points redeemable at once
 
 GOOGLE_CLIENT_ID    = config('GOOGLE_CLIENT_ID',    default='')
 LOW_STOCK_THRESHOLD = config('LOW_STOCK_THRESHOLD', default=3, cast=int)
@@ -360,12 +350,12 @@ JAZZMIN_SETTINGS = {
     'show_sidebar': True,
     'navigation_expanded': True,
     'order_with_respect_to': [
-        'products', 'orders', 'payments', 'users', 'chat', 'auth',
+        'products', 'orders', 'payments', 'users', 'tickets', 'auth',
         'products.product', 'products.category', 'products.code', 'products.bundle',
         'orders.order',
         'payments.rechargerequest', 'payments.giftcardbatch', 'payments.cryptopayment', 'payments.sitesettings',
         'users.user', 'users.wallettransaction',
-        'chat.conversation', 'chat.message',
+        'tickets.orderticket', 'tickets.supportticket',
     ],
     'icons': {
         'auth': 'fas fa-users-cog',
@@ -384,9 +374,9 @@ JAZZMIN_SETTINGS = {
         'payments.giftcardbatch': 'fas fa-gift',
         'payments.cryptopayment': 'fab fa-bitcoin',
         'payments.sitesettings': 'fas fa-cog',
-        'chat': 'fas fa-comments',
-        'chat.conversation': 'fas fa-comment-dots',
-        'chat.message': 'fas fa-envelope',
+        'tickets': 'fas fa-ticket-alt',
+        'tickets.orderticket': 'fas fa-box-open',
+        'tickets.supportticket': 'fas fa-life-ring',
     },
     'default_icon_parents': 'fas fa-chevron-circle-right',
     'default_icon_children': 'fas fa-circle',

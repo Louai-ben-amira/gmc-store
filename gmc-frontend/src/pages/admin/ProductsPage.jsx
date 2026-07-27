@@ -1,4 +1,5 @@
 ﻿import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getProducts, createProduct, updateProduct, deleteProduct,
@@ -196,9 +197,22 @@ function CategoryPicker({ value, onChange, flatCategories }) {
   )
 }
 
+/* ── profit margin helpers ──────────────────────────────────────────────── */
+function marginPct(selling, cost) {
+  const s = Number(selling), c = Number(cost)
+  if (!s || cost === '' || cost === null || cost === undefined || Number.isNaN(c)) return null
+  return Math.round(((s - c) / s) * 100 * 100) / 100
+}
+function marginColor(pct) {
+  if (pct === null || pct === undefined) return 'var(--muted)'
+  if (pct < 10) return '#ef4444'
+  if (pct < 25) return '#F5A623'
+  return '#3DDC84'
+}
+
 /* ── form default ───────────────────────────────────────────────────────── */
 const EMPTY_FORM = {
-  name: '', category: '', price: '', description: '',
+  name: '', category: '', price: '', cost_price: '', description: '',
   visible: true, is_flash_sale: false, flash_sale_price: '', flash_sale_end: '',
   requires_account: false, has_variants: false, required_fields: [], points_purchasable: false,
   points_earned: 0,
@@ -336,6 +350,33 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
         </div>
       </div>
 
+      {/* Cost price (prix d'achat) - admin-only, never shown to clients. Only
+          meaningful for simple products; products with variants set cost per
+          variant instead (see the Variants panel). */}
+      {!form.has_variants && (
+        <div>
+          <label style={LBL}>
+            Cost Price (DT) <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— prix d'achat, admin only</span>
+          </label>
+          <input
+            type="number" step="0.01" min="0"
+            value={form.cost_price}
+            onChange={e => onChange('cost_price', e.target.value)}
+            placeholder="Not set"
+            style={{ ...INP, background: !form.cost_price ? 'rgba(239,68,68,0.06)' : INP.background, borderColor: !form.cost_price ? 'rgba(239,68,68,0.3)' : undefined }}
+          />
+          {form.price && form.cost_price !== '' && form.cost_price != null && (
+            <p style={{ margin: '5px 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>
+              Selling: <strong style={{ color: 'var(--text-primary)' }}>{Number(form.price).toFixed(2)} DT</strong>
+              {' — '}Cost: <strong style={{ color: 'var(--text-primary)' }}>{Number(form.cost_price).toFixed(2)} DT</strong>
+              {' — '}Profit: <strong style={{ color: marginColor(marginPct(form.price, form.cost_price)) }}>
+                {(Number(form.price) - Number(form.cost_price)).toFixed(2)} DT ({marginPct(form.price, form.cost_price)}%)
+              </strong>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Description */}
       <div>
         <label style={LBL}>Description</label>
@@ -467,7 +508,7 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
 }
 
 /* ── Variants Panel ─────────────────────────────────────────────────────── */
-const EMPTY_VARIANT = { label: '', price: '', amount_value: '', stock_count: 0, is_active: true, order: 0, points_earned: '' }
+const EMPTY_VARIANT = { label: '', price: '', cost_price: '', amount_value: '', stock_count: 0, is_active: true, order: 0, points_earned: '' }
 
 /* Points follow the product rule: 1 DT = 1 point. Auto-fill from price unless
    the admin typed a manual override in this form session. */
@@ -479,7 +520,7 @@ const applyField = (form, key, value) => {
   return next
 }
 
-function VariantsPanel({ productId, productName, onClose }) {
+function VariantsPanel({ productId, productName, productCostPrice, onClose }) {
   const qc    = useQueryClient()
   const toast = useToast()
   const [editId,   setEditId]   = useState(null)
@@ -503,6 +544,7 @@ function VariantsPanel({ productId, productName, onClose }) {
       await createVariant(productId, {
         label: newForm.label,
         price: newForm.price,
+        cost_price: newForm.cost_price === '' ? null : newForm.cost_price,
         amount_value: newForm.amount_value || null,
         stock_count: parseInt(newForm.stock_count) || 0,
         is_active: newForm.is_active,
@@ -522,6 +564,7 @@ function VariantsPanel({ productId, productName, onClose }) {
     try {
       const { points_touched, ...payload } = editForm
       payload.points_earned = parseInt(payload.points_earned) || parseInt(autoPoints(payload.price)) || 0
+      if (payload.cost_price === '') payload.cost_price = null
       await updateVariant(productId, id, payload)
       toast.success('Variant updated.')
       setEditId(null)
@@ -540,15 +583,15 @@ function VariantsPanel({ productId, productName, onClose }) {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+    <div className="admin-page-padding" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 2rem' }}>
+      <div className="admin-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 style={{ margin: 0, color: 'var(--white-primary)', fontSize: '1.375rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Layers size={20} /> Variants
           </h1>
           <p style={{ margin: '2px 0 0', color: 'var(--muted)', fontSize: '0.875rem' }}>{productName}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="admin-header-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={() => setAdding(v => !v)} className="btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.875rem' }}>
             <Plus size={14} /> Add Variant
@@ -561,10 +604,12 @@ function VariantsPanel({ productId, productName, onClose }) {
       {adding && (
         <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 10, padding: '1rem', marginBottom: '1rem' }}>
           <p style={{ margin: '0 0 0.75rem', color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Variant</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 70px 60px 60px auto', gap: 8, alignItems: 'end' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 70px 60px 60px auto', gap: 8, alignItems: 'end', minWidth: 720 }}>
             {[
               { k: 'label',         label: 'Label *',      type: 'text',   placeholder: 'e.g. 2050 VP' },
               { k: 'price',         label: 'Price (DT) *', type: 'number', placeholder: '0.00' },
+              { k: 'cost_price',    label: 'Cost (DT)',    type: 'number', placeholder: productCostPrice ? `default ${productCostPrice}` : 'Not set' },
               { k: 'amount_value',  label: 'Amount',       type: 'number', placeholder: 'e.g. 2050' },
               { k: 'stock_count',   label: 'Stock',        type: 'number', placeholder: '0' },
               { k: 'points_earned', label: '⭐ Points',    type: 'number', placeholder: 'auto' },
@@ -591,6 +636,7 @@ function VariantsPanel({ productId, productName, onClose }) {
               </button>
             </div>
           </div>
+          </div>
           <div style={{ marginTop: '0.5rem' }}>
             <button onClick={() => setAdding(false)}
               style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #1e1e2e', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem' }}>
@@ -611,7 +657,7 @@ function VariantsPanel({ productId, productName, onClose }) {
         <div style={{ background: 'var(--bg-card)', border: '1px solid #1e1e2e', borderRadius: '0.875rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', minWidth: 540, borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Label','Price','Amount','Stock','⭐ Points','Order','Active','Actions'].map(h => <th key={h} style={TH}>{h}</th>)}</tr>
+              <tr>{['Label','Price','Cost','Margin','Amount','Stock','⭐ Points','Order','Active','Actions'].map(h => <th key={h} style={TH}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {variants.map(v => (
@@ -621,12 +667,24 @@ function VariantsPanel({ productId, productName, onClose }) {
                 >
                   {editId === v.id ? (
                     <>
-                      {['label','price','amount_value','stock_count','points_earned','order'].map(k => (
+                      {['label','price','cost_price'].map(k => (
                         <td key={k} style={TD}>
                           <input type={k === 'label' ? 'text' : 'number'}
+                            placeholder={k === 'cost_price' && productCostPrice ? `default ${productCostPrice}` : undefined}
                             value={editForm[k] ?? ''}
                             onChange={e => setEditForm(f => applyField(f, k, e.target.value))}
                             style={{ width: k === 'label' ? 130 : 70, height: 28, fontSize: '0.8rem', boxSizing: 'border-box' }} />
+                        </td>
+                      ))}
+                      <td style={{ ...TD, color: marginColor(marginPct(editForm.price, editForm.cost_price !== '' ? editForm.cost_price : productCostPrice)) }}>
+                        {marginPct(editForm.price, editForm.cost_price !== '' ? editForm.cost_price : productCostPrice) ?? '—'}{editForm.price && (editForm.cost_price !== '' || productCostPrice) ? '%' : ''}
+                      </td>
+                      {['amount_value','stock_count','points_earned','order'].map(k => (
+                        <td key={k} style={TD}>
+                          <input type="number"
+                            value={editForm[k] ?? ''}
+                            onChange={e => setEditForm(f => applyField(f, k, e.target.value))}
+                            style={{ width: 70, height: 28, fontSize: '0.8rem', boxSizing: 'border-box' }} />
                         </td>
                       ))}
                       <td style={TD}>
@@ -646,6 +704,18 @@ function VariantsPanel({ productId, productName, onClose }) {
                     <>
                       <td style={{ ...TD, fontWeight: 600, color: 'var(--white-primary)' }}>{v.label}</td>
                       <td style={{ ...TD, color: '#3DDC84', fontWeight: 700 }}>{formatCurrency(v.price)}</td>
+                      <td style={TD}>
+                        {v.cost_price != null
+                          ? formatCurrency(v.cost_price)
+                          : productCostPrice
+                            ? <span style={{ color: 'var(--muted)', fontStyle: 'italic' }} title="Using product-level default">{formatCurrency(productCostPrice)}</span>
+                            : <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)', padding: '2px 6px', borderRadius: 4 }}>—</span>
+                        }
+                      </td>
+                      <td style={{ ...TD, color: marginColor(v.margin_pct ?? marginPct(v.price, v.cost_price ?? productCostPrice)), fontWeight: 600 }}>
+                        {(v.margin_pct ?? marginPct(v.price, v.cost_price ?? productCostPrice)) ?? '—'}
+                        {(v.margin_pct != null || marginPct(v.price, v.cost_price ?? productCostPrice) != null) ? '%' : ''}
+                      </td>
                       <td style={TD}>{v.amount_value ?? '--'}</td>
                       <td style={{ ...TD, color: v.stock_count === 0 ? '#ef4444' : 'var(--white-primary)', fontWeight: 600 }}>{v.stock_count}</td>
                       <td style={{ ...TD, color: '#F5A623' }}>
@@ -659,7 +729,7 @@ function VariantsPanel({ productId, productName, onClose }) {
                       </td>
                       <td style={TD}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => { setEditId(v.id); setEditForm({ label: v.label, price: v.price, amount_value: v.amount_value ?? '', stock_count: v.stock_count, is_active: v.is_active, order: v.order, points_earned: v.points_earned || autoPoints(v.price), points_touched: v.points_earned > 0 && v.points_earned !== Math.round(parseFloat(v.price) || 0) }) }}
+                          <button onClick={() => { setEditId(v.id); setEditForm({ label: v.label, price: v.price, cost_price: v.cost_price ?? '', amount_value: v.amount_value ?? '', stock_count: v.stock_count, is_active: v.is_active, order: v.order, points_earned: v.points_earned || autoPoints(v.price), points_touched: v.points_earned > 0 && v.points_earned !== Math.round(parseFloat(v.price) || 0) }) }}
                             style={ICON_BTN}><Edit2 size={13} /></button>
                           <button onClick={() => handleDelete(v.id)}
                             style={{ ...ICON_BTN, color: '#ef4444' }}><Trash2 size={13} /></button>
@@ -687,8 +757,9 @@ function isCodeProduct(p) {
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 export default function ProductsPage() {
-  const qc    = useQueryClient()
-  const toast = useToast()
+  const qc       = useQueryClient()
+  const toast    = useToast()
+  const navigate = useNavigate()
 
   const [search,   setSearch]   = useState('')
   const [page,     setPage]     = useState(1)
@@ -760,6 +831,7 @@ export default function ProductsPage() {
       name: p.name,
       category: p.category || '',
       price: p.price,
+      cost_price: p.cost_price ?? '',
       description: p.description || '',
       visible: p.visible,
       is_flash_sale: p.is_flash_sale || false,
@@ -801,6 +873,12 @@ export default function ProductsPage() {
     fd.append('name', form.name)
     if (form.category) fd.append('category', form.category)
     fd.append('price', form.price)
+    // Cost price is admin-only; only send it for simple products (variants
+    // carry their own cost_price, set in the Variants panel instead). A
+    // DecimalField can't accept '' over multipart, so only include it when
+    // the admin actually entered a value - leaving it blank just means
+    // "don't touch the existing value" rather than clearing it.
+    if (!form.has_variants && form.cost_price !== '') fd.append('cost_price', form.cost_price)
     fd.append('description', form.description)
     fd.append('visible', form.visible)
     fd.append('requires_account', form.requires_account)
@@ -904,6 +982,17 @@ export default function ProductsPage() {
     setStockLoading(s => ({ ...s, [product.id]: false }))
   }
 
+  const handleStockSet = async (product, rawValue) => {
+    const next = Math.max(0, parseInt(rawValue, 10) || 0)
+    if (next === product.stock_count) return
+    setStockLoading(s => ({ ...s, [product.id]: true }))
+    try {
+      await setProductStock(product.id, next)
+      qc.invalidateQueries({ queryKey: ['admin-products'] })
+    } catch { toast.error('Failed to update stock.') }
+    setStockLoading(s => ({ ...s, [product.id]: false }))
+  }
+
   /* ── render ───────────────────────────────────────────────────────── */
 
   if (variantProduct) {
@@ -911,6 +1000,7 @@ export default function ProductsPage() {
       <VariantsPanel
         productId={variantProduct.id}
         productName={variantProduct.name}
+        productCostPrice={variantProduct.cost_price}
         onClose={() => setVariantProduct(null)}
       />
     )
@@ -920,7 +1010,10 @@ export default function ProductsPage() {
     <PageShell>
       <PageHeader
         title="Products"
-        actions={<QuickActionButton primary onClick={openCreate}><Plus size={14} /> New Product</QuickActionButton>}
+        actions={<>
+          <QuickActionButton onClick={() => navigate('/admin/products/margins')}>💰 Bulk Cost Setup</QuickActionButton>
+          <QuickActionButton primary onClick={openCreate}><Plus size={14} /> New Product</QuickActionButton>
+        </>}
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
@@ -946,14 +1039,14 @@ export default function ProductsPage() {
         <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {['Image','Name','Category','Price','Stock','Variants','Visible','Actions'].map(h => (
+              {['Image','Name','Category','Cost Price','Selling Price','Margin %','Stock','Variants','Visible','Actions'].map(h => (
                 <th key={h} style={TH_STYLE}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No products found.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No products found.</td></tr>
             ) : products.map(p => (
               <tr key={p.id}
                 style={{ transition: 'background 0.1s', opacity: p.visible ? 1 : 0.55 }}
@@ -969,7 +1062,7 @@ export default function ProductsPage() {
                 <td style={{ ...TD_STYLE, fontWeight: 600, color: T.textPrimary }}>
                   {p.name}
                   {p.required_fields?.length > 0 && (
-                    <span title="Has required buyer fields" style={{ marginLeft: 6, fontSize: '0.6rem', color: T.warning, background: T.warningDim, padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.warningBorder}` }}>
+                    <span title="Has required buyer fields" style={{ marginLeft: 6, fontSize: '0.75rem', color: T.warning, background: T.warningDim, padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.warningBorder}` }}>
                       {p.required_fields.length}F
                     </span>
                   )}
@@ -982,18 +1075,45 @@ export default function ProductsPage() {
                     : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>--</span>
                   }
                 </td>
+                <td style={TD_STYLE}>
+                  {p.has_variants ? (
+                    <span style={{ color: T.textMuted, fontSize: '0.75rem', fontStyle: 'italic' }}>per variant</span>
+                  ) : p.cost_price != null ? (
+                    <span style={{ fontFamily: T.mono }}>{formatCurrency(p.cost_price)}</span>
+                  ) : (
+                    <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)', padding: '2px 8px', borderRadius: 6, fontSize: '0.75rem' }}>—</span>
+                  )}
+                </td>
                 <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(p.price)}</td>
+                <td style={TD_STYLE}>
+                  {p.has_variants ? (
+                    <span style={{ color: T.textMuted, fontSize: '0.75rem', fontStyle: 'italic' }}>see variants</span>
+                  ) : p.margin_pct != null ? (
+                    <span style={{ color: marginColor(p.margin_pct), fontWeight: 700 }}>{p.margin_pct}%</span>
+                  ) : (
+                    <span style={{ color: T.textMuted }}>—</span>
+                  )}
+                </td>
                 <td style={TD_STYLE}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <button onClick={() => handleStockChange(p, -1)} disabled={stockLoading[p.id] || p.stock_count <= 0}
                       style={{ ...STOCK_BTN, color: T.danger, borderColor: T.dangerBorder }}>-</button>
-                    <span style={{
-                      minWidth: 28, textAlign: 'center', fontFamily: T.mono,
-                      fontWeight: 700, fontSize: '0.875rem',
-                      color: p.stock_count === 0 ? T.danger : p.stock_count <= 3 ? T.warning : T.textPrimary,
-                    }}>
-                      {stockLoading[p.id] ? '...' : p.stock_count}
-                    </span>
+                    <input
+                      key={`${p.id}-${p.stock_count}`}
+                      type="number" min="0" step="1"
+                      defaultValue={p.stock_count}
+                      disabled={stockLoading[p.id]}
+                      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                      onBlur={e => handleStockSet(p, e.target.value)}
+                      style={{
+                        width: 46, textAlign: 'center', fontFamily: T.mono,
+                        fontWeight: 700, fontSize: '0.875rem', MozAppearance: 'textfield',
+                        background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 6,
+                        padding: '3px 2px', outline: 'none',
+                        color: p.stock_count === 0 ? T.danger : p.stock_count <= 3 ? T.warning : T.textPrimary,
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = T.purple }}
+                    />
                     <button onClick={() => handleStockChange(p, +1)} disabled={stockLoading[p.id]}
                       style={{ ...STOCK_BTN, color: T.success, borderColor: T.successBorder }}>+</button>
                   </div>
@@ -1084,6 +1204,7 @@ export default function ProductsPage() {
             <option value="battlenet">Battle.net</option>
             <option value="ubisoft">Ubisoft Connect</option>
             <option value="ea">EA App</option>
+            <option value="riot">Riot</option>
             <option value="other">Other</option>
           </select>
         </div>
@@ -1263,7 +1384,7 @@ export default function ProductsPage() {
 /* ── style constants ──────────────────────────────────────────────────── */
 const PLATFORM_LABELS = {
   steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox',
-  psn: 'PlayStation', battlenet: 'Battle.net', ubisoft: 'Ubisoft Connect', ea: 'EA App', other: 'Other',
+  psn: 'PlayStation', battlenet: 'Battle.net', ubisoft: 'Ubisoft Connect', ea: 'EA App', riot: 'Riot', other: 'Other',
 }
 const LBL      = { display: 'block', color: '#B3A4D4', fontSize: '0.8125rem', marginBottom: '0.375rem', fontWeight: 500 }
 const INP      = { width: '100%', boxSizing: 'border-box' }

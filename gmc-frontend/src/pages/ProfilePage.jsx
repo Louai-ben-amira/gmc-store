@@ -90,32 +90,59 @@ function StrengthBar({ password }) {
           <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: s >= i ? c : 'var(--border)', transition: 'background 0.25s ' + (i * 0.04) + 's' }} />
         ))}
       </div>
-      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.1em', color: c, transition: 'color 0.25s', minWidth: 36 }}>{l}</span>
+      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: c, transition: 'color 0.25s', minWidth: 36 }}>{l}</span>
     </div>
   )
 }
 
+/* ─── Decorative mini sparkline (wallet stat card) ──────────────────────── */
+function MiniSparkline({ color }) {
+  return (
+    <svg width="64" height="28" viewBox="0 0 64 28" style={{ position: 'absolute', right: 12, top: 14, opacity: 0.9 }}>
+      <polyline
+        points="0,22 10,20 18,23 26,14 36,17 46,6 56,9 64,2"
+        fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      />
+      <circle cx="64" cy="2" r="2.5" fill={color} />
+    </svg>
+  )
+}
+
+/* ─── Decorative dot grid (points stat card) ────────────────────────────── */
+function MiniDotGrid({ color }) {
+  return (
+    <div style={{
+      position: 'absolute', right: 10, top: 10, width: 54, height: 40,
+      backgroundImage: `radial-gradient(${color}55 1px, transparent 1.5px)`,
+      backgroundSize: '9px 9px', opacity: 0.8, pointerEvents: 'none',
+    }} />
+  )
+}
+
 /* ─── Stat card ──────────────────────────────────────────────────────── */
-function StatCard({ Icon, label, value, color, sublabel, loading }) {
+function StatCard({ Icon, label, value, color, sublabel, loading, decoration }) {
   return (
     <div style={{ flex: 1, background: 'var(--bg-surface)', border: '1px solid ' + color + '20', borderRadius: 16, padding: '1rem 1.125rem', position: 'relative', overflow: 'hidden', cursor: 'default' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 80% 20%, ' + color + '0d 0%, transparent 65%)', pointerEvents: 'none' }} />
+      {!loading && decoration === 'sparkline' && <MiniSparkline color={color} />}
+      {!loading && decoration === 'dots' && <MiniDotGrid color={color} />}
       <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: color + '18', border: '1px solid ' + color + '2a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon size={15} color={color} />
           </div>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: '0 0 8px ' + color }} />
         </div>
         {loading
           ? <>
-              <div className="skeleton" style={{ height: 24, width: '70%', borderRadius: 6, marginBottom: 6 }} />
-              <div className="skeleton" style={{ height: 12, width: '50%', borderRadius: 4 }} />
+              <div className="skeleton" style={{ height: 12, width: '50%', borderRadius: 4, marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 24, width: '70%', borderRadius: 6 }} />
             </>
           : <>
-              <p style={{ margin: '0 0 2px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)', letterSpacing: '-0.01em', transition: 'opacity 0.3s' }}>{value}</p>
-              <p style={{ margin: 0, fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{label}</p>
-              {sublabel && <p style={{ margin: '4px 0 0', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', color: color + 'aa', letterSpacing: '0.08em' }}>{sublabel}</p>}
+              <p style={{ margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</p>
+              <p style={{ margin: '2px 0 8px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.375rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{value}</p>
+              {sublabel && (
+                <span style={{ display: 'inline-block', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', color, background: color + '14', border: '1px solid ' + color + '30', borderRadius: 999, padding: '2px 9px' }}>{sublabel}</span>
+              )}
             </>
         }
       </div>
@@ -202,80 +229,65 @@ export default function ProfilePage() {
   }
 
   const initials = ((liveUser?.first_name?.[0] || '') + (liveUser?.last_name?.[0] || '')).toUpperCase() || (liveUser?.username?.[0] || '?').toUpperCase()
-  const fullName = [liveUser?.first_name, liveUser?.last_name].filter(Boolean).join(' ') || liveUser?.username || 'User'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', background: 'var(--bg-base)' }}>
       <Topbar />
-      <div className='pb-nav' style={{ flex: 1, overflowY: 'auto' }}>
+      <div className='pb-nav' style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
 
-        {/* ── Banner ── */}
-        <div style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, padding: '2.5rem 1.5rem 2rem', textAlign: 'center' }}>
-          {/* mesh gradient */}
-          <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-elevated)' }} />
-          {/* orbs */}
-          <div style={{ position: 'absolute', top: -60, left: '15%', width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,58,237,0.22) 0%,transparent 65%)', filter: 'blur(1px)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: -40, right: '10%', width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle,rgba(61,220,132,0.1) 0%,transparent 65%)', filter: 'blur(1px)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -30, left: '40%', width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle,rgba(56,189,248,0.07) 0%,transparent 65%)', pointerEvents: 'none' }} />
-          {/* grid lines */}
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px)', backgroundSize: '48px 48px', WebkitMaskImage: 'linear-gradient(to bottom,transparent,black 30%,black 70%,transparent)', maskImage: 'linear-gradient(to bottom,transparent,black 30%,black 70%,transparent)', pointerEvents: 'none' }} />
-          {/* fade bottom */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to bottom,transparent,var(--bg-elevated))', pointerEvents: 'none' }} />
-          {/* title */}
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <p style={{ margin: '0 0 6px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.22em', color: 'rgba(124,58,237,0.75)', textTransform: 'uppercase' }}>GMC STORE</p>
-            <h1 style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 900, fontSize: '2.25rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Your Profile</h1>
-          </div>
+        {/* ── Decorative planet + stars (page-level, top-right) ── */}
+        <div style={{ position: 'absolute', top: 0, right: 0, width: 460, height: 380, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{
+            position: 'absolute', top: -80, right: -60, width: 260, height: 260, borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 30%, rgba(167,139,250,0.55) 0%, rgba(124,58,237,0.35) 45%, transparent 72%)',
+            boxShadow: '0 0 90px rgba(124,58,237,0.25)',
+          }} />
+          <div style={{
+            position: 'absolute', top: 10, right: -110, width: 340, height: 90, borderRadius: '50%',
+            border: '1px solid rgba(167,139,250,0.35)', transform: 'rotate(-18deg)',
+          }} />
+          {[...Array(14)].map((_, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              top: `${(i * 37) % 260}px`, left: `${(i * 91) % 420}px`,
+              width: i % 3 === 0 ? 3 : 2, height: i % 3 === 0 ? 3 : 2, borderRadius: '50%',
+              background: '#fff', opacity: 0.15 + (i % 5) * 0.12,
+            }} />
+          ))}
         </div>
 
-        <div className="profile-wrap" style={{ maxWidth: 900, margin: '0 auto', padding: '1.25rem 1.5rem 4rem', position: 'relative', zIndex: 5 }}>
+        <div className="profile-wrap" style={{ maxWidth: 1180, margin: '0 auto', padding: '2.25rem 1.5rem 4rem', position: 'relative', zIndex: 2 }}>
 
           {/* ── Identity panel ── */}
-          <div className="profile-identity" style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '1.5rem', animation: 'profIn 0.5s cubic-bezier(0.22,1,0.36,1) both' }}>
+          <div className="profile-identity" style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap', animation: 'profIn 0.5s cubic-bezier(0.22,1,0.36,1) both' }}>
 
             {/* LEFT: avatar + meta */}
-            <div className="profile-left" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 22, padding: '1.75rem', backdropFilter: 'blur(20px)', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', minWidth: 200 }}>
-              {/* avatar ring */}
+            <div className="profile-left" style={{ width: 260, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 22, padding: '1.75rem', backdropFilter: 'blur(20px)', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              {/* avatar */}
               <div
                 style={{ position: 'relative', cursor: 'pointer' }}
                 onMouseEnter={() => setAvatarHover(true)}
                 onMouseLeave={() => setAvatarHover(false)}
                 onClick={() => fileRef.current?.click()}
               >
-                {/* spinning dashed ring */}
                 <div style={{
-                  position: 'absolute', inset: -5, borderRadius: '50%',
-                  border: '2px dashed rgba(124,58,237,0.5)',
-                  animation: 'spinRing 8s linear infinite',
-                  opacity: avatarHover ? 1 : 0.4, transition: 'opacity 0.25s',
-                }} />
-                {/* solid ring */}
-                <div style={{
-                  position: 'absolute', inset: -3, borderRadius: '50%',
-                  background: 'linear-gradient(135deg,#7C3AED,#3DDC84,#38BDF8,#7C3AED)',
-                  backgroundSize: '300% 300%', animation: 'gradRing 4s ease infinite',
-                  opacity: avatarHover ? 1 : 0.6, transition: 'opacity 0.25s',
-                }} />
-                {/* inner mask */}
-                <div style={{ position: 'absolute', inset: -1, borderRadius: '50%', background: 'var(--bg-surface)' }} />
-                {/* avatar */}
-                <div style={{
-                  width: 96, height: 96, borderRadius: '50%', position: 'relative', overflow: 'hidden',
+                  width: 88, height: 88, borderRadius: '50%', position: 'relative', overflow: 'hidden',
                   background: 'linear-gradient(135deg,#7C3AED,#4C1D95)',
+                  border: '3px solid rgba(124,58,237,0.35)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'filter 0.2s',
                   filter: avatarHover ? 'brightness(0.6)' : 'brightness(1)',
                 }}>
                   {liveUser?.avatar
                     ? <img src={mediaUrl(user.avatar)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 900, fontSize: '2rem', color: 'var(--text-primary)' }}>{initials}</span>
+                    : <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-primary)' }}>{initials}</span>
                   }
                 </div>
                 {/* hover overlay */}
                 {avatarHover && (
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, zIndex: 3 }}>
-                    <TbCamera size={20} color="var(--text-primary)" />
-                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.5625rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.08em' }}>CHANGE</span>
+                    <TbCamera size={18} color="var(--text-primary)" />
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.08em' }}>CHANGE</span>
                   </div>
                 )}
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
@@ -283,7 +295,7 @@ export default function ProfilePage() {
 
               {/* name */}
               <div style={{ textAlign: 'center' }}>
-                <p style={{ margin: '0 0 4px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.0625rem', color: 'var(--text-primary)' }}>{fullName}</p>
+                <p style={{ margin: '0 0 4px', fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '1.0625rem', color: 'var(--text-primary)' }}>{liveUser?.username}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
                   <TbAt size={11} color="var(--accent)" />
                   <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{liveUser?.username}</span>
@@ -298,7 +310,7 @@ export default function ProfilePage() {
                 borderRadius: 8, padding: '4px 10px',
               }}>
                 {liveUser?.role === 'admin' ? <TbShieldLock size={11} color="#A78BFA" /> : <TbSparkles size={11} color="#3DDC84" />}
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', color: liveUser?.role === 'admin' ? 'var(--accent)' : '#3DDC84' }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', color: liveUser?.role === 'admin' ? 'var(--accent)' : '#3DDC84' }}>
                   {(liveUser?.role || 'MEMBER').toUpperCase()}
                 </span>
               </div>
@@ -317,8 +329,8 @@ export default function ProfilePage() {
               </div>
 
               {/* Preferences card */}
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1rem 1.25rem' }}>
-                <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.875rem' }}>{t('preferences.title')}</p>
+              <div style={{ width: '100%', boxSizing: 'border-box' }}>
+                <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.625rem' }}>{t('preferences.title')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
 
                   {/* Theme row */}
@@ -328,7 +340,8 @@ export default function ProfilePage() {
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('preferences.theme')}</span>
                     </div>
                     <button onClick={toggleTheme} style={{
-                      padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(124,58,237,0.25)',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px 5px 14px', borderRadius: 8, border: '1px solid rgba(124,58,237,0.25)',
                       background: 'rgba(124,58,237,0.08)', cursor: 'pointer',
                       fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600, color: '#A78BFA',
                       transition: 'background 0.14s',
@@ -336,7 +349,10 @@ export default function ProfilePage() {
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.16)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,58,237,0.08)'}
                     >
-                      {isDark ? t('preferences.light') : t('preferences.dark')}
+                      {isDark ? t('preferences.dark') : t('preferences.light')}
+                      <svg width="9" height="6" viewBox="0 0 10 6" style={{ opacity: 0.7 }}>
+                        <path d="M1 1l4 4 4-4" stroke="#A78BFA" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                      </svg>
                     </button>
                   </div>
 
@@ -347,7 +363,8 @@ export default function ProfilePage() {
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('preferences.language')}</span>
                     </div>
                     <button onClick={toggleLanguage} style={{
-                      padding: '5px 14px', borderRadius: 8, border: '1px solid rgba(124,58,237,0.25)',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px 5px 14px', borderRadius: 8, border: '1px solid rgba(124,58,237,0.25)',
                       background: 'rgba(124,58,237,0.08)', cursor: 'pointer',
                       fontFamily: isAr ? "'Tajawal', sans-serif" : 'Inter, sans-serif',
                       fontSize: '0.75rem', fontWeight: 700, color: '#A78BFA',
@@ -356,7 +373,10 @@ export default function ProfilePage() {
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.16)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,58,237,0.08)'}
                     >
-                      {isAr ? 'English' : 'العربية'}
+                      {isAr ? 'العربية' : 'English'}
+                      <svg width="9" height="6" viewBox="0 0 10 6" style={{ opacity: 0.7 }}>
+                        <path d="M1 1l4 4 4-4" stroke="#A78BFA" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                      </svg>
                     </button>
                   </div>
 
@@ -364,17 +384,28 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* RIGHT: stats + tabs + forms */}
-            <div className="profile-right" style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* RIGHT: header + stats + tabs + forms */}
+            <div className="profile-right" style={{ flex: 1, minWidth: 320, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+              {/* header */}
+              <div>
+                <h1 style={{ margin: 0, fontFamily: 'Sora, sans-serif', fontWeight: 900, fontSize: '1.875rem', letterSpacing: '-0.02em' }}>
+                  <span style={{ color: 'var(--text-primary)' }}>Your </span>
+                  <span style={{ color: 'var(--accent)' }}>Profile</span>
+                </h1>
+                <p style={{ margin: '4px 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                  Manage your personal information and account settings.
+                </p>
+              </div>
 
               {/* stat row */}
               <div className="profile-stat-row" style={{ display: 'flex', gap: 10 }}>
-                <StatCard Icon={TbWallet} label="Wallet Balance" value={formatCurrency(liveUser?.balance || 0)} color="#3DDC84" sublabel="AVAILABLE FUNDS" loading={meLoading && !liveUser} />
-                <StatCard Icon={TbStar}   label="Reward Points"  value={(liveUser?.points || 0) + ' pts'}      color="#f59e0b" sublabel="LOYALTY POINTS" loading={meLoading && !liveUser} />
+                <StatCard Icon={TbWallet} label="Wallet Balance" value={formatCurrency(liveUser?.balance || 0)} color="#3DDC84" sublabel="AVAILABLE FUNDS" loading={meLoading && !liveUser} decoration="sparkline" />
+                <StatCard Icon={TbStar}   label="Reward Points"  value={(liveUser?.points || 0) + ' pts'}      color="#f59e0b" sublabel="LOYALTY POINTS" loading={meLoading && !liveUser} decoration="dots" />
               </div>
 
-              {/* tab switcher */}
-              <div style={{ display: 'flex', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 14, padding: 4, gap: 4 }}>
+              {/* tab switcher (underline style) */}
+              <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1px solid var(--border)' }}>
                 {[
                   { id: 'info',     label: t('sections.personalInfo'), Icon: TbEdit },
                   { id: 'security', label: t('sections.security'),     Icon: TbFingerprint },
@@ -382,15 +413,15 @@ export default function ProfilePage() {
                   { id: 'favorites', label: t('sections.favorites'),   Icon: TbHeart },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                    padding: '9px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                    background: activeTab === tab.id ? 'rgba(124,58,237,0.15)' : 'transparent',
-                    boxShadow: activeTab === tab.id ? 'inset 0 0 0 1px rgba(124,58,237,0.3)' : 'none',
-                    color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '0 0 10px', border: 'none', background: 'none', cursor: 'pointer',
+                    borderBottom: '2px solid ' + (activeTab === tab.id ? 'var(--accent)' : 'transparent'),
+                    marginBottom: -1,
+                    color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-muted)',
                     fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.875rem',
                     transition: 'all 0.18s',
                   }}>
-                    <tab.Icon size={15} color={activeTab === tab.id ? '#A78BFA' : 'var(--text-muted)'} />
+                    <tab.Icon size={15} color={activeTab === tab.id ? 'var(--accent)' : 'var(--text-muted)'} />
                     {tab.label}
                   </button>
                 ))}
@@ -410,7 +441,7 @@ export default function ProfilePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12 }}>
                       <TbMail size={14} color="var(--text-primary)" />
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-muted)', flex: 1 }}>{liveUser?.email}</span>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>CANNOT CHANGE</span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>CANNOT CHANGE</span>
                     </div>
 
                     <button type="submit" disabled={savingProfile} style={{
@@ -604,13 +635,6 @@ export default function ProfilePage() {
         @keyframes tabIn {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spinRing {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes gradRing {
-          0%,100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
         }
       `}</style>
     </div>

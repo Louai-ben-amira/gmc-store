@@ -1,9 +1,30 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getStats, getAdminOrders, getAdminRecharges, getAnalytics, getProducts } from '../../api/admin'
+import { getStats, getAdminOrders, getAdminRecharges, getAnalytics, getProducts, getAdminFinancials } from '../../api/admin'
+import api from '../../api/index'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Inbox } from 'lucide-react'
+
+/* ── enforced color system ── */
+const THEME = {
+  bg:             '#080412',
+  sidebarBg:      '#0E0818',
+  cardBg:         '#130A1E',
+  cardBg2:        '#0E0818',
+  cardBorder:     'rgba(139,79,219,0.18)',
+  cardBorderHover: 'rgba(155,79,237,0.40)',
+  purple:         '#9B4FED',
+  purpleText:     '#C39CF5',
+  muted:          '#7A6A9E',
+  mutedFaint:     '#4A3A6A',
+  emptyIcon:      '#2D1A50',
+  white:          '#FFFFFF',
+  green:          '#36FFC0',
+  amber:          '#FFC84D',
+  red:            '#FF6B85',
+  teal:           '#00CFFF',
+}
 
 /* ── palette ── */
 const CAT_COLORS = [
@@ -19,16 +40,17 @@ const CAT_LABEL_COLORS = ['#B57BFF','#B57BFF','#36FFC0','#FFC84D','#00CFFF','#FF
 const METHOD_LABELS = {
   d17_number: 'D17 Phone', d17_address: 'D17 RIB', bank_transfer: 'Bank Transfer',
   flouci: 'Flouci', ooredoo_ticket: 'Ooredoo Ticket', orange_ticket: 'Orange Ticket',
+  tt_ticket: 'Tunisie Telecom Ticket',
   crypto: 'Crypto', edinar: 'E-Dinar', d17: 'D17 (legacy)', baridimob: 'BaridiMob', dahabia: 'Dahabia',
 }
 const ORDER_STATUS_META = {
-  completed:           { label: 'Completed',        color: '#36FFC0' },
+  completed:           { label: 'Completed',        color: THEME.green },
   paid_escrow:         { label: 'Paid - In Escrow',  color: '#B57BFF' },
-  in_progress:         { label: 'In Progress',       color: '#00CFFF' },
-  pending_credentials: { label: 'Pending Credentials', color: '#FFC84D' },
-  pending:             { label: 'Pending',           color: '#FFC84D' },
-  disputed:            { label: 'Disputed',          color: '#FF6B85' },
-  cancelled:           { label: 'Cancelled',         color: '#FF6B85' },
+  in_progress:         { label: 'In Progress',       color: THEME.teal },
+  pending_credentials: { label: 'Pending Credentials', color: THEME.amber },
+  pending:             { label: 'Pending',           color: THEME.amber },
+  disputed:            { label: 'Disputed',          color: THEME.red },
+  cancelled:           { label: 'Cancelled',         color: THEME.red },
   closed:              { label: 'Closed',            color: '#8A7AAE' },
 }
 
@@ -45,13 +67,41 @@ function buildPath(pts, w, h) {
   return { line, area }
 }
 
+/* ── Shared "no data" fallback for line/bar charts: grid + flat zero line + label,
+   instead of a blank rectangle or floating text ── */
+function ChartEmptyState({ w = 860, h = 170, label = 'No data yet for this period' }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+        <line x1="0" y1={h * 0.25} x2={w} y2={h * 0.25} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <line x1="0" y1={h * 0.5}  x2={w} y2={h * 0.5}  stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <line x1="0" y1={h * 0.75} x2={w} y2={h * 0.75} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+        <line x1="0" y1={h * 0.5}  x2={w} y2={h * 0.5}  stroke="rgba(155,79,237,0.3)" strokeWidth="1.5" />
+      </svg>
+      <div style={{ textAlign: 'center', fontSize: 11, color: THEME.mutedFaint, marginTop: -8 }}>{label}</div>
+    </div>
+  )
+}
+
+/* ── Shared "no data" fallback for tables ── */
+function TableEmptyState({ colSpan, label = 'No data yet' }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} style={{ textAlign: 'center', padding: '2.5rem 0' }}>
+        <Inbox size={32} color={THEME.emptyIcon} style={{ display: 'block', margin: '0 auto 10px' }} />
+        <div style={{ fontSize: 13, color: THEME.mutedFaint }}>{label}</div>
+      </td>
+    </tr>
+  )
+}
+
 /* ── Revenue line chart with hover tooltip ── */
 function RevenueChart({ data }) {
   const [hover, setHover] = useState(null)
   const W = 860, H = 170
   const pts = data.map(d => d.revenue)
   const { line, area } = buildPath(pts, W, H)
-  if (!line) return <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '3rem 0' }}>No data yet</div>
+  if (!line) return <ChartEmptyState w={W} h={H} />
 
   const max = Math.max(...pts, 1)
   const min = Math.min(...pts)
@@ -96,16 +146,103 @@ function RevenueChart({ data }) {
           background: '#1E1233', border: '1px solid rgba(155,79,237,0.4)', borderRadius: 8, padding: '7px 11px',
           pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
         }}>
-          <div style={{ fontSize: 10, color: '#8A7AAE', marginBottom: 2 }}>
+          <div style={{ fontSize: 12, color: '#8A7AAE', marginBottom: 2 }}>
             {new Date(h.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
           </div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: '#B57BFF' }}>{formatCurrency(h.revenue)}</div>
-          <div style={{ fontSize: 10, color: '#7A6A9E', marginTop: 1 }}>{h.orders} order{h.orders !== 1 ? 's' : ''}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: THEME.purpleText }}>{formatCurrency(h.revenue)}</div>
+          <div style={{ fontSize: 12, color: '#7A6A9E', marginTop: 1 }}>{h.orders} order{h.orders !== 1 ? 's' : ''}</div>
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px', marginTop: 4 }}>
         {data.filter((_, i) => i % 7 === 0 || i === data.length - 1).map(d => (
-          <span key={d.date} style={{ fontSize: 9, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
+          <span key={d.date} style={{ fontSize: 11, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
+            {new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── margin % tier coloring, shared across tables (Best Sellers by Profit, etc.) ── */
+function marginColor(pct) {
+  if (pct == null) return THEME.muted
+  if (pct < 10) return THEME.red
+  if (pct < 25) return THEME.amber
+  return THEME.green
+}
+
+/* ── Revenue vs Profit trend chart (two lines) with hover tooltip ── */
+function ProfitTrendChart({ data }) {
+  const [hover, setHover] = useState(null)
+  const W = 860, H = 170
+
+  if (!data || data.length < 2) {
+    return <ChartEmptyState w={W} h={H} />
+  }
+
+  const revPts    = data.map(d => Number(d.revenue) || 0)
+  const profitPts = data.map(d => Number(d.profit)  || 0)
+  const allPts    = [...revPts, ...profitPts]
+  const max = Math.max(...allPts, 1)
+  const min = Math.min(...allPts, 0)
+  const range = max - min || 1
+  const xFor = i => (i / (data.length - 1)) * W
+  const yFor = v => H - ((v - min) / range) * (H - 6) - 3
+  const buildLine = pts => pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ')
+  const revLineD    = buildLine(revPts)
+  const profitLineD = buildLine(profitPts)
+
+  function onMove(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const i = Math.round(((e.clientX - rect.left) / rect.width) * (data.length - 1))
+    setHover(Math.max(0, Math.min(data.length - 1, i)))
+  }
+
+  const h = hover != null ? data[hover] : null
+  const hoverPct = hover != null ? (hover / (data.length - 1)) * 100 : 0
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+           onMouseMove={onMove} onMouseLeave={() => setHover(null)} style={{ display: 'block', cursor: 'crosshair', background: '#0A0512', borderRadius: 8 }}>
+        <line x1="0" y1={H * 0.25} x2={W} y2={H * 0.25} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <line x1="0" y1={H * 0.5}  x2={W} y2={H * 0.5}  stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <line x1="0" y1={H * 0.75} x2={W} y2={H * 0.75} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+        <path d={revLineD}    fill="none" stroke="#B57BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={profitLineD} fill="none" stroke={THEME.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {hover != null && (
+          <>
+            <line x1={xFor(hover)} y1="0" x2={xFor(hover)} y2={H} stroke="rgba(181,123,255,0.35)" strokeWidth="1" />
+            <circle cx={xFor(hover)} cy={yFor(revPts[hover])}    r="4.5" fill="#B57BFF" stroke="#150C26" strokeWidth="2" />
+            <circle cx={xFor(hover)} cy={yFor(profitPts[hover])} r="4.5" fill={THEME.green} stroke="#150C26" strokeWidth="2" />
+          </>
+        )}
+      </svg>
+      {h && (
+        <div style={{
+          position: 'absolute', top: 6, left: `${hoverPct}%`, transform: `translateX(${hoverPct > 75 ? '-105%' : '8px'})`,
+          background: '#130A1E', border: '1px solid rgba(155,79,237,0.4)', borderRadius: 8, padding: '7px 11px',
+          pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 2, boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+        }}>
+          <div style={{ fontSize: 12, color: '#8A7AAE', marginBottom: 2 }}>
+            {new Date(h.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 700, color: '#B57BFF' }}>Revenue: {formatCurrency(h.revenue)}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 700, color: THEME.green, marginTop: 2 }}>Profit: {formatCurrency(h.profit)}</div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#B3A4D4' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#B57BFF', display: 'inline-block' }} /> Revenue
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#B3A4D4' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: THEME.green, display: 'inline-block' }} /> Net Profit
+        </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px', marginTop: 4 }}>
+        {data.filter((_, i) => i % Math.max(Math.ceil(data.length / 8), 1) === 0 || i === data.length - 1).map(d => (
+          <span key={d.date} style={{ fontSize: 11, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
             {new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
           </span>
         ))}
@@ -115,8 +252,16 @@ function RevenueChart({ data }) {
 }
 
 /* ── Mini bar chart (daily counts) ── */
-function MiniBars({ data, color = '#00CFFF', height = 64 }) {
+function MiniBars({ data, color = THEME.purple, height = 64 }) {
   const max = Math.max(...data.map(d => d.count), 1)
+  const hasAny = data.some(d => d.count > 0)
+  if (!hasAny) {
+    return (
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: 11, color: THEME.mutedFaint }}>No data yet for this period</span>
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height }}>
       {data.map(d => (
@@ -156,8 +301,11 @@ const GRAD = [
 export default function DashboardPage() {
   const navigate = useNavigate()
   const qc       = useQueryClient()
+  const [finPeriod, setFinPeriod] = useState('month')
 
   const { data: stats     } = useQuery({ queryKey: ['admin-stats'],             queryFn: () => getStats().then(r => r.data) })
+  const { data: financials } = useQuery({ queryKey: ['admin-financials', finPeriod], queryFn: () => getAdminFinancials(finPeriod).then(r => r.data) })
+  const { data: badges = {} } = useQuery({ queryKey: ['admin-badge-counts'],    queryFn: () => api.get('/admin/badge-counts/').then(r => r.data), refetchInterval: 30000 })
   const { data: analytics } = useQuery({ queryKey: ['admin-analytics'],         queryFn: () => getAnalytics().then(r => r.data), refetchInterval: 60000 })
   const { data: orders    } = useQuery({ queryKey: ['admin-orders-recent'],     queryFn: () => getAdminOrders({ page_size: 5 }).then(r => r.data) })
   const { data: recharges } = useQuery({ queryKey: ['admin-recharges-pending'], queryFn: () => getAdminRecharges({ status: 'pending' }).then(r => r.data) })
@@ -183,6 +331,7 @@ export default function DashboardPage() {
     silver:  topClients.filter(c => c.total_spent >= 50  && c.total_spent < 200).length,
     bronze:  topClients.filter(c => c.total_spent < 50).length,
   }), [topClients])
+  const hasVipClients = vipTiers.bronze + vipTiers.silver + vipTiers.gold + vipTiers.diamond > 0
 
   const trendPts = peakData.map(h => h.orders)
   const { line: trendLine, area: trendArea } = buildPath(trendPts, 860, 160)
@@ -201,31 +350,33 @@ export default function DashboardPage() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
-  /* ── pulse items ── */
+  /* ── pulse items (same underlying conditions as before - only the dot
+     color/animation is presentation, derived from each item's own status) ── */
+  const firstOrderIsLoss = recentOrders[0] && ['cancelled', 'disputed'].includes(recentOrders[0].status)
   const pulseItems = [
     recentOrders[0] && {
-      dot: 'green',
+      dot: firstOrderIsLoss ? 'amber' : 'green',
       text: `Order #${recentOrders[0].id} - ${recentOrders[0].product_name || recentOrders[0].bundle_name || 'product'} · ${formatCurrency(recentOrders[0].amount_paid)}`
     },
     pendingCharges[0] && {
-      dot: 'green',
+      dot: 'amber',
       text: `${pendingCharges[0].user_username} requested recharge · ${formatCurrency(pendingCharges[0].amount_sent || 0)} via ${pendingCharges[0].method}`
     },
     lowStockItems.length > 0 && { dot: 'amber', text: `${lowStockItems.length} product${lowStockItems.length > 1 ? 's' : ''} low on stock` },
-    stats?.pending_recharges > 0 && { dot: 'amber', text: `${stats.pending_recharges} pending recharge${stats.pending_recharges > 1 ? 's' : ''} awaiting review` },
+    stats?.pending_recharges > 0 && { dot: 'amber', pulse: true, text: `${stats.pending_recharges} pending recharge${stats.pending_recharges > 1 ? 's' : ''} awaiting review` },
   ].filter(Boolean)
 
   return (
-    <div className="admin-dash-outer" style={{ flex: 1, overflowY: 'auto', background: '#0A0512', padding: '24px 28px', fontFamily: "'Outfit', sans-serif" }}>
+    <div className="admin-dash-outer" style={{ flex: 1, overflowY: 'auto', background: THEME.bg, padding: '24px 28px', fontFamily: "'Outfit', sans-serif" }}>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
 
         {/* ── PULSE STRIP ── */}
         {pulseItems.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, background: '#130A20', border: '1px solid rgba(139,79,219,0.22)', borderRadius: 12, padding: '10px 18px', marginBottom: 22, overflowX: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, background: THEME.sidebarBg, borderBottom: '1px solid rgba(139,79,219,0.2)', borderRadius: 12, padding: '10px 18px', marginBottom: 22, overflowX: 'auto' }}>
             {pulseItems.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#B3A4D4', whiteSpace: 'nowrap' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#B3A4D4', whiteSpace: 'nowrap' }}>
                 {i > 0 && <span style={{ color: '#3D2F58' }}>·</span>}
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.dot === 'amber' ? '#FFC84D' : '#36FFC0', boxShadow: item.dot === 'amber' ? '0 0 8px rgba(255,200,77,0.6)' : '0 0 8px rgba(54,255,192,0.6)', flexShrink: 0, display: 'inline-block' }} />
+                <span className={item.pulse ? 'pulse-dot' : undefined} style={{ width: 6, height: 6, borderRadius: '50%', background: item.dot === 'amber' ? THEME.amber : THEME.green, boxShadow: item.dot === 'amber' ? '0 0 8px rgba(255,200,77,0.6)' : '0 0 8px rgba(54,255,192,0.6)', flexShrink: 0, display: 'inline-block' }} />
                 {item.text}
               </div>
             ))}
@@ -239,10 +390,10 @@ export default function DashboardPage() {
             <div style={{ fontSize: 12, color: '#7A6A9E', marginTop: 2 }}>{today}</div>
           </div>
           <div className="admin-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={() => navigate('/admin/gift-cards')} style={QA_BTN}>🎁 Gift Card Batch</button>
-            <button onClick={() => navigate('/admin/flash-sales')} style={QA_BTN}>🔥 Flash Sale</button>
-            <button onClick={() => navigate('/admin/products')} style={{ ...QA_BTN, background: 'linear-gradient(135deg,#6D28D9,#9B4FED)', border: 'none', boxShadow: '0 6px 16px -6px rgba(124,58,237,0.6)' }}>+ Add Product</button>
-            <button onClick={refresh} title="Refresh" style={{ ...QA_BTN, padding: '8px 10px' }}>
+            <button onClick={() => navigate('/admin/gift-cards')} style={QA_BTN_PURPLE}>🎁 Gift Card Batch</button>
+            <button onClick={() => navigate('/admin/flash-sales')} style={QA_BTN_AMBER}>🔥 Flash Sale</button>
+            <button onClick={() => navigate('/admin/products')} style={QA_BTN_PRIMARY}>+ Add Product</button>
+            <button onClick={refresh} title="Refresh" style={QA_BTN_GHOST}>
               <RefreshCw size={14} />
             </button>
           </div>
@@ -252,7 +403,7 @@ export default function DashboardPage() {
         <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, marginBottom: 14 }}>
 
           {/* Hero stat */}
-          <div style={{ background: 'linear-gradient(135deg,#2A1050 0%,#190B2E 60%,#0E0818 100%)', border: '1px solid rgba(155,79,237,0.35)', borderRadius: 16, padding: '22px 24px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg, #1E0D40, #130A1E)', border: '1px solid rgba(155,79,237,0.35)', borderRadius: 14, padding: '22px 24px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -60, right: -60, width: 220, height: 220, background: 'radial-gradient(circle,rgba(155,79,237,0.18),transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
               <div>
@@ -266,8 +417,8 @@ export default function DashboardPage() {
                 <div style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20,
                   ...(growthPct >= 0
-                    ? { background: 'rgba(54,255,192,0.12)', border: '1px solid rgba(54,255,192,0.35)', color: '#36FFC0' }
-                    : { background: 'rgba(255,68,102,0.12)', border: '1px solid rgba(255,68,102,0.35)', color: '#FF6B85' })
+                    ? { background: 'rgba(54,255,192,0.12)', border: '1px solid rgba(54,255,192,0.35)', color: THEME.green }
+                    : { background: 'rgba(255,107,133,0.12)', border: '1px solid rgba(255,107,133,0.35)', color: THEME.red })
                 }}>
                   {growthPct >= 0 ? '↑' : '↓'} {Math.abs(growthPct).toFixed(0)}% vs last month
                 </div>
@@ -282,7 +433,10 @@ export default function DashboardPage() {
                     <stop offset="100%" stopColor="#9B4FED" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                {sparkLine && <><path d={sparkArea} fill="url(#sparkfill)" /><path d={sparkLine} fill="none" stroke="#B57BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></>}
+                {sparkLine
+                  ? <><path d={sparkArea} fill="url(#sparkfill)" /><path d={sparkLine} fill="none" stroke="#B57BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></>
+                  : <line x1="0" y1="23" x2="420" y2="23" stroke="rgba(155,79,237,0.3)" strokeWidth="1.5" />
+                }
               </svg>
             </div>
             <div style={{ display: 'flex', gap: 22, marginTop: 14, position: 'relative', zIndex: 1 }}>
@@ -306,8 +460,8 @@ export default function DashboardPage() {
               <div>
                 <div style={MINI_LABEL}>Pending Recharges</div>
                 {stats?.pending_recharges > 0
-                  ? <div style={{ ...MINI_VAL, color: '#FFC84D' }}>{stats.pending_recharges} pending</div>
-                  : <div style={{ ...MINI_VAL, fontSize: 14, color: '#36FFC0' }}>All clear ✓</div>
+                  ? <div style={{ ...MINI_VAL, color: THEME.amber }}>{stats.pending_recharges} pending</div>
+                  : <div style={{ ...MINI_VAL, fontSize: 14, color: THEME.green }}>All clear ✓</div>
                 }
               </div>
             </div>
@@ -316,6 +470,26 @@ export default function DashboardPage() {
               <div>
                 <div style={MINI_LABEL}>Active Users</div>
                 <div style={MINI_VAL}>{stats?.active_users ?? '-'}</div>
+              </div>
+            </div>
+            <div style={{ ...MINI_STAT, cursor: 'pointer' }} onClick={() => navigate('/admin/order-tickets')}>
+              <div style={{ ...MINI_ICON, background: 'rgba(155,79,237,0.14)' }}>📦</div>
+              <div>
+                <div style={MINI_LABEL}>Order Tickets</div>
+                {badges.order_tickets > 0
+                  ? <div style={{ ...MINI_VAL, color: THEME.amber }}>{badges.order_tickets} open</div>
+                  : <div style={{ ...MINI_VAL, fontSize: 14, color: THEME.green }}>All clear ✓</div>
+                }
+              </div>
+            </div>
+            <div style={{ ...MINI_STAT, cursor: 'pointer' }} onClick={() => navigate('/admin/support-tickets')}>
+              <div style={{ ...MINI_ICON, background: 'rgba(0,207,255,0.10)' }}>🛠️</div>
+              <div>
+                <div style={MINI_LABEL}>Support Tickets</div>
+                {badges.support_tickets > 0
+                  ? <div style={{ ...MINI_VAL, color: THEME.amber }}>{badges.support_tickets} open</div>
+                  : <div style={{ ...MINI_VAL, fontSize: 14, color: THEME.green }}>All clear ✓</div>
+                }
               </div>
             </div>
           </div>
@@ -327,8 +501,8 @@ export default function DashboardPage() {
           {/* Revenue — last 30 days */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>💰 Revenue — Last 30 Days</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Revenue — Last 30 Days</div>
                 <div style={PANEL_SUB}>Daily revenue from completed orders · hover for detail</div>
               </div>
             </div>
@@ -338,8 +512,8 @@ export default function DashboardPage() {
           {/* Orders insights */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>🧮 Orders Insights</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Orders Insights</div>
                 <div style={PANEL_SUB}>Last 30 days</div>
               </div>
               <span onClick={() => navigate('/admin/orders')} style={PANEL_LINK}>View all →</span>
@@ -347,7 +521,7 @@ export default function DashboardPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
               <div style={INS_TILE}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#B57BFF' }}>{ordersIns ? formatCurrency(ordersIns.aov) : '-'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: THEME.purpleText }}>{ordersIns ? formatCurrency(ordersIns.aov) : '-'}</div>
                 <div style={INS_TILE_LABEL}>Avg Order</div>
               </div>
               <div style={INS_TILE}>
@@ -355,12 +529,15 @@ export default function DashboardPage() {
                 <div style={INS_TILE_LABEL}>Orders</div>
               </div>
               <div style={INS_TILE}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#FF6B85' }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: THEME.red }}>
                   {ordersIns?.total > 0
                     ? `${((((ordersIns.status_counts?.cancelled || 0) + (ordersIns.status_counts?.disputed || 0)) / ordersIns.total) * 100).toFixed(0)}%`
                     : '-'}
                 </div>
                 <div style={INS_TILE_LABEL}>Cancel Rate</div>
+                {ordersIns?.total > 0 && ordersIns.total < 10 && (
+                  <div style={{ fontSize: 12, color: THEME.mutedFaint, marginTop: 3 }}>Based on {ordersIns.total} order{ordersIns.total !== 1 ? 's' : ''}</div>
+                )}
               </div>
             </div>
 
@@ -368,7 +545,7 @@ export default function DashboardPage() {
               const entries = Object.entries(ordersIns?.status_counts || {}).sort((a, b) => b[1] - a[1])
               const maxStatus = entries.length ? entries[0][1] : 1
               return entries.length === 0
-                ? <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '1.5rem 0' }}>No orders yet</div>
+                ? <div style={{ textAlign: 'center', color: THEME.mutedFaint, fontSize: 12, padding: '1.5rem 0' }}>No orders yet</div>
                 : entries.map(([st, count], i) => {
                   const meta = ORDER_STATUS_META[st] || { label: st, color: '#8A7AAE' }
                   return (
@@ -390,14 +567,110 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* ── FINANCIAL OVERVIEW (admin-only profit tracking) ── */}
+        <div style={{ ...PANEL, marginBottom: 14 }}>
+          <div style={{ ...PANEL_HEAD, flexWrap: 'wrap', gap: 10 }}>
+            <div style={PANEL_TITLE_WRAP}>
+              <div style={PANEL_TITLE}>Financial Overview</div>
+              <div style={PANEL_SUB}>Cost, revenue &amp; profit — admin only</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { key: 'today', label: 'Today' },
+                { key: 'week',  label: 'Week' },
+                { key: 'month', label: 'Month' },
+                { key: 'year',  label: 'Year' },
+                { key: 'all',   label: 'All' },
+              ].map(({ key, label }) => (
+                <button key={key} onClick={() => setFinPeriod(key)} style={{
+                  padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                  fontSize: 11.5, fontWeight: 600,
+                  background: finPeriod === key ? THEME.purple : 'transparent',
+                  color: finPeriod === key ? '#fff' : THEME.muted,
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stat cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
+            <div style={INS_TILE}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.purpleText }}>
+                {financials ? formatCurrency(financials.revenue) : '-'}
+              </div>
+              <div style={INS_TILE_LABEL}>Chiffre d'Affaires</div>
+            </div>
+            <div style={INS_TILE}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.amber }}>
+                {financials ? formatCurrency(financials.total_cost) : '-'}
+              </div>
+              <div style={INS_TILE_LABEL}>Coût Total (Prix d'achat)</div>
+            </div>
+            <div style={INS_TILE}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.green }}>
+                {financials ? formatCurrency(financials.net_profit) : '-'}
+              </div>
+              <div style={INS_TILE_LABEL}>Bénéfice Net</div>
+            </div>
+            <div style={INS_TILE}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: (financials?.avg_margin_pct ?? 0) < 0 ? THEME.red : THEME.green }}>
+                {financials?.avg_margin_pct != null ? `${Number(financials.avg_margin_pct).toFixed(1)}%` : '-'}
+              </div>
+              <div style={INS_TILE_LABEL}>Marge Moyenne</div>
+            </div>
+          </div>
+
+          {financials?.orders_without_cost > 0 && (
+            <div style={{ fontSize: 11.5, color: THEME.amber, marginBottom: 16, background: 'rgba(255,200,77,0.08)', border: '1px solid rgba(255,200,77,0.25)', borderRadius: 8, padding: '8px 12px' }}>
+              ⚠️ {financials.orders_without_cost} order(s) have unknown cost — profit figures are incomplete
+            </div>
+          )}
+
+          {/* Trend chart */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={SECTION_LABEL}>Revenue vs Profit Trend</div>
+            <ProfitTrendChart data={financials?.profit_trend || []} />
+          </div>
+
+          {/* Best sellers by profit */}
+          <div>
+            <div style={SECTION_LABEL}>Best Sellers by Profit</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['#', 'Product', 'Units Sold', 'Revenue', 'Cost', 'Net Profit', 'Margin %'].map((h, i) => (
+                    <th key={h} style={{ textAlign: i >= 2 ? 'right' : 'left', fontSize: 12, color: THEME.mutedFaint, textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 10, fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(!financials || financials.best_sellers_by_profit?.length === 0)
+                  ? <TableEmptyState colSpan={7} />
+                  : financials.best_sellers_by_profit.map((item, i) => (
+                    <tr key={i} style={{ background: i % 2 === 1 ? THEME.cardBg2 : 'transparent' }}>
+                      <td style={TD}><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: i < 3 ? ['#D4AF37','#A8A9AD','#CD7F32'][i] : '#5E5078' }}>#{i + 1}</span></td>
+                      <td style={{ ...TD, color: '#fff', fontWeight: 500, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name}</td>
+                      <td style={{ ...TD, textAlign: 'right', color: THEME.muted }}>{item.units_sold ?? '—'}</td>
+                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: THEME.purpleText }}>{item.revenue != null ? formatCurrency(item.revenue) : '—'}</td>
+                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: THEME.amber }}>{item.total_cost != null ? formatCurrency(item.total_cost) : '—'}</td>
+                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: THEME.green }}>{item.net_profit != null ? formatCurrency(item.net_profit) : '—'}</td>
+                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: marginColor(item.margin_pct) }}>{item.margin_pct != null ? `${Number(item.margin_pct).toFixed(1)}%` : '—'}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* ── 2-COL: Recharges + User Growth ── */}
         <div className="admin-two-col" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 14 }}>
 
           {/* Recharges & wallet */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>💳 Recharges & Wallet</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Recharges &amp; Wallet</div>
                 <div style={PANEL_SUB}>Money in · last 30 days</div>
               </div>
               <span onClick={() => navigate('/admin/recharges')} style={PANEL_LINK}>Manage →</span>
@@ -405,21 +678,25 @@ export default function DashboardPage() {
 
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: '#36FFC0' }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: THEME.green }}>
                   {rechargeAn ? formatCurrency(rechargeAn.credited_this_month) : '-'}
                 </div>
-                <div style={{ fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>Credited this month</div>
+                <div style={{ fontSize: 12, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>Credited this month</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[
-                  { key: 'approved', label: 'Approved', color: '#36FFC0' },
-                  { key: 'pending',  label: 'Pending',  color: '#FFC84D' },
-                  { key: 'rejected', label: 'Rejected', color: '#FF6B85' },
-                ].map(({ key, label, color }) => (
-                  <span key={key} style={{ fontSize: 10.5, fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: `${color}1F`, border: `1px solid ${color}55`, color }}>
-                    {label} {rechargeAn?.status_counts?.[key] ?? 0}
-                  </span>
-                ))}
+                  { key: 'approved', label: 'Approved', color: THEME.green },
+                  { key: 'pending',  label: 'Pending',  color: THEME.amber },
+                  { key: 'rejected', label: 'Rejected', color: THEME.red },
+                ].map(({ key, label, color }) => {
+                  const count = rechargeAn?.status_counts?.[key] ?? 0
+                  return (
+                    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: `${color}1F`, border: `1px solid ${color}55`, color }}>
+                      {key === 'pending' && count > 0 && <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />}
+                      {label} {count}
+                    </span>
+                  )
+                })}
               </div>
             </div>
 
@@ -427,15 +704,15 @@ export default function DashboardPage() {
               const methods = rechargeAn?.by_method || []
               const maxCredited = methods.length ? Math.max(...methods.map(m => m.credited)) : 1
               return methods.length === 0
-                ? <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '1.5rem 0' }}>No approved recharges yet</div>
+                ? <div style={{ textAlign: 'center', color: THEME.mutedFaint, fontSize: 12, padding: '1.5rem 0' }}>No approved recharges yet</div>
                 : methods.map((m, i) => (
                   <div key={m.method} style={{ marginBottom: i < methods.length - 1 ? 12 : 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                       <span>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: '#fff' }}>{METHOD_LABELS[m.method] || m.method}</span>
-                        <span style={{ fontSize: 10, color: '#7A6A9E', marginLeft: 6 }}>{m.count} recharge{m.count !== 1 ? 's' : ''}</span>
+                        <span style={{ fontSize: 12, color: '#7A6A9E', marginLeft: 6 }}>{m.count} recharge{m.count !== 1 ? 's' : ''}</span>
                       </span>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: '#36FFC0' }}>{formatCurrency(m.credited)}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: THEME.green }}>{formatCurrency(m.credited)}</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${(m.credited / maxCredited) * 100}%`, background: 'linear-gradient(90deg,#0F9D6B,#36FFC0)', borderRadius: 4 }} />
@@ -448,8 +725,8 @@ export default function DashboardPage() {
           {/* User growth */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>🚀 User Growth</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>User Growth</div>
                 <div style={PANEL_SUB}>Signups · last 30 days</div>
               </div>
               <span onClick={() => navigate('/admin/users')} style={PANEL_LINK}>View all →</span>
@@ -461,19 +738,19 @@ export default function DashboardPage() {
                 <div style={INS_TILE_LABEL}>Total Users</div>
               </div>
               <div style={INS_TILE}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#00CFFF' }}>+{userGrowth?.new_this_month ?? '-'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: THEME.green }}>↑ +{userGrowth?.new_this_month ?? '-'}</div>
                 <div style={INS_TILE_LABEL}>New This Month</div>
               </div>
               <div style={INS_TILE}>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: '#36FFC0' }}>{userGrowth?.buyers ?? '-'}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: (userGrowth?.buyers ?? 0) === 0 ? THEME.amber : THEME.green }}>{userGrowth?.buyers ?? '-'}</div>
                 <div style={INS_TILE_LABEL}>Buyers</div>
               </div>
             </div>
 
-            <MiniBars data={userGrowth?.daily_signups || []} color="#00CFFF" height={72} />
+            <MiniBars data={userGrowth?.daily_signups || []} color={THEME.purple} height={72} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               {(userGrowth?.daily_signups || []).filter((_, i, arr) => i === 0 || i === arr.length - 1).map(d => (
-                <span key={d.date} style={{ fontSize: 9, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
+                <span key={d.date} style={{ fontSize: 11, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>
                   {new Date(d.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                 </span>
               ))}
@@ -487,32 +764,34 @@ export default function DashboardPage() {
           {/* Trend chart (peak hours) */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>📈 Orders by Hour</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Orders by Hour</div>
                 <div style={PANEL_SUB}>Last 30 days</div>
               </div>
             </div>
             <div style={{ padding: '4px 0' }}>
-              <svg width="100%" height="160" viewBox="0 0 860 160" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="trendfill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#9B4FED" stopOpacity="0.28" />
-                    <stop offset="100%" stopColor="#9B4FED" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <line x1="0" y1="40" x2="860" y2="40" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                <line x1="0" y1="80" x2="860" y2="80" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                <line x1="0" y1="120" x2="860" y2="120" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                {trendLine
-                  ? <><path d={trendArea.replace('L860,160', `L${860},160`)} fill="url(#trendfill)" /><path d={trendLine} fill="none" stroke="#B57BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></>
-                  : <text x="430" y="85" textAnchor="middle" fill="rgba(180,165,240,0.3)" fontSize="13">No data yet</text>
-                }
-              </svg>
+              {trendLine ? (
+                <svg width="100%" height="160" viewBox="0 0 860 160" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="trendfill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#9B4FED" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="#9B4FED" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="0" y1="40" x2="860" y2="40" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                  <line x1="0" y1="80" x2="860" y2="80" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                  <line x1="0" y1="120" x2="860" y2="120" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                  <path d={trendArea} fill="url(#trendfill)" />
+                  <path d={trendLine} fill="none" stroke="#B57BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <ChartEmptyState w={860} h={160} />
+              )}
               {/* X-axis labels */}
               {peakData.length > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px', marginTop: 4 }}>
                   {[0, 4, 8, 12, 16, 20, 23].map(h => (
-                    <span key={h} style={{ fontSize: 9, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>{h}h</span>
+                    <span key={h} style={{ fontSize: 11, color: '#5E5078', fontFamily: "'JetBrains Mono',monospace" }}>{h}h</span>
                   ))}
                 </div>
               )}
@@ -522,8 +801,8 @@ export default function DashboardPage() {
           {/* Top clients */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>🥇 Top Clients</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Top Clients</div>
                 <div style={PANEL_SUB}>By lifetime value</div>
               </div>
               <span onClick={() => navigate('/admin/users')} style={PANEL_LINK}>View all →</span>
@@ -531,7 +810,7 @@ export default function DashboardPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
                 {topClients.length === 0
-                  ? <tr><td colSpan={3} style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '2rem 0' }}>No data yet</td></tr>
+                  ? <TableEmptyState colSpan={3} />
                   : topClients.slice(0, 5).map((c, i) => (
                     <tr key={i}>
                       <td style={{ padding: '9px 0', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
@@ -540,8 +819,8 @@ export default function DashboardPage() {
                           <span style={{ color: '#fff', fontWeight: 500, fontSize: 12.5 }}>{c.username}</span>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right', color: '#7A6A9E', fontSize: 10, padding: '9px 0', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>{c.orders} orders</td>
-                      <td style={{ textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, fontSize: 12.5, color: '#B57BFF', padding: '9px 0', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>{formatCurrency(c.total_spent)}</td>
+                      <td style={{ textAlign: 'right', color: '#7A6A9E', fontSize: 12, padding: '9px 0', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>{c.orders} orders</td>
+                      <td style={{ textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, fontSize: 12.5, color: THEME.purpleText, padding: '9px 0', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>{formatCurrency(c.total_spent)}</td>
                     </tr>
                   ))
                 }
@@ -556,19 +835,19 @@ export default function DashboardPage() {
           {/* Category bars */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>💜 Revenue by Category</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Revenue by Category</div>
                 <div style={PANEL_SUB}>All time · orders + revenue</div>
               </div>
             </div>
             {catData.length === 0
-              ? <div style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '2rem 0' }}>No data yet</div>
+              ? <div style={{ textAlign: 'center', color: THEME.mutedFaint, fontSize: 12, padding: '2rem 0' }}>No data yet</div>
               : catData.map((item, i) => (
                 <div key={item.code || i} style={{ marginBottom: i < catData.length - 1 ? 13 : 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
                     <span>
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: '#fff' }}>{item.category}</span>
-                      <span style={{ fontSize: 10, color: '#7A6A9E', marginLeft: 6 }}>{item.orders} orders</span>
+                      <span style={{ fontSize: 12, color: '#7A6A9E', marginLeft: 6 }}>{item.orders} orders</span>
                     </span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: CAT_LABEL_COLORS[i % CAT_LABEL_COLORS.length] }}>{formatCurrency(item.revenue)}</span>
                   </div>
@@ -583,52 +862,57 @@ export default function DashboardPage() {
           {/* Stock Health + VIP */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div>
-                <div style={PANEL_TITLE}>⚠️ Stock Health</div>
+              <div style={PANEL_TITLE_WRAP}>
+                <div style={PANEL_TITLE}>Stock Health</div>
                 <div style={PANEL_SUB}>Needs attention</div>
               </div>
               <span onClick={() => navigate('/admin/products')} style={PANEL_LINK}>Manage →</span>
             </div>
 
             {lowStockItems.length === 0
-              ? <div style={{ color: '#36FFC0', fontSize: 12, marginBottom: 16 }}>All products well stocked ✓</div>
-              : lowStockItems.map((p, i) => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < lowStockItems.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                  <div style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(155,79,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>
-                    {p.stock_count <= 2 ? '🔴' : '🟡'}
+              ? <div style={{ color: THEME.green, fontSize: 12, marginBottom: 16 }}>All products well stocked ✓</div>
+              : lowStockItems.map((p, i) => {
+                const critical = p.stock_count <= 2
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < lowStockItems.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: critical ? THEME.red : THEME.amber, flexShrink: 0, display: 'inline-block' }} />
+                    <div style={{ flex: 1, fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <span style={{
+                      fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 20, whiteSpace: 'nowrap',
+                      ...(critical
+                        ? { background: 'rgba(255,107,133,0.12)', border: '1px solid rgba(255,107,133,0.4)', color: THEME.red }
+                        : { background: 'rgba(255,200,77,0.12)', border: '1px solid rgba(255,200,77,0.4)', color: THEME.amber })
+                    }}>
+                      {p.stock_count} left
+                    </span>
                   </div>
-                  <div style={{ flex: 1, fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                  <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap',
-                    ...(p.stock_count <= 2
-                      ? { background: 'rgba(255,68,102,0.14)', border: '1px solid rgba(255,68,102,0.4)', color: '#FF6B85' }
-                      : { background: 'rgba(255,184,0,0.14)', border: '1px solid rgba(255,184,0,0.4)', color: '#FFC84D' })
-                  }}>
-                    {p.stock_count} left
-                  </span>
-                </div>
-              ))
+                )
+              })
             }
 
             {/* VIP Tiers */}
-            <div style={{ marginTop: 18, marginBottom: 12, fontSize: 13, fontWeight: 600, color: '#fff' }}>👥 Top Clients by Tier</div>
-            <div className="admin-vip-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
-              {[
-                { label: 'Bronze', count: vipTiers.bronze, cls: 'bronze' },
-                { label: 'Silver', count: vipTiers.silver, cls: 'silver' },
-                { label: 'Gold',   count: vipTiers.gold,   cls: 'gold'   },
-                { label: 'Diamond', count: vipTiers.diamond, cls: 'diamond' },
-              ].map(({ label, count, cls }) => {
-                const colors = { bronze: { bg: 'rgba(205,127,50,0.10)', border: 'rgba(205,127,50,0.3)', color: '#CD7F32' }, silver: { bg: 'rgba(192,192,192,0.08)', border: 'rgba(192,192,192,0.3)', color: '#C0C0C0' }, gold: { bg: 'rgba(255,215,0,0.08)', border: 'rgba(255,215,0,0.3)', color: '#FFD700' }, diamond: { bg: 'rgba(0,207,255,0.08)', border: 'rgba(0,207,255,0.3)', color: '#00CFFF' } }
-                const c = colors[cls]
-                return (
-                  <div key={label} style={{ textAlign: 'center', padding: '12px 6px', borderRadius: 10, background: c.bg, border: `1px solid ${c.border}` }}>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 17, color: c.color }}>{count}</div>
-                    <div style={{ fontSize: 9.5, color: '#8A7AAE', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }}>{label}</div>
-                  </div>
-                )
-              })}
-            </div>
+            <div style={{ marginTop: 18, marginBottom: 12, fontSize: 13, fontWeight: 600, color: '#fff' }}>Top Clients by Tier</div>
+            {!hasVipClients ? (
+              <div style={{ textAlign: 'center', color: THEME.mutedFaint, fontSize: 12, padding: '1rem 0' }}>No VIP clients yet</div>
+            ) : (
+              <div className="admin-vip-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                {[
+                  { label: 'Bronze', count: vipTiers.bronze, cls: 'bronze' },
+                  { label: 'Silver', count: vipTiers.silver, cls: 'silver' },
+                  { label: 'Gold',   count: vipTiers.gold,   cls: 'gold'   },
+                  { label: 'Diamond', count: vipTiers.diamond, cls: 'diamond' },
+                ].map(({ label, count, cls }) => {
+                  const colors = { bronze: { bg: 'rgba(205,127,50,0.10)', border: 'rgba(205,127,50,0.3)', color: '#CD7F32' }, silver: { bg: 'rgba(192,192,192,0.08)', border: 'rgba(192,192,192,0.3)', color: '#C0C0C0' }, gold: { bg: 'rgba(255,215,0,0.08)', border: 'rgba(255,215,0,0.3)', color: '#FFD700' }, diamond: { bg: 'rgba(0,207,255,0.08)', border: 'rgba(0,207,255,0.3)', color: '#00CFFF' } }
+                  const c = colors[cls]
+                  return (
+                    <div key={label} style={{ textAlign: 'center', padding: '12px 6px', borderRadius: 10, background: c.bg, border: `1px solid ${c.border}` }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 17, color: c.color }}>{count}</div>
+                      <div style={{ fontSize: 9.5, color: '#8A7AAE', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }}>{label}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -638,20 +922,20 @@ export default function DashboardPage() {
           {/* Best Sellers */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div style={PANEL_TITLE}>🔥 Best Sellers</div>
+              <div style={PANEL_TITLE}>Best Sellers</div>
               <span onClick={() => navigate('/admin/products')} style={PANEL_LINK}>View all →</span>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['#', 'Product', 'Units', 'Revenue'].map((h, i) => (
-                    <th key={h} style={{ textAlign: i >= 2 ? 'right' : 'left', fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 10, fontWeight: 600 }}>{h}</th>
+                    <th key={h} style={{ textAlign: i >= 2 ? 'right' : 'left', fontSize: 12, color: THEME.mutedFaint, textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 10, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {bestSellers.length === 0
-                  ? <tr><td colSpan={4} style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '2rem 0' }}>No data yet</td></tr>
+                  ? <TableEmptyState colSpan={4} />
                   : bestSellers.map((item, i) => (
                     <tr key={i}>
                       <td style={TD}><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: i < 3 ? ['#D4AF37','#A8A9AD','#CD7F32'][i] : '#5E5078' }}>#{i + 1}</span></td>
@@ -661,8 +945,8 @@ export default function DashboardPage() {
                           <span style={{ color: '#fff', fontWeight: 500, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{item.product}</span>
                         </div>
                       </td>
-                      <td style={{ ...TD, textAlign: 'right', color: '#7A6A9E' }}>{item.units}</td>
-                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: '#36FFC0' }}>{formatCurrency(item.revenue)}</td>
+                      <td style={{ ...TD, textAlign: 'right', color: THEME.muted }}>{item.units}</td>
+                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: THEME.purpleText }}>{formatCurrency(item.revenue)}</td>
                     </tr>
                   ))
                 }
@@ -673,39 +957,42 @@ export default function DashboardPage() {
           {/* Recent Orders */}
           <div style={PANEL}>
             <div style={PANEL_HEAD}>
-              <div style={PANEL_TITLE}>🧾 Recent Orders</div>
+              <div style={PANEL_TITLE}>Recent Orders</div>
               <span onClick={() => navigate('/admin/orders')} style={PANEL_LINK}>View all →</span>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['User', 'Product', 'Amount', ''].map((h, i) => (
-                    <th key={i} style={{ textAlign: i === 2 ? 'right' : 'left', fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 10, fontWeight: 600 }}>{h}</th>
+                    <th key={i} style={{ textAlign: i === 2 ? 'right' : 'left', fontSize: 12, color: THEME.mutedFaint, textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 10, fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.length === 0
-                  ? <tr><td colSpan={4} style={{ textAlign: 'center', color: '#5E5078', fontSize: 12, padding: '2rem 0' }}>No orders yet</td></tr>
-                  : recentOrders.map((o, i) => (
-                    <tr key={o.id}>
-                      <td style={TD}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Avatar name={o.user_username || '?'} size={22} gradient={GRAD[i % GRAD.length]} />
-                          <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 500 }}>{o.user_username || '-'}</span>
-                        </div>
-                      </td>
-                      <td style={{ ...TD, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#B3A4D4' }}>
-                        {o.product_name || o.bundle_name || `#${o.product || o.bundle}`}
-                      </td>
-                      <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: '#36FFC0' }}>{formatCurrency(o.amount_paid)}</td>
-                      <td style={TD}>
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: o.status === 'completed' ? 'rgba(54,255,192,0.12)' : 'rgba(255,184,0,0.12)', border: `1px solid ${o.status === 'completed' ? 'rgba(54,255,192,0.35)' : 'rgba(255,184,0,0.35)'}`, color: o.status === 'completed' ? '#36FFC0' : '#FFC84D', whiteSpace: 'nowrap' }}>
-                          {o.status?.charAt(0).toUpperCase() + o.status?.slice(1) || '-'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  ? <TableEmptyState colSpan={4} label="No orders yet" />
+                  : recentOrders.map((o, i) => {
+                    const meta = ORDER_STATUS_META[o.status] || { label: o.status, color: THEME.amber }
+                    return (
+                      <tr key={o.id}>
+                        <td style={TD}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Avatar name={o.user_username || '?'} size={22} gradient="linear-gradient(135deg,#6D28D9,#9B4FED)" />
+                            <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 500 }}>{o.user_username || '-'}</span>
+                          </div>
+                        </td>
+                        <td style={{ ...TD, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: '#B3A4D4' }}>
+                          {o.product_name || o.bundle_name || `#${o.product || o.bundle}`}
+                        </td>
+                        <td style={{ ...TD, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, color: THEME.purpleText }}>{formatCurrency(o.amount_paid)}</td>
+                        <td style={TD}>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: `${meta.color}1F`, border: `1px solid ${meta.color}59`, color: meta.color, whiteSpace: 'nowrap' }}>
+                            {meta.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })
                 }
               </tbody>
             </table>
@@ -713,24 +1000,38 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      <style>{`
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.4; transform: scale(0.75); }
+        }
+        .pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }
+      `}</style>
     </div>
   )
 }
 
 /* ── style constants ── */
-const PANEL      = { background: '#150C26', border: '1px solid rgba(139,79,219,0.22)', borderRadius: 14, padding: 18 }
+const PANEL      = { background: THEME.cardBg, border: `1px solid ${THEME.cardBorder}`, borderRadius: 14, padding: '18px 20px', transition: 'border-color 0.15s' }
 const PANEL_HEAD = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }
-const PANEL_TITLE = { fontSize: 14, fontWeight: 600, color: '#fff' }
-const PANEL_SUB  = { fontSize: 11, color: '#7A6A9E', marginTop: 1 }
-const PANEL_LINK = { fontSize: 11, color: '#C39CF5', cursor: 'pointer' }
+const PANEL_TITLE_WRAP = { borderLeft: `4px solid ${THEME.purple}`, paddingLeft: 10 }
+const PANEL_TITLE = { fontSize: 13, fontWeight: 600, color: '#fff' }
+const PANEL_SUB  = { fontSize: 11, color: THEME.muted, marginTop: 1 }
+const PANEL_LINK = { fontSize: 11, color: THEME.purpleText, cursor: 'pointer' }
+const SECTION_LABEL = { fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 10, borderLeft: `4px solid ${THEME.purple}`, paddingLeft: 10 }
 const TD         = { padding: '9px 0', fontSize: 12.5, borderTop: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'middle' }
 const HERO_LABEL = { fontSize: 11, color: '#B3A4D4', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }
 const HERO_VAL   = { fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 38, color: '#fff' }
 const HERO_FOOT_ITEM = { fontSize: 11, color: '#8A7AAE' }
-const MINI_STAT  = { flex: 1, background: '#150C26', border: '1px solid rgba(139,79,219,0.22)', borderRadius: 12, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12 }
+const MINI_STAT  = { flex: 1, background: THEME.cardBg, border: `1px solid ${THEME.cardBorder}`, borderRadius: 12, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12 }
 const MINI_ICON  = { width: 34, height: 34, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }
-const MINI_LABEL = { fontSize: 10, color: '#7A6A9E', textTransform: 'uppercase', letterSpacing: '0.05em' }
+const MINI_LABEL = { fontSize: 12, color: THEME.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }
 const MINI_VAL   = { fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: '#fff', marginTop: 1 }
-const QA_BTN     = { fontSize: 12, fontWeight: 600, color: '#fff', background: 'rgba(155,79,237,0.12)', border: '1px solid rgba(155,79,237,0.35)', padding: '8px 13px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }
+const QA_BTN_BASE = { fontSize: 12, fontWeight: 600, padding: '8px 13px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }
+const QA_BTN_PURPLE = { ...QA_BTN_BASE, color: THEME.purpleText, background: 'transparent', border: `1px solid ${THEME.purple}` }
+const QA_BTN_AMBER  = { ...QA_BTN_BASE, color: THEME.amber, background: 'transparent', border: `1px solid ${THEME.amber}` }
+const QA_BTN_PRIMARY = { ...QA_BTN_BASE, color: '#fff', background: 'linear-gradient(135deg,#6D28D9,#9B4FED)', border: 'none', boxShadow: '0 6px 16px -6px rgba(124,58,237,0.6)' }
+const QA_BTN_GHOST  = { ...QA_BTN_BASE, color: THEME.muted, background: 'transparent', border: 'none', padding: '8px 10px' }
 const INS_TILE   = { textAlign: 'center', padding: '11px 6px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }
-const INS_TILE_LABEL = { fontSize: 9, color: '#8A7AAE', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }
+const INS_TILE_LABEL = { fontSize: 11, color: '#8A7AAE', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }

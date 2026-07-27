@@ -5,6 +5,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Q
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 from .models import User, WalletTransaction
 from .serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer,
@@ -143,6 +145,26 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # New accounts start unverified and get a verification email right away.
+        # Existing users are untouched - see migration 0008 which grandfathers
+        # them in with is_email_verified=True.
+        from .models import generate_verify_token
+        from .tasks import send_verification_email
+
+        token = generate_verify_token()
+        user.is_email_verified   = False
+        user.email_verify_token  = token
+        user.email_verify_sent_at = timezone.now()
+        user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verify_sent_at'])
+
+        send_verification_email.delay(
+            user.id, user.email, user.get_full_name() or user.username, token
+        )
+
+        # Tokens are still issued so the user is logged in immediately - the
+        # frontend reads is_email_verified off the user payload to decide
+        # whether to show the "check your inbox" state.
         tokens = get_tokens_for_user(user)
         return Response({
             'user': UserSerializer(user, context={'request': request}).data,
@@ -238,6 +260,62 @@ class ResetPasswordView(generics.GenericAPIView):
         return Response({'detail': 'Password has been reset successfully.'})
 
 
+class VerifyEmailView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = (request.data.get('token') or '').strip()
+        if not token:
+            return Response({'detail': 'token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email_verify_token=token, is_email_verified=False).first()
+        if not user:
+            return Response({'detail': 'Invalid or already used token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.email_verify_sent_at or timezone.now() - user.email_verify_sent_at > timedelta(hours=24):
+            return Response({'detail': 'Link expired - request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_email_verified = True
+        user.email_verify_token = None
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verified_at'])
+
+        return Response({'message': 'Email verified successfully'})
+
+
+class ResendVerificationView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .models import generate_verify_token
+        from .tasks import send_verification_email
+
+        user = request.user
+        if user.is_email_verified:
+            return Response({'detail': 'Already verified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.email_resend_count >= 3:
+            return Response({
+                'error': 'max_resends_reached',
+                'message': 'Maximum resend attempts reached. Contact support.',
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        token = generate_verify_token()
+        user.email_verify_token = token
+        user.email_verify_sent_at = timezone.now()
+        user.email_resend_count += 1
+        user.save(update_fields=['email_verify_token', 'email_verify_sent_at', 'email_resend_count'])
+
+        send_verification_email.delay(
+            user.id, user.email, user.get_full_name() or user.username, token
+        )
+
+        return Response({
+            'message': 'Verification email sent',
+            'resends_remaining': 3 - user.email_resend_count,
+        })
+
+
 class ChangePasswordView(generics.GenericAPIView):
     serializer_class = ChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -324,6 +402,9 @@ class AdminUsersListView(generics.ListAPIView):
                 Q(phone__icontains=search) |
                 Q(referral_code__icontains=search)
             )
+        verified = self.request.query_params.get('verified')
+        if verified is not None:
+            qs = qs.filter(is_email_verified=verified.lower() in ('1', 'true', 'yes'))
         return qs
 
 
@@ -339,12 +420,24 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
         user = self.get_object()
         balance = request.data.get('balance')
         is_active = request.data.get('is_active')
+        verify_email = request.data.get('verify_email')
+        reset_resend_count = request.data.get('reset_resend_count')
         if balance is not None:
             user.balance = balance
             user.save()
         if is_active is not None:
             user.is_active = is_active
             user.save()
+        if verify_email:
+            # Manual override for clients with a genuine email delivery problem.
+            user.is_email_verified = True
+            user.email_verify_token = None
+            user.email_verified_at = timezone.now()
+            user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verified_at'])
+        if reset_resend_count:
+            # Un-does the 3-resend soft-block so the client can request 3 more.
+            user.email_resend_count = 0
+            user.save(update_fields=['email_resend_count'])
         return Response(AdminUserSerializer(user, context={'request': request}).data)
 
 
@@ -609,6 +702,147 @@ def admin_analytics(request):
 
 @api_view(['GET'])
 @permission_classes([IsAdmin])
+def admin_dashboard_financials(request):
+    """
+    Chiffre d'affaires vs bénéfice réel: revenue, cost, net profit and margin
+    for a period, plus a revenue/profit trend and a best-sellers-by-profit
+    table. Admin-only - cost/profit data never appears in any client-facing
+    endpoint.
+    """
+    from django.db.models import Sum, Count
+    from django.db.models.functions import TruncDate, TruncMonth
+    from django.utils import timezone
+    from datetime import timedelta
+    from decimal import Decimal
+    from apps.orders.models import Order
+
+    now         = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    period      = request.query_params.get('period', 'month')
+
+    period_starts = {
+        'today': today_start,
+        'week':  today_start - timedelta(days=7),
+        'month': today_start.replace(day=1),
+        'year':  today_start.replace(month=1, day=1),
+        'all':   None,
+    }
+    start = period_starts.get(period, period_starts['month'])
+
+    completed = Order.objects.filter(status='completed')
+    if start is not None:
+        completed = completed.filter(created_at__gte=start)
+
+    agg = completed.aggregate(
+        revenue=Sum('amount_paid'),
+        total_cost=Sum('cost_price_at_sale'),
+        net_profit=Sum('profit_at_sale'),
+        orders_with_cost=Count('id', filter=Q(cost_price_at_sale__isnull=False)),
+        orders_without_cost=Count('id', filter=Q(cost_price_at_sale__isnull=True)),
+    )
+    revenue    = float(agg['revenue'] or 0)
+    total_cost = float(agg['total_cost'] or 0)
+    net_profit = float(agg['net_profit'] or 0)
+    avg_margin_pct = round((net_profit / revenue) * 100, 2) if revenue else 0.0
+
+    # ── Trend: daily buckets for short periods, monthly for year/all so the
+    # chart stays readable instead of plotting hundreds of daily points.
+    # Zero-filled across the full period range (like the existing 30-day
+    # revenue chart) so a sparse day/period still renders a real line
+    # instead of the chart's "need >= 2 points" guard showing "No data yet".
+    monthly = period in ('year', 'all')
+
+    if monthly:
+        # Monthly buckets: 12 months back for 'year', 24 months for 'all'
+        # (matches the existing history cap used elsewhere on this endpoint).
+        months_back = 24 if period == 'all' else 12
+        trend_start = (today_start.replace(day=1) - timedelta(days=31 * months_back)).replace(day=1)
+        trend_qs = completed.filter(created_at__gte=trend_start)
+        bucket_field = TruncMonth('created_at')
+    else:
+        # 'today' still gets a 2-point trend (yesterday + today) so the
+        # chart always has something to draw.
+        span_days = {'today': 1, 'week': 7}.get(period, (now - (start or today_start)).days + 1)
+        trend_start = today_start - timedelta(days=max(span_days, 1))
+        trend_qs = completed.filter(created_at__gte=trend_start)
+        bucket_field = TruncDate('created_at')
+
+    trend_rows = (
+        trend_qs
+        .annotate(bucket=bucket_field)
+        .values('bucket')
+        .annotate(revenue=Sum('amount_paid'), profit=Sum('profit_at_sale'))
+        .order_by('bucket')
+    )
+    # Normalize every bucket key to a plain 'YYYY-MM-DD' string - TruncDate
+    # yields a date, TruncMonth yields a datetime, so compare as strings
+    # rather than relying on the two to be the same Python type.
+    def _key(v):
+        return v.date().isoformat() if hasattr(v, 'date') else v.isoformat()
+    trend_map = {_key(r['bucket']): r for r in trend_rows}
+
+    profit_trend = []
+    if monthly:
+        cursor = trend_start
+        while cursor <= today_start:
+            row = trend_map.get(cursor.date().isoformat())
+            profit_trend.append({
+                'date':    cursor.date().isoformat(),
+                'revenue': float(row['revenue'] or 0) if row else 0.0,
+                'profit':  float(row['profit'] or 0) if row else 0.0,
+            })
+            cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
+    else:
+        num_days = (today_start - trend_start).days + 1
+        for i in range(num_days):
+            d = (trend_start + timedelta(days=i)).date()
+            row = trend_map.get(d.isoformat())
+            profit_trend.append({
+                'date':    d.isoformat(),
+                'revenue': float(row['revenue'] or 0) if row else 0.0,
+                'profit':  float(row['profit'] or 0) if row else 0.0,
+            })
+
+    # ── Best sellers by net profit (not revenue) ────────────────────────────
+    by_product = (
+        completed
+        .filter(product__isnull=False)
+        .values('product__name')
+        .annotate(
+            units=Sum('quantity'),
+            revenue=Sum('amount_paid'),
+            total_cost=Sum('cost_price_at_sale'),
+            net_profit=Sum('profit_at_sale'),
+        )
+        .order_by('-net_profit')[:20]
+    )
+    best_sellers_by_profit = []
+    for r in by_product:
+        rev  = float(r['revenue'] or 0)
+        prof = float(r['net_profit'] or 0) if r['net_profit'] is not None else None
+        best_sellers_by_profit.append({
+            'product_name': r['product__name'],
+            'units_sold':   r['units'] or 0,
+            'revenue':      rev,
+            'total_cost':   float(r['total_cost']) if r['total_cost'] is not None else None,
+            'net_profit':   prof,
+            'margin_pct':   round((prof / rev) * 100, 2) if prof is not None and rev else None,
+        })
+
+    return Response({
+        'revenue':             revenue,
+        'total_cost':          total_cost,
+        'net_profit':          net_profit,
+        'avg_margin_pct':      avg_margin_pct,
+        'orders_with_cost':    agg['orders_with_cost'],
+        'orders_without_cost': agg['orders_without_cost'],
+        'profit_trend':        profit_trend,
+        'best_sellers_by_profit': best_sellers_by_profit,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
 def admin_stats(request):
     from django.utils import timezone
     from datetime import timedelta
@@ -635,6 +869,7 @@ def admin_badge_counts(request):
     from django.db.models import Q
     from apps.orders.models import Order
     from apps.payments.models import CryptoPayment
+    from apps.tickets.models import OrderTicket, SupportTicket
 
     # Orders badge = notification of NEW orders since the admin last opened
     # the Orders page (cleared by admin_orders_seen below).
@@ -647,6 +882,8 @@ def admin_badge_counts(request):
         # Manual recharges only — crypto ones have their own badge
         'recharges': RechargeRequest.objects.filter(status='pending').exclude(method='crypto').count(),
         'crypto': CryptoPayment.objects.filter(status__in=['pending', 'confirming']).count(),
+        'order_tickets': OrderTicket.objects.filter(status__in=('open', 'in_progress')).count(),
+        'support_tickets': SupportTicket.objects.filter(status__in=('open', 'in_progress')).count(),
     })
 
 
@@ -663,12 +900,19 @@ def admin_orders_seen(request):
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_orders(request):
+    from apps.orders.models import Order
     from apps.orders.serializers import OrderSerializer
     from apps.orders.views import _order_list_queryset
     orders = _order_list_queryset().order_by('-created_at')
     status_filter = request.query_params.get('status')
     req_acc = request.query_params.get('requires_account')
-    if status_filter:
+    if status_filter == 'pending':
+        # "Pending" covers every pre-completion state, including legacy rows
+        # and orders awaiting fulfillment in escrow.
+        orders = orders.filter(status__in=[
+            Order.Status.PENDING, Order.Status.PENDING_CREDENTIALS, Order.Status.PAID_ESCROW,
+        ])
+    elif status_filter:
         orders = orders.filter(status=status_filter)
     if req_acc:
         orders = orders.filter(requires_account=True)
@@ -758,11 +1002,4 @@ def admin_cancel_order(request, pk):
     return Response(OrderSerializer(locked, context={'request': request}).data)
 
 
-@api_view(['GET'])
-@permission_classes([IsAdmin])
-def admin_conversations(request):
-    from apps.chat.models import Conversation
-    from apps.chat.serializers import ConversationSerializer
-    convs = Conversation.objects.select_related('client').prefetch_related('messages')
-    return Response(ConversationSerializer(convs, many=True, context={'request': request}).data)
 

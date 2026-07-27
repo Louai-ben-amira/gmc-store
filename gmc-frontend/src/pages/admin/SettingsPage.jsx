@@ -44,6 +44,27 @@ function Field({ label, hint, children }) {
   )
 }
 
+function FeeRateField({ label, hint, value, onChange, unit = '%', max = 1, step = 0.01 }) {
+  const pct = unit === '%' ? Math.round(parseFloat(value || 0) * 100) : null
+  return (
+    <Field label={label} hint={hint}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <input
+          type="number" min="0" max={max} step={step}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          style={{ maxWidth: 140 }}
+        />
+        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '6px 14px' }}>
+          <span style={{ color: '#f59e0b', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem' }}>
+            {unit === '%' ? (pct === 0 ? 'No fee' : `${pct}% fee`) : (parseFloat(value || 0) === 0 ? 'No fee' : `${value} DT flat fee`)}
+          </span>
+        </div>
+      </div>
+    </Field>
+  )
+}
+
 function ToggleSwitch({ value, onChange }) {
   return (
     <button
@@ -225,18 +246,24 @@ export default function SettingsPage() {
         upsert('D17_ADDRESS',                get('D17_ADDRESS'),                       'D17 address / RIB'),
         upsert('D17_ADDRESS_LABEL',          get('D17_ADDRESS_LABEL', 'D17 Account Address'), 'D17 address label'),
         upsert('D17_ADDRESS_ENABLED',        get('D17_ADDRESS_ENABLED', 'true'),       'D17 address enabled'),
+        upsert('D17_NUMBER_FEE_RATE',        get('D17_NUMBER_FEE_RATE', '0.01'),       'D17 Phone transfer fee rate (decimal, e.g. 0.01)'),
+        upsert('D17_ADDRESS_FEE_RATE',       get('D17_ADDRESS_FEE_RATE', '0'),         'D17 Address/RIB transfer fee rate (decimal)'),
         upsert('BANK_TRANSFER_ENABLED',      get('BANK_TRANSFER_ENABLED', 'true'),     'Bank Transfer enabled'),
         upsert('BANK_ACCOUNT_NUMBER',        get('BANK_ACCOUNT_NUMBER'),               'Bank account number / RIB'),
         upsert('BANK_ACCOUNT_NAME',          get('BANK_ACCOUNT_NAME'),                 'Bank account holder name'),
         upsert('BANK_TRANSFER_INSTRUCTIONS', get('BANK_TRANSFER_INSTRUCTIONS'),        'Bank Transfer instructions'),
+        upsert('BANK_TRANSFER_FLAT_FEE',     get('BANK_TRANSFER_FLAT_FEE', '2.5'),     'Bank Transfer flat fee in DT'),
         upsert('EDINAR_ENABLED',             get('EDINAR_ENABLED', 'true'),            'E-Dinar enabled'),
         upsert('EDINAR_ACCOUNT_NUMBER',      get('EDINAR_ACCOUNT_NUMBER'),             'E-Dinar account number'),
         upsert('EDINAR_INSTRUCTIONS',        get('EDINAR_INSTRUCTIONS'),               'E-Dinar instructions'),
+        upsert('EDINAR_FEE_RATE',            get('EDINAR_FEE_RATE', '0'),              'E-Dinar transfer fee rate (decimal)'),
         upsert('FLOUCI_ENABLED',             get('FLOUCI_ENABLED', 'true'),            'Flouci enabled'),
         upsert('FLOUCI_PHONE_NUMBER',        get('FLOUCI_PHONE_NUMBER'),               'Flouci phone number'),
         upsert('FLOUCI_INSTRUCTIONS',        get('FLOUCI_INSTRUCTIONS'),               'Flouci instructions'),
+        upsert('FLOUCI_FEE_RATE',            get('FLOUCI_FEE_RATE', '0'),              'Flouci transfer fee rate (decimal)'),
         upsert('OOREDOO_INSTRUCTIONS',       get('OOREDOO_INSTRUCTIONS'),              'Ooredoo ticket instructions'),
         upsert('ORANGE_INSTRUCTIONS',        get('ORANGE_INSTRUCTIONS'),               'Orange ticket instructions'),
+        upsert('TT_INSTRUCTIONS',            get('TT_INSTRUCTIONS'),                   'Tunisie Telecom ticket instructions'),
         upsert('HERO_SLIDES',                JSON.stringify(slides),                   'Hero carousel slides (JSON)'),
         upsert('BINANCE_ADDRESS',            get('BINANCE_ADDRESS'),                   'Binance USDT (BEP-20) wallet address'),
         upsert('BNB_ADDRESS',                get('BNB_ADDRESS'),                       'BNB (BEP-20) wallet address'),
@@ -283,7 +310,7 @@ export default function SettingsPage() {
 
       {/* ── Ticket fee ── */}
       <Section title="Ticket Fee Rate" icon={Percent} color="#f59e0b">
-        <Field label={`Tax rate - currently ${taxPct}%`} hint="Decimal value: 0.11 = 11%. Applies to Ooredoo and Orange tickets.">
+        <Field label={`Tax rate - currently ${taxPct}%`} hint="Decimal value: 0.11 = 11%. Applies to Ooredoo, Orange and Tunisie Telecom tickets.">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <input
               type="number" min="0" max="1" step="0.01"
@@ -335,6 +362,12 @@ export default function SettingsPage() {
             className="admin-settings-input" style={{ fontFamily: 'JetBrains Mono, monospace', maxWidth: 300 }}
           />
         </Field>
+        <FeeRateField
+          label="Fee Rate"
+          hint="Decimal value: 0.01 = 1%. Deducted from the amount the user sends."
+          value={get('D17_NUMBER_FEE_RATE', '0.01')}
+          onChange={v => set('D17_NUMBER_FEE_RATE', v)}
+        />
       </Section>
 
       {/* ── D17 Address ── */}
@@ -361,6 +394,12 @@ export default function SettingsPage() {
             style={{ fontFamily: 'JetBrains Mono, monospace' }}
           />
         </Field>
+        <FeeRateField
+          label="Fee Rate"
+          hint="Decimal value: 0.01 = 1%. Deducted from the amount the user sends."
+          value={get('D17_ADDRESS_FEE_RATE', '0')}
+          onChange={v => set('D17_ADDRESS_FEE_RATE', v)}
+        />
       </Section>
 
       {/* ── Bank Transfer ── */}
@@ -396,6 +435,13 @@ export default function SettingsPage() {
             style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
           />
         </Field>
+        <FeeRateField
+          label="Flat Fee"
+          hint="Flat amount in DT deducted from every bank transfer, regardless of amount."
+          unit="DT" max={1000} step={0.1}
+          value={get('BANK_TRANSFER_FLAT_FEE', '2.5')}
+          onChange={v => set('BANK_TRANSFER_FLAT_FEE', v)}
+        />
       </Section>
 
       {/* ── E-Dinar ── */}
@@ -423,6 +469,12 @@ export default function SettingsPage() {
             style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
           />
         </Field>
+        <FeeRateField
+          label="Fee Rate"
+          hint="Decimal value: 0.01 = 1%. Deducted from the amount the user sends."
+          value={get('EDINAR_FEE_RATE', '0')}
+          onChange={v => set('EDINAR_FEE_RATE', v)}
+        />
       </Section>
 
       {/* ── Flouci ── */}
@@ -450,6 +502,12 @@ export default function SettingsPage() {
             style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
           />
         </Field>
+        <FeeRateField
+          label="Fee Rate"
+          hint="Decimal value: 0.01 = 1%. Deducted from the amount the user sends."
+          value={get('FLOUCI_FEE_RATE', '0')}
+          onChange={v => set('FLOUCI_FEE_RATE', v)}
+        />
       </Section>
 
       {/* ── Ticket instructions ── */}
@@ -469,6 +527,15 @@ export default function SettingsPage() {
             value={get('ORANGE_INSTRUCTIONS')}
             onChange={e => set('ORANGE_INSTRUCTIONS', e.target.value)}
             placeholder="e.g. Buy an Orange recharge ticket, scratch to reveal the code, then enter it below."
+            style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
+          />
+        </Field>
+        <Field label="Tunisie Telecom Instructions" hint="Shown inside the Tunisie Telecom ticket form">
+          <textarea
+            rows={3}
+            value={get('TT_INSTRUCTIONS')}
+            onChange={e => set('TT_INSTRUCTIONS', e.target.value)}
+            placeholder="e.g. Buy a Tunisie Telecom recharge ticket, scratch to reveal the code, then enter it below."
             style={{ resize: 'vertical', fontFamily: 'Inter, sans-serif', lineHeight: 1.6 }}
           />
         </Field>

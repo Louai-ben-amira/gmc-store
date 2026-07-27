@@ -54,7 +54,7 @@ export default function MaintenancePage() {
         }}>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '0.5625rem',
+            fontSize: '0.6875rem',
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',

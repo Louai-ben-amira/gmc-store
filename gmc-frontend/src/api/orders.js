@@ -11,3 +11,4 @@ export const openDispute      = (id, data) => api.post(`/orders/${id}/dispute/`,
 export const revealCredentials = (id)   => api.get(`/orders/${id}/credentials/`)
 export const revealCode        = (id)   => api.post(`/orders/${id}/reveal-code/`)
 export const cancelOrder       = (id)   => api.post(`/orders/${id}/cancel/`)
+export const basketCheckout    = (data) => api.post('/orders/basket-checkout/', data)

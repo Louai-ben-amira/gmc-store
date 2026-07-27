@@ -148,6 +148,30 @@ function AdminCancelButton({ order, onDone }) {
   )
 }
 
+/* ── margin % → red/amber/green, shared threshold convention across admin ── */
+function marginColor(pct) {
+  if (pct == null) return T.textMuted
+  if (pct < 10) return '#ef4444'
+  if (pct < 25) return '#F5A623'
+  return '#3DDC84'
+}
+
+function costCell(o) {
+  return o.cost_price_at_sale != null
+    ? <span style={{ fontFamily: T.mono }}>{parseFloat(o.cost_price_at_sale).toFixed(2)} DT</span>
+    : <span style={{ color: T.textMuted }}>—</span>
+}
+
+function profitCell(o) {
+  if (o.profit_at_sale == null) return <span style={{ color: T.textMuted }}>—</span>
+  const pct = o.margin_pct_at_sale
+  return (
+    <span style={{ fontFamily: T.mono, fontWeight: 600, color: marginColor(pct) }}>
+      {parseFloat(o.profit_at_sale).toFixed(2)} DT{pct != null ? ` (${Number(pct).toFixed(0)}%)` : ''}
+    </span>
+  )
+}
+
 /* ── Group multi-quantity purchases (same batch_id) into one row ───────── */
 function groupOrders(orders) {
   const groups = []
@@ -175,6 +199,7 @@ export default function OrdersPage() {
   const [openBatches,  setOpenBatches] = useState(() => new Set())
   const [search,       setSearch]     = useState('')
   const [searchInput,  setSearchInput] = useState('')
+  const [showFinancials, setShowFinancials] = useState(false)
 
   // Debounce: apply the typed value 350ms after the user stops typing
   useEffect(() => {
@@ -204,12 +229,13 @@ export default function OrdersPage() {
 
   const orders     = data?.results || []
   const totalPages = data ? Math.ceil(data.count / 12) : 1
+  const colCount   = showFinancials ? 11 : 9
 
   const tabs = [
-    { label: 'All',       value: '' },
-    { label: 'Completed', value: 'completed' },
-    { label: 'Pending',   value: 'pending' },
-    { label: 'Failed',    value: 'failed' },
+    { label: 'All',         value: '' },
+    { label: 'Completed',   value: 'completed' },
+    { label: 'Pending',     value: 'pending' },
+    { label: 'In Progress', value: 'in_progress' },
   ]
 
   return (
@@ -236,6 +262,19 @@ export default function OrdersPage() {
           🔑 Account Required {reqAcc ? '✓' : ''}
         </button>
 
+        <button
+          onClick={() => setShowFinancials(v => !v)}
+          style={{
+            padding: '0.375rem 0.875rem', borderRadius: '0.625rem',
+            background: showFinancials ? T.successDim : T.bgPanel,
+            border: `1px solid ${showFinancials ? T.successBorder : T.border}`,
+            color: showFinancials ? T.success : T.purpleText,
+            cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500,
+          }}
+        >
+          {showFinancials ? '🙈 Hide Financials' : '💰 Show Financials'}
+        </button>
+
         <div style={{ position: 'relative', marginLeft: 'auto' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
           <input
@@ -255,20 +294,23 @@ export default function OrdersPage() {
         <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {['#', 'User', 'Product', 'Amount', 'Points', 'Date', 'Status', 'Service', 'Actions'].map(h => (
+              {['#', 'User', 'Product', 'Amount', ...(showFinancials ? ['Cost', 'Profit'] : []), 'Points', 'Date', 'Status', 'Service', 'Actions'].map(h => (
                 <th key={h} style={TH_STYLE}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>Loading…</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>Loading…</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No orders found.</td></tr>
-            ) : groupOrders(orders).map(item => {
-              if (item.isGroup && item.orders.length > 1) return renderBatchRows(item)
-              return renderOrderRow(item.isGroup ? item.orders[0] : item.order)
-            })}
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No orders found.</td></tr>
+            ) : <>
+              {groupOrders(orders).map(item => {
+                if (item.isGroup && item.orders.length > 1) return renderBatchRows(item)
+                return renderOrderRow(item.isGroup ? item.orders[0] : item.order)
+              })}
+              {showFinancials && renderTotalsRow()}
+            </>}
           </tbody>
         </table>
         <Pagination page={page} totalPages={totalPages} onChange={setPage} />
@@ -310,6 +352,8 @@ export default function OrdersPage() {
                     )}
                   </td>
                   <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(o.amount_paid)}</td>
+                  {showFinancials && <td style={TD_STYLE}>{costCell(o)}</td>}
+                  {showFinancials && <td style={TD_STYLE}>{profitCell(o)}</td>}
                   <td style={{ ...TD_STYLE, color: T.purpleText }}>{o.points_earned ?? 0} pts</td>
                   <td style={TD_STYLE}>{formatDate(o.created_at)}</td>
                   <td style={TD_STYLE}>
@@ -318,8 +362,8 @@ export default function OrdersPage() {
                     {o.code_value && !o.requires_account && (
                       <div style={{ marginTop: 3 }}>
                         {o.is_revealed
-                          ? <span style={{ fontSize: '0.5625rem', color: '#22C55E', fontFamily: 'JetBrains Mono, monospace' }}>👁 Revealed {o.code_viewed_at ? formatDate(o.code_viewed_at) : ''}</span>
-                          : <span style={{ fontSize: '0.5625rem', color: '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>🔒 Not revealed</span>
+                          ? <span style={{ fontSize: '0.6875rem', color: '#22C55E', fontFamily: 'JetBrains Mono, monospace' }}>👁 Revealed {o.code_viewed_at ? formatDate(o.code_viewed_at) : ''}</span>
+                          : <span style={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>🔒 Not revealed</span>
                         }
                       </div>
                     )}
@@ -331,13 +375,13 @@ export default function OrdersPage() {
                     }
                   </td>
                   <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                    {o.requires_account && o.conversation_id && (
+                    {o.requires_account && o.open_ticket_id && (
                       <button
-                        onClick={e => { e.stopPropagation(); navigate(`/admin/inbox?conversation=${o.conversation_id}`) }}
-                        title="Open chat"
+                        onClick={e => { e.stopPropagation(); navigate(`/admin/order-tickets`) }}
+                        title="Open ticket"
                         style={{ background: 'rgba(155,79,237,0.1)', border: `1px solid ${T.border}`, color: T.purpleText, borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
                       >
-                        <MessageCircle size={12} /> Chat
+                        <MessageCircle size={12} /> Ticket
                       </button>
                     )}
                     {o.status === 'completed' && (
@@ -351,7 +395,7 @@ export default function OrdersPage() {
 
                 expanded && (
                   <tr key={`detail-${o.id}`}>
-                    <td colSpan={9} style={{ padding: '0 1rem 1rem 2.5rem', background: T.warningDim, borderBottom: `1px solid ${T.border}` }}>
+                    <td colSpan={colCount} style={{ padding: '0 1rem 1rem 2.5rem', background: T.warningDim, borderBottom: `1px solid ${T.border}` }}>
                       {o.requires_account && (
                         <>
                           <p style={{ color: T.textMuted, fontSize: '0.75rem', margin: '0.5rem 0 0.25rem', fontWeight: 600 }}>CLIENT CREDENTIALS</p>
@@ -387,6 +431,11 @@ export default function OrdersPage() {
     const open     = openBatches.has(group.batch_id)
     const total    = members.reduce((s, o) => s + Number(o.amount_paid || 0), 0)
     const points   = members.reduce((s, o) => s + (o.points_earned ?? 0), 0)
+    const hasCost   = members.some(o => o.cost_price_at_sale != null)
+    const totalCost = members.reduce((s, o) => s + Number(o.cost_price_at_sale || 0), 0)
+    const hasProfit = members.some(o => o.profit_at_sale != null)
+    const totalProfit = members.reduce((s, o) => s + Number(o.profit_at_sale || 0), 0)
+    const batchMarginPct = hasProfit && total > 0 ? (totalProfit / total) * 100 : null
     const revealed = members.filter(o => o.is_revealed).length
     const statuses = new Set(members.map(o => o.status))
     const toggle = () => setOpenBatches(prev => {
@@ -424,6 +473,8 @@ export default function OrdersPage() {
           )}
         </td>
         <td style={{ ...TD_STYLE, color: T.success, fontWeight: 600, fontFamily: T.mono }}>{formatCurrency(total)}</td>
+        {showFinancials && <td style={TD_STYLE}>{hasCost ? <span style={{ fontFamily: T.mono }}>{totalCost.toFixed(2)} DT</span> : <span style={{ color: T.textMuted }}>—</span>}</td>}
+        {showFinancials && <td style={TD_STYLE}>{hasProfit ? <span style={{ fontFamily: T.mono, fontWeight: 600, color: marginColor(batchMarginPct) }}>{totalProfit.toFixed(2)} DT{batchMarginPct != null ? ` (${batchMarginPct.toFixed(0)}%)` : ''}</span> : <span style={{ color: T.textMuted }}>—</span>}</td>}
         <td style={{ ...TD_STYLE, color: T.purpleText }}>{points} pts</td>
         <td style={TD_STYLE}>{formatDate(first.created_at)}</td>
         <td style={TD_STYLE}>
@@ -433,7 +484,7 @@ export default function OrdersPage() {
           }
           {!first.requires_account && (
             <div style={{ marginTop: 3 }}>
-              <span style={{ fontSize: '0.5625rem', color: revealed === members.length ? '#22C55E' : '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>
+              <span style={{ fontSize: '0.6875rem', color: revealed === members.length ? '#22C55E' : '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>
                 👁 {revealed}/{members.length} revealed
               </span>
             </div>
@@ -445,6 +496,27 @@ export default function OrdersPage() {
     )
 
     return open ? [summaryRow, ...members.map(o => renderOrderRow(o, true))] : [summaryRow]
+  }
+
+  function renderTotalsRow() {
+    const totalAmount = orders.reduce((s, o) => s + Number(o.amount_paid || 0), 0)
+    const totalCost   = orders.reduce((s, o) => s + Number(o.cost_price_at_sale || 0), 0)
+    const totalProfit = orders.reduce((s, o) => s + Number(o.profit_at_sale || 0), 0)
+    return (
+      <tr key="totals-row" style={{ background: 'rgba(155,79,237,0.08)', borderTop: `2px solid ${T.border}` }}>
+        <td style={{ ...TD_STYLE, fontWeight: 700, color: T.textPrimary }}>TOTAL</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={{ ...TD_STYLE, color: T.success, fontWeight: 700, fontFamily: T.mono }}>{formatCurrency(totalAmount)}</td>
+        <td style={{ ...TD_STYLE, fontFamily: T.mono, fontWeight: 700, color: T.textPrimary }}>{totalCost.toFixed(2)} DT</td>
+        <td style={{ ...TD_STYLE, fontFamily: T.mono, fontWeight: 700, color: '#3DDC84' }}>{totalProfit.toFixed(2)} DT</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={TD_STYLE}>—</td>
+        <td style={TD_STYLE}>—</td>
+      </tr>
+    )
   }
 }
 

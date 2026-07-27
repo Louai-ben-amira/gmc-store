@@ -6,7 +6,7 @@ import { useToast } from '../../hooks/useToast'
 import { Plus, Edit2, Trash2, Tag, Copy, Check, ToggleLeft, ToggleRight } from 'lucide-react'
 import { PageShell, PageHeader, QuickActionButton, StatusPill, IconBtn, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
 
-const EMPTY_FORM = { code: '', discount_type: 'percent', discount_value: '', max_uses: 0, valid_until: '', is_active: true }
+const EMPTY_FORM = { code: '', discount_type: 'percent', discount_value: '', max_uses: 0, one_per_user: false, valid_until: '', is_active: true }
 
 function PromoForm({ form, onChange }) {
   return (
@@ -51,6 +51,12 @@ function PromoForm({ form, onChange }) {
         </div>
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
+        <input type="checkbox" checked={form.one_per_user} onChange={e => onChange('one_per_user', e.target.checked)} />
+        <span style={{ color: 'var(--lavender)', fontSize: '0.875rem' }}>
+          One use per customer <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(each account can redeem this code only once, regardless of Max Uses)</span>
+        </span>
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
         <input type="checkbox" checked={form.is_active} onChange={e => onChange('is_active', e.target.checked)} />
         <span style={{ color: 'var(--lavender)', fontSize: '0.875rem' }}>Active</span>
       </label>
@@ -94,7 +100,7 @@ export default function PromoCodesPage() {
   const openEdit   = (c) => {
     setSelected(c)
     const validUntilLocal = c.valid_until ? new Date(c.valid_until).toISOString().slice(0, 16) : ''
-    setForm({ code: c.code, discount_type: c.discount_type, discount_value: c.discount_value, max_uses: c.max_uses, valid_until: validUntilLocal, is_active: c.is_active })
+    setForm({ code: c.code, discount_type: c.discount_type, discount_value: c.discount_value, max_uses: c.max_uses, one_per_user: c.one_per_user, valid_until: validUntilLocal, is_active: c.is_active })
     setModal('edit')
   }
   const openDelete = (c) => { setSelected(c); setModal('delete') }
@@ -109,6 +115,7 @@ export default function PromoCodesPage() {
         discount_type: form.discount_type,
         discount_value: form.discount_value,
         max_uses: form.max_uses,
+        one_per_user: form.one_per_user,
         valid_until: form.valid_until ? new Date(form.valid_until).toISOString() : null,
         is_active: form.is_active,
       }
@@ -198,6 +205,11 @@ export default function PromoCodesPage() {
                     <span style={{ color: exhausted ? T.danger : T.textSub, fontFamily: T.mono, fontSize: '0.875rem' }}>
                       {c.used_count}{c.max_uses > 0 ? ` / ${c.max_uses}` : ' / ∞'}
                     </span>
+                    {c.one_per_user && (
+                      <span style={{ marginLeft: '6px', color: T.purpleText, background: 'rgba(139,79,219,0.12)', border: `1px solid ${T.border}`, fontSize: '0.75rem', fontWeight: 700, padding: '1px 6px', borderRadius: '0.375rem' }}>
+                        1/customer
+                      </span>
+                    )}
                   </td>
                   <td style={TD_STYLE}>
                     {c.valid_until ? (

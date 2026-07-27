@@ -6,7 +6,6 @@ import en_auth     from './locales/en/auth.json'
 import en_shop     from './locales/en/shop.json'
 import en_wallet   from './locales/en/wallet.json'
 import en_orders   from './locales/en/orders.json'
-import en_messenger from './locales/en/messenger.json'
 import en_profile  from './locales/en/profile.json'
 
 import ar_common   from './locales/ar/common.json'
@@ -14,7 +13,6 @@ import ar_auth     from './locales/ar/auth.json'
 import ar_shop     from './locales/ar/shop.json'
 import ar_wallet   from './locales/ar/wallet.json'
 import ar_orders   from './locales/ar/orders.json'
-import ar_messenger from './locales/ar/messenger.json'
 import ar_profile  from './locales/ar/profile.json'
 
 const savedLang = (typeof localStorage !== 'undefined' && localStorage.getItem('gmc-lang')) || 'en'
@@ -29,7 +27,6 @@ i18n
         shop:      en_shop,
         wallet:    en_wallet,
         orders:    en_orders,
-        messenger: en_messenger,
         profile:   en_profile,
       },
       ar: {
@@ -38,13 +35,12 @@ i18n
         shop:      ar_shop,
         wallet:    ar_wallet,
         orders:    ar_orders,
-        messenger: ar_messenger,
         profile:   ar_profile,
       },
     },
     lng: savedLang,
     fallbackLng: 'en',
-    ns: ['common', 'auth', 'shop', 'wallet', 'orders', 'messenger', 'profile'],
+    ns: ['common', 'auth', 'shop', 'wallet', 'orders', 'profile'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

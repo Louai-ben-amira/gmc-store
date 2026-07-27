@@ -12,15 +12,20 @@ import Toast from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import ContactFab from './components/ContactFab'
 import ReviewPromptModal from './components/ReviewPromptModal'
+import BasketDrawer from './components/BasketDrawer'
 
 // Customer pages
 import ShopPage       from './pages/ShopPage'
 import ProductPage    from './pages/ProductPage'
 import RegisterPage   from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import OrdersPage     from './pages/OrdersPage'
 import WalletPage     from './pages/WalletPage'
-import MessengerPage  from './pages/MessengerPage'
+import SupportPage    from './pages/SupportPage'
+import TicketDetailPage from './pages/TicketDetailPage'
+import CheckoutPage   from './pages/CheckoutPage'
+import CheckoutSuccessPage from './pages/CheckoutSuccessPage'
 import ProfilePage    from './pages/ProfilePage'
 import BundlePage            from './pages/BundlePage'
 import GamingAccountsPage   from './pages/GamingAccountsPage'
@@ -33,10 +38,12 @@ import MaintenancePage      from './pages/MaintenancePage'
 import AdminLayout      from './pages/admin/AdminLayout'
 import DashboardPage    from './pages/admin/DashboardPage'
 import AdminProductsPage from './pages/admin/ProductsPage'
+import ProductMarginsPage from './pages/admin/ProductMarginsPage'
 import AdminOrdersPage  from './pages/admin/OrdersPage'
 import AdminUsersPage   from './pages/admin/UsersPage'
 import RechargesPage    from './pages/admin/RechargesPage'
-import AdminInboxPage   from './pages/admin/InboxPage'
+import OrderTicketsPage from './pages/admin/OrderTicketsPage'
+import SupportTicketsPage from './pages/admin/SupportTicketsPage'
 import BundlesPage      from './pages/admin/BundlesPage'
 import PromoCodesPage   from './pages/admin/PromoCodesPage'
 import FlashSalesPage   from './pages/admin/FlashSalesPage'
@@ -94,6 +101,7 @@ function Layout({ children }) {
       {children}
       <ContactFab />
       <ReviewPromptModal />
+      <BasketDrawer />
     </div>
   )
 }
@@ -111,6 +119,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/register"      element={<AuthRoute><RegisterPage /></AuthRoute>} />
             <Route path="/oauth/google"  element={<OAuthCallbackPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* Customer */}
             <Route path="/"          element={<Layout><ShopPage /></Layout>} />
@@ -118,8 +127,11 @@ createRoot(document.getElementById('root')).render(
             <Route path="/bundle/:id" element={<Layout><BundlePage /></Layout>} />
             <Route path="/orders"    element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
             <Route path="/wallet"    element={<Layout><ProtectedRoute><WalletPage /></ProtectedRoute></Layout>} />
-            <Route path="/messenger" element={<Layout><ProtectedRoute><MessengerPage /></ProtectedRoute></Layout>} />
-            <Route path="/chat"      element={<Layout><ProtectedRoute><MessengerPage /></ProtectedRoute></Layout>} />
+            <Route path="/checkout"  element={<Layout><ProtectedRoute><CheckoutPage /></ProtectedRoute></Layout>} />
+            <Route path="/checkout/success" element={<Layout><ProtectedRoute><CheckoutSuccessPage /></ProtectedRoute></Layout>} />
+            <Route path="/support"   element={<Layout><ProtectedRoute><SupportPage /></ProtectedRoute></Layout>} />
+            <Route path="/support/order/:id"   element={<Layout><ProtectedRoute><TicketDetailPage /></ProtectedRoute></Layout>} />
+            <Route path="/support/general/:id" element={<Layout><ProtectedRoute><TicketDetailPage /></ProtectedRoute></Layout>} />
             <Route path="/profile"   element={<Layout><ProtectedRoute><ProfilePage /></ProtectedRoute></Layout>} />
             <Route path="/gaming-accounts" element={<GamingAccountsPage />} />
             <Route path="/terms"   element={<Layout><TermsPage /></Layout>} />
@@ -129,6 +141,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index                element={<DashboardPage />} />
               <Route path="products"      element={<AdminProductsPage />} />
+              <Route path="products/margins" element={<ProductMarginsPage />} />
               <Route path="categories"    element={<CategoriesPage />} />
               <Route path="bundles"       element={<BundlesPage />} />
               <Route path="flash-sales"   element={<FlashSalesPage />} />
@@ -138,7 +151,8 @@ createRoot(document.getElementById('root')).render(
               <Route path="recharges"     element={<RechargesPage />} />
               <Route path="crypto"        element={<CryptoPage />} />
               <Route path="gift-cards"    element={<GiftCardsPage />} />
-              <Route path="inbox"         element={<AdminInboxPage />} />
+              <Route path="order-tickets"   element={<OrderTicketsPage />} />
+              <Route path="support-tickets" element={<SupportTicketsPage />} />
               <Route path="settings"      element={<SettingsPage />} />
             </Route>
 

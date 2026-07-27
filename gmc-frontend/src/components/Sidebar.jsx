@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Package, Wallet, MessageCircle, User, LogOut, Shield, Zap } from 'lucide-react'
+import { ShoppingBag, Package, Wallet, LifeBuoy, User, LogOut, Shield, Zap } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import { mediaUrl } from '../utils/formatters'
 import UserAvatar from './UserAvatar'
@@ -8,7 +8,7 @@ const navItems = [
   { to: '/',          icon: ShoppingBag, label: 'Shop' },
   { to: '/orders',    icon: Package,     label: 'Orders',   auth: true },
   { to: '/wallet',    icon: Wallet,      label: 'Wallet',   auth: true },
-  { to: '/messenger', icon: MessageCircle, label: 'Messages', auth: true },
+  { to: '/support',   icon: LifeBuoy,    label: 'Support',  auth: true },
   { to: '/profile',   icon: User,        label: 'Profile',  auth: true },
 ]
 

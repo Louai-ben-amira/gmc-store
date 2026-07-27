@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  TbShoppingCartPlus,
+  TbShoppingCartPlus, TbBasket,
   TbDeviceGamepad2, TbGift, TbWifi,
   TbBrandSteam, TbBrandValorant, TbBrandXbox,
   TbDeviceMobile, TbPlaystationCircle,
@@ -14,6 +14,7 @@ import { toggleWishlist } from '../api/products'
 import { mediaUrl } from '../utils/formatters'
 import { useToast } from '../hooks/useToast'
 import useAuthStore from '../store/authStore'
+import useBasketStore from '../store/basketStore'
 
 /* ─── Styles injected once ────────────────────────────────────────────── */
 if (typeof document !== 'undefined' && !document.getElementById('pcard-style')) {
@@ -273,7 +274,9 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
   const navigate = useNavigate()
   const toast    = useToast()
   const qc       = useQueryClient()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  const unverified = isAuthenticated() && user?.is_email_verified === false
+  const addItem  = useBasketStore(s => s.addItem)
 
   const flash = product.flash_sale_active
   const price = parseFloat(product.effective_price || product.price)
@@ -319,6 +322,22 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
     }
     if (onBuyClick) { onBuyClick(product); return }
     navigate(`/product/${product.slug || product.id}`)
+  }
+
+  const doAddToBasket = (e) => {
+    e.stopPropagation()
+    if (!isAuthenticated()) {
+      window.dispatchEvent(new CustomEvent('gmc:open-auth', { detail: { tab: 'login' } }))
+      return
+    }
+    // Variant products don't have a picker on the card - send the user to the
+    // product page where variant selection is already solved.
+    if (product.has_variants) {
+      navigate(`/product/${product.slug || product.id}`)
+      return
+    }
+    addItem(product, null)
+    toast.success(`${product.name} added to basket`)
   }
 
   return (
@@ -374,11 +393,11 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             padding: '4px 12px',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <span style={{ fontFamily: 'Sora,sans-serif', fontWeight: 800, fontSize: 10, color: 'var(--text-primary)', letterSpacing: '0.1em' }}>
+            <span style={{ fontFamily: 'Sora,sans-serif', fontWeight: 800, fontSize: 12, color: 'var(--text-primary)', letterSpacing: '0.1em' }}>
               ⚡ FLASH SALE
             </span>
             {disc > 0 && (
-              <span style={{ fontFamily: 'JetBrains Mono,monospace', fontWeight: 700, fontSize: 10, color: '#FFCCD2', marginLeft: 'auto' }}>
+              <span style={{ fontFamily: 'JetBrains Mono,monospace', fontWeight: 700, fontSize: 12, color: '#FFCCD2', marginLeft: 'auto' }}>
                 −{disc}%
               </span>
             )}
@@ -441,7 +460,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
             background: 'rgba(234,160,0,0.1)', border: '1px solid rgba(234,160,0,0.3)',
             borderRadius: 5, padding: '2px 8px',
-            fontFamily: 'JetBrains Mono,monospace', fontSize: '8.5px', fontWeight: 700,
+            fontFamily: 'JetBrains Mono,monospace', fontSize: '11px', fontWeight: 700,
             color: '#FFC840', letterSpacing: '0.05em',
           }}>
             <TbLock size={9} /> {t('product.accountRequired')}
@@ -476,27 +495,46 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             )}
           </div>
 
-          <button
-            className="pcard-btn"
-            onClick={doBuy}
-            disabled={stock === 0}
-            style={stock === 0
-              ? { background: 'rgba(60,40,90,0.3)', color: 'rgba(180,150,240,0.3)', boxShadow: 'none' }
-              : {
-                  background: flash
-                    ? 'linear-gradient(135deg,#AA0016,#E8172E)'
-                    : `linear-gradient(135deg,${c2},${c1})`,
-                  boxShadow: flash
-                    ? '0 4px 16px rgba(220,20,40,0.45)'
-                    : `0 4px 16px ${c1}55`,
-                }
-            }
-          >
-            {stock === 0
-              ? t('product.soldOut')
-              : <><TbShoppingCartPlus size={14} strokeWidth={2.2} /> {t('product.buyNow')}</>
-            }
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {stock !== 0 && (
+              <button
+                className="pcard-btn"
+                onClick={doAddToBasket}
+                title={t('product.addToBasket', 'Add to Basket')}
+                style={{
+                  padding: '0 12px',
+                  background: 'transparent',
+                  border: `1.5px solid ${c1}55`,
+                  color: ic,
+                  boxShadow: 'none',
+                }}
+              >
+                <TbBasket size={16} strokeWidth={2.2} />
+              </button>
+            )}
+            <button
+              className="pcard-btn"
+              onClick={doBuy}
+              disabled={stock === 0 || unverified}
+              title={unverified ? 'Verify your email to enable purchases' : undefined}
+              style={stock === 0 || unverified
+                ? { background: 'rgba(60,40,90,0.3)', color: 'rgba(180,150,240,0.3)', boxShadow: 'none' }
+                : {
+                    background: flash
+                      ? 'linear-gradient(135deg,#AA0016,#E8172E)'
+                      : `linear-gradient(135deg,${c2},${c1})`,
+                    boxShadow: flash
+                      ? '0 4px 16px rgba(220,20,40,0.45)'
+                      : `0 4px 16px ${c1}55`,
+                  }
+              }
+            >
+              {stock === 0
+                ? t('product.soldOut')
+                : <><TbShoppingCartPlus size={14} strokeWidth={2.2} /> {t('product.buyNow')}</>
+              }
+            </button>
+          </div>
         </div>
       </div>
     </div>

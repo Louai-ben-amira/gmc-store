@@ -131,7 +131,7 @@ function CodesModal({ batch, onClose }) {
                     textDecoration: c.is_used ? 'line-through' : 'none',
                   }}>{c.code}</span>
                   {c.is_used
-                    ? <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Used</span>
+                    ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Used</span>
                     : <CopyBtn text={c.code} />
                   }
                 </div>

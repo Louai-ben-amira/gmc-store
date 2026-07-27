@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { login, register, socialAuth, forgotPassword } from '../api/auth'
+import { login, register, socialAuth, forgotPassword, resendVerification } from '../api/auth'
 import { googleLogin, facebookLogin } from '../utils/socialAuth'
 import useAuthStore from '../store/authStore'
 import { useToast } from '../hooks/useToast'
@@ -327,6 +327,13 @@ function RegisterForm({ onSuccess, switchToLogin }) {
   const { login: storeLogin }   = useAuthStore()
   const toast = useToast()
 
+  // Set once registration succeeds for an account that still needs email
+  // verification - swaps the form out for the "check your inbox" screen.
+  const [checkInbox, setCheckInbox]   = useState(null) // { email, user }
+  const [resending, setResending]     = useState(false)
+  const [resent, setResent]           = useState(false)
+  const [remaining, setRemaining]     = useState(3)
+
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })) }
 
   const validate = () => {
@@ -353,12 +360,14 @@ function RegisterForm({ onSuccess, switchToLogin }) {
       }
       if (form.referral_code.trim()) payload.referral_code = form.referral_code.trim()
       const { data } = await register(payload)
-      // auto-login after register
-      const { login: loginApi } = await import('../api/auth')
-      const { data: loginData } = await loginApi({ username: form.username, password: form.password })
-      storeLogin(loginData.user, loginData.access, loginData.refresh)
-      toast.success(`Account created! Welcome, ${loginData.user.first_name || loginData.user.username}! 🎉`)
-      onSuccess(loginData.user)
+      // Register already returns tokens - the user is logged in immediately
+      storeLogin(data.user, data.access, data.refresh)
+      if (data.user.is_email_verified) {
+        toast.success(`Account created! Welcome, ${data.user.first_name || data.user.username}! 🎉`)
+        onSuccess(data.user)
+      } else {
+        setCheckInbox({ email: data.user.email, user: data.user })
+      }
     } catch (err) {
       const d = err.response?.data || {}
       const e = {}
@@ -383,6 +392,78 @@ function RegisterForm({ onSuccess, switchToLogin }) {
   })()
   const strengthColors = ['#ff4d6d', '#f97316', '#f59e0b', '#3DDC84']
   const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong']
+
+  const handleResend = async () => {
+    setResending(true)
+    try {
+      const { data } = await resendVerification()
+      setResent(true)
+      setRemaining(data.resends_remaining)
+      setTimeout(() => setResent(false), 4000)
+    } catch (err) {
+      if (err.response?.data?.error === 'max_resends_reached') {
+        setRemaining(0)
+        toast.error('Maximum resend attempts reached. Contact support.')
+      } else {
+        toast.error('Could not resend the email. Try again shortly.')
+      }
+    } finally {
+      setResending(false)
+    }
+  }
+
+  if (checkInbox) {
+    return (
+      <div style={{ animation: 'authSlideLeft 0.22s ease both', textAlign: 'center', padding: '0.5rem 0 0.25rem' }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%', background: 'rgba(61,220,132,0.12)',
+          border: '1px solid rgba(61,220,132,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 1rem',
+        }}>
+          <MailCheck size={22} color="#3DDC84" />
+        </div>
+        <p style={{ color: 'var(--text-primary)', fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>
+          📧 Check your inbox!
+        </p>
+        <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', lineHeight: 1.5, margin: '0 0 1.5rem' }}>
+          We sent a verification link to <strong style={{ color: 'var(--text-secondary)' }}>{checkInbox.email}</strong>.
+          Click the link in the email to activate your account.
+        </p>
+
+        <button type="button" className="auth-submit" onClick={() => onSuccess(checkInbox.user)} style={{ marginBottom: '0.75rem' }}>
+          Continue to Shop
+        </button>
+
+        {resent ? (
+          <p style={{ color: '#3DDC84', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', margin: '0 0 0.75rem' }}>
+            ✓ Email sent! ({remaining} resend{remaining === 1 ? '' : 's'} remaining)
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending || remaining === 0}
+            style={{
+              width: '100%', marginBottom: '0.75rem', padding: '0.5rem', border: 'none', background: 'none',
+              color: remaining === 0 ? 'var(--text-muted)' : 'var(--accent)', fontFamily: 'Inter, sans-serif',
+              fontWeight: 600, fontSize: '0.8125rem', cursor: resending || remaining === 0 ? 'not-allowed' : 'pointer',
+              textDecoration: 'underline', opacity: resending ? 0.6 : 1,
+            }}
+          >
+            {resending ? 'Sending…' : remaining === 0 ? 'Contact support' : `Resend email (${remaining} left)`}
+          </button>
+        )}
+
+        <button type="button" onClick={() => setCheckInbox(null)}
+          style={{ width: '100%', padding: '0.5rem', border: 'none', background: 'none', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          <ArrowLeft size={13} /> Change email address
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: 'authSlideLeft 0.22s ease both' }}>

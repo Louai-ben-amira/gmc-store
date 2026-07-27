@@ -1,8 +1,20 @@
+import fs from 'fs'
 import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Local-only self-signed HTTPS cert (see .certs/, gitignored). Facebook's JS
+// SDK refuses to run FB.login() on http:// pages, so social login testing
+// needs the dev server on https://localhost. Falls back to plain HTTP if the
+// cert hasn't been generated (see README / ask Claude to regenerate it).
+const certDir  = path.resolve(__dirname, '.certs')
+const keyPath  = path.join(certDir, 'localhost-key.pem')
+const certPath = path.join(certDir, 'localhost-cert.pem')
+const httpsConfig = (fs.existsSync(keyPath) && fs.existsSync(certPath))
+  ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
+  : undefined
 
 export default defineConfig({
   plugins: [
@@ -99,5 +111,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    https: httpsConfig,
   },
 })

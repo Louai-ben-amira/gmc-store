@@ -57,7 +57,7 @@ function CategoryRow({ cat, depth = 0, onEdit, onDelete }) {
                   color: depth === 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
                 }}>{cat.name}</span>
                 {!cat.is_active && (
-                  <span style={{ background: 'rgba(255,77,109,0.15)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: '0.6rem', color: '#ff4d6d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hidden</span>
+                  <span style={{ background: 'rgba(255,77,109,0.15)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 4, padding: '1px 6px', fontSize: '0.75rem', color: '#ff4d6d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hidden</span>
                 )}
               </>
             )}
@@ -338,8 +338,8 @@ export default function CategoriesPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="admin-table-wrap" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
               {['Category Name', 'Slug', 'Sub-categories', 'Actions'].map((h, i) => (

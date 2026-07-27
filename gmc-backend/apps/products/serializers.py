@@ -67,6 +67,27 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         fields = ['id', 'label', 'amount_value', 'price', 'points_earned', 'stock_count', 'is_active', 'order']
 
 
+def _margin_pct(selling, cost):
+    """(profit / selling) * 100, or None if cost is unknown or selling is 0."""
+    if cost is None or not selling:
+        return None
+    from decimal import Decimal
+    selling = Decimal(str(selling))
+    cost    = Decimal(str(cost))
+    return round(float((selling - cost) / selling * 100), 2)
+
+
+class AdminProductVariantSerializer(ProductVariantSerializer):
+    """Admin-only: adds cost_price (prix d'achat) and the calculated margin. Never used client-side."""
+    margin_pct = serializers.SerializerMethodField()
+
+    class Meta(ProductVariantSerializer.Meta):
+        fields = ProductVariantSerializer.Meta.fields + ['cost_price', 'margin_pct']
+
+    def get_margin_pct(self, obj):
+        return _margin_pct(obj.price, obj.cost_price)
+
+
 class ProductSerializer(serializers.ModelSerializer):
     available_stock   = serializers.SerializerMethodField()
     effective_price   = serializers.SerializerMethodField()
@@ -148,6 +169,23 @@ class ProductSerializer(serializers.ModelSerializer):
         if not isinstance(value, list):
             raise serializers.ValidationError('required_fields must be a list.')
         return value
+
+
+class AdminProductSerializer(ProductSerializer):
+    """
+    Admin-only: extends the client-facing ProductSerializer with cost_price
+    (prix d'achat) and calculated margin. ONLY ever wired into admin-gated
+    endpoints (see apps/products/views.py) - never used for the public shop,
+    category browsing, or the nested product_detail on client order data.
+    """
+    margin_pct = serializers.SerializerMethodField()
+    variants   = AdminProductVariantSerializer(many=True, read_only=True)
+
+    class Meta(ProductSerializer.Meta):
+        fields = ProductSerializer.Meta.fields + ['cost_price', 'margin_pct']
+
+    def get_margin_pct(self, obj):
+        return _margin_pct(obj.effective_price, obj.cost_price)
 
 
 class BundleProductSerializer(serializers.ModelSerializer):

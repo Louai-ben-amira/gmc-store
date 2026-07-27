@@ -317,11 +317,10 @@ export default function CryptoPage() {
   }
 
   const tabs = [
-    { value: '',           label: 'All' },
-    { value: 'pending',    label: 'Pending' },
-    { value: 'confirming', label: 'Confirming' },
-    { value: 'confirmed',  label: 'Confirmed' },
-    { value: 'expired',    label: 'Expired' },
+    { value: '',          label: 'All' },
+    { value: 'pending',   label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'expired',   label: 'Expired' },
   ]
 
   return (

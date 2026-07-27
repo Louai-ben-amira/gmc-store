@@ -245,7 +245,7 @@ function TabButton({ tab, isOpen, isActive, onClick }) {
         }} />
       )}
       <span style={{
-        fontSize: '0.55rem', opacity: 0.55, marginLeft: 1,
+        fontSize: '0.6875rem', opacity: 0.55, marginLeft: 1,
         transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
         transition: 'transform 0.18s',
         display: 'inline-block',

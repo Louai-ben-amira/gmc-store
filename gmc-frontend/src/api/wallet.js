@@ -17,3 +17,4 @@ export const getCryptoQR         = (id)     => api.get(`/payments/crypto/${id}/q
 export const submitTxHash        = (id, data) => api.patch(`/payments/crypto/${id}/tx/`, data)
 export const getMyCryptoPayments = ()       => api.get('/payments/crypto/mine/')
 export const redeemGiftCard      = (data)   => api.post('/wallet/redeem/', data)
+export const redeemPoints        = (data)   => api.post('/wallet/redeem-points/', data)

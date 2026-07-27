@@ -34,10 +34,32 @@ class SiteSettings(models.Model):
         return obj
 
 
+# Admin-configurable fee rate/amount for each payment method - key -> default value.
+FEE_SETTING_DEFAULTS = {
+    'TICKET_TAX_RATE':        '0.11',  # percentage, applies to Ooredoo/Orange tickets
+    'D17_NUMBER_FEE_RATE':    '0.01',  # percentage, D17 - Phone
+    'D17_ADDRESS_FEE_RATE':   '0',     # percentage, D17 - Address/RIB
+    'BANK_TRANSFER_FLAT_FEE': '2.5',   # flat amount in DT, Bank Transfer
+    'EDINAR_FEE_RATE':        '0',     # percentage, E-Dinar
+    'FLOUCI_FEE_RATE':        '0',     # percentage, Flouci
+}
+
+
+def get_fee_setting(key):
+    """Read an admin-configurable fee rate/amount from SiteSettings as a Decimal."""
+    default = FEE_SETTING_DEFAULTS[key]
+    raw = SiteSettings.get(key, default)
+    try:
+        return Decimal(raw)
+    except Exception:
+        return Decimal(default)
+
+
 class RechargeRequest(models.Model):
     METHOD_CHOICES = [
         ('ooredoo_ticket', 'Ooredoo Ticket'),
         ('orange_ticket',  'Orange Ticket'),
+        ('tt_ticket',      'Tunisie Telecom Ticket'),
         ('d17_number',     'D17 - Phone Number'),
         ('d17_address',    'D17 - Address/RIB'),
         ('bank_transfer',  'Bank Transfer (Bancaire)'),
@@ -106,19 +128,21 @@ class RechargeRequest(models.Model):
     def __str__(self):
         return f"Recharge #{self.id} – {self.user.username} – {self.wallet_credit} DT"
 
-    TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket'}
-    TRANSFER_METHODS = {'d17_number', 'd17_address', 'bank_transfer', 'flouci'}
+    TICKET_METHODS   = {'ooredoo_ticket', 'orange_ticket', 'tt_ticket'}
+    TRANSFER_METHODS = {'d17_number', 'd17_address', 'bank_transfer', 'flouci', 'edinar'}
 
-    BANK_TRANSFER_FLAT_FEE = Decimal('2.5')
+    # method -> SiteSettings key holding its percentage fee rate
+    PERCENTAGE_FEE_METHODS = {
+        'd17_number':  'D17_NUMBER_FEE_RATE',
+        'd17_address': 'D17_ADDRESS_FEE_RATE',
+        'flouci':      'FLOUCI_FEE_RATE',
+        'edinar':      'EDINAR_FEE_RATE',
+    }
 
     def calculate_wallet_credit(self):
         """Compute tax_rate and wallet_credit from SiteSettings. Never hardcode rates."""
         if self.method in self.TICKET_METHODS:
-            rate_str = SiteSettings.get('TICKET_TAX_RATE', '0.11')
-            try:
-                self.tax_rate = Decimal(rate_str)
-            except Exception:
-                self.tax_rate = Decimal('0.11')
+            self.tax_rate = get_fee_setting('TICKET_TAX_RATE')
 
             items = list(self.ticket_items.all()) if self.pk else []
             if items:
@@ -134,10 +158,11 @@ class RechargeRequest(models.Model):
             self.wallet_credit = (base * (Decimal('1') - self.tax_rate)).quantize(Decimal('0.01'))
         elif self.method == 'bank_transfer':
             self.tax_rate = Decimal('0')
+            flat_fee = get_fee_setting('BANK_TRANSFER_FLAT_FEE')
             sent = self.amount_sent or Decimal('0')
-            self.wallet_credit = max(sent - self.BANK_TRANSFER_FLAT_FEE, Decimal('0')).quantize(Decimal('0.01'))
-        elif self.method == 'd17_number':
-            self.tax_rate = Decimal('0.01')
+            self.wallet_credit = max(sent - flat_fee, Decimal('0')).quantize(Decimal('0.01'))
+        elif self.method in self.PERCENTAGE_FEE_METHODS:
+            self.tax_rate = get_fee_setting(self.PERCENTAGE_FEE_METHODS[self.method])
             sent = self.amount_sent or Decimal('0')
             fee = (sent * self.tax_rate).quantize(Decimal('0.01'))
             self.wallet_credit = max(sent - fee, Decimal('0')).quantize(Decimal('0.01'))

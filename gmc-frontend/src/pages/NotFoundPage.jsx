@@ -56,7 +56,7 @@ export default function NotFoundPage() {
         }}>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '0.5625rem',
+            fontSize: '0.6875rem',
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
@@ -137,7 +137,7 @@ export default function NotFoundPage() {
           </button>
 
           <button
-            onClick={() => navigate('/messenger')}
+            onClick={() => navigate('/support')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

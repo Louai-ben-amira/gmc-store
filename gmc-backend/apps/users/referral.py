@@ -72,15 +72,10 @@ def handle_referral_first_purchase(buyer):
 
 
 def _send_referral_notification(referrer, buyer):
-    try:
-        from apps.chat.models import Conversation, Message
-        conv, _ = Conversation.objects.get_or_create(client=referrer)
-        display = buyer.get_full_name() or buyer.username
-        Message.objects.create(
-            conversation = conv,
-            sender       = referrer,
-            body         = f"Referral Bonus! +2.00 DT - {display} placed their first order with your code!",
-            msg_type     = 'text',
-        )
-    except Exception:
-        pass
+    from apps.notifications.services import notify
+    display = buyer.get_full_name() or buyer.username
+    notify(
+        referrer, 'referral_bonus', 'Referral Bonus Earned',
+        f'{display} joined with your code — +{BONUS_AMOUNT:.2f} DT added to your wallet.',
+        link='/wallet',
+    )

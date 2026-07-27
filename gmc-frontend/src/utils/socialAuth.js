@@ -109,9 +109,18 @@ function loadFB() {
 
 export async function facebookLogin() {
   if (!FACEBOOK_APP_ID) throw new Error('Facebook App ID not configured (VITE_FACEBOOK_APP_ID)')
+  if (window.location.protocol !== 'https:') {
+    throw new Error('Facebook login requires HTTPS - it will not work on http:// pages.')
+  }
   await loadFB()
   return new Promise((resolve, reject) => {
+    // FB.login's callback never fires in some failure modes (e.g. the SDK
+    // silently refuses on non-https pages), which used to leave the caller's
+    // "Connecting..." spinner stuck forever with no feedback. Always resolve
+    // one way or another within a few seconds.
+    const timer = setTimeout(() => reject('Facebook sign-in timed out. Please try again.'), 15000)
     window.FB.login((response) => {
+      clearTimeout(timer)
       if (response.authResponse?.accessToken) resolve(response.authResponse.accessToken)
       else reject('Facebook sign-in cancelled or failed')
     }, { scope: 'public_profile,email' })

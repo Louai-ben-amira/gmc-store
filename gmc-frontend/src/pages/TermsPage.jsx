@@ -82,7 +82,7 @@ export default function TermsPage() {
           <div style={{ marginBottom: '2.5rem', animation: 'fadeSlideUp 0.35s ease both' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(139,79,219,0.10)', border: '1px solid rgba(139,79,219,0.25)', borderRadius: 100, padding: '4px 14px', marginBottom: '1rem' }}>
               <TbShieldLock size={12} color="#B57BFF" />
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5625rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B57BFF' }}>
+              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B57BFF' }}>
                 Legal · GMC Store
               </span>
             </div>
@@ -97,7 +97,7 @@ export default function TermsPage() {
 
           {/* ── Quick nav ── */}
           <Card style={{ marginBottom: '2rem', background: 'var(--bg-elevated)' }}>
-            <p style={{ margin: '0 0 0.75rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>On this page</p>
+            <p style={{ margin: '0 0 0.75rem', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>On this page</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {['Acceptance', 'Products & Delivery', 'Payments & Wallet', 'Refund Policy', 'Prohibited Use', 'Privacy', 'Limitation of Liability', 'Contact'].map(label => (
                 <a key={label} href={`#${label.toLowerCase().replace(/ &? ?/g, '-')}`} style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: '#B57BFF', textDecoration: 'none', background: 'rgba(139,79,219,0.1)', border: '1px solid rgba(139,79,219,0.2)', borderRadius: 6, padding: '3px 10px', transition: 'background 0.12s' }}
@@ -177,7 +177,7 @@ export default function TermsPage() {
               <ol style={{ margin: 0, paddingLeft: '1.25rem' }}>
                 {[
                   'Open the order in question via My Orders.',
-                  'Click "Message Support" to open a chat thread about that order.',
+                  'Click "Open Ticket" to start an order ticket about that order.',
                   'Describe the issue clearly and attach any proof (screenshot of the invalid code, error message, etc.).',
                   'Our team will respond within 24 hours on business days.',
                 ].map((step, i) => (
@@ -245,15 +245,15 @@ export default function TermsPage() {
               >
                 <TbMail size={14} /> {CONTACT_EMAIL}
               </a>
-              <Link to="/messenger" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 9, background: 'rgba(61,220,132,0.08)', border: '1px solid rgba(61,220,132,0.25)', color: '#3DDC84', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', transition: 'background 0.12s' }}
+              <Link to="/support" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 9, background: 'rgba(61,220,132,0.08)', border: '1px solid rgba(61,220,132,0.25)', color: '#3DDC84', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', transition: 'background 0.12s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(61,220,132,0.15)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(61,220,132,0.08)'}
               >
-                <TbClock size={14} /> Live Support Chat
+                <TbClock size={14} /> Support Tickets
               </Link>
             </div>
             <p style={{ margin: '1rem 0 0', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              We aim to respond within <strong style={{ color: 'var(--text-secondary)' }}>24 hours</strong> on business days. For urgent order issues, use the in-order messenger.
+              We aim to respond within <strong style={{ color: 'var(--text-secondary)' }}>24 hours</strong> on business days. For urgent order issues, open a ticket from that order in My Orders.
             </p>
           </Card>
 

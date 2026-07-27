@@ -4,14 +4,21 @@ import { getAdminUsers, updateAdminUser, deleteAdminUser } from '../../api/admin
 import Modal from '../../components/Modal'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Search, Edit2, CheckCircle, XCircle, Trash2 } from 'lucide-react'
-import { PageShell, PageHeader, StatusPill, IconBtn, TH_STYLE, TD_STYLE, T, Pagination } from '../../components/admin/AdminUI'
+import { Search, Edit2, CheckCircle, XCircle, Trash2, MailCheck, RotateCcw } from 'lucide-react'
+import { PageShell, PageHeader, StatusPill, IconBtn, FilterTabs, TH_STYLE, TD_STYLE, T, Pagination } from '../../components/admin/AdminUI'
+
+const VERIFIED_TABS = [
+  { label: 'All',        value: '' },
+  { label: 'Verified',   value: 'true' },
+  { label: 'Unverified', value: 'false' },
+]
 
 export default function UsersPage() {
   const qc    = useQueryClient()
   const toast = useToast()
 
   const [search,      setSearch]      = useState('')
+  const [verified,    setVerified]    = useState('')
   const [page,        setPage]        = useState(1)
   const [selected,    setSelected]    = useState(null)
   const [balance,     setBalance]     = useState('')
@@ -21,8 +28,8 @@ export default function UsersPage() {
 
   const PAGE_SIZE = 20
   const { data } = useQuery({
-    queryKey: ['admin-users', search, page],
-    queryFn:  () => getAdminUsers({ search: search || undefined, page, page_size: PAGE_SIZE }).then(r => r.data),
+    queryKey: ['admin-users', search, verified, page],
+    queryFn:  () => getAdminUsers({ search: search || undefined, verified: verified || undefined, page, page_size: PAGE_SIZE }).then(r => r.data),
   })
   const users      = data?.results || data || []
   const totalPages = Math.ceil((data?.count ?? users.length) / PAGE_SIZE)
@@ -64,23 +71,42 @@ export default function UsersPage() {
     } catch { toast.error('Failed to update.') }
   }
 
+  const manuallyVerify = async (u) => {
+    try {
+      await updateAdminUser(u.id, { verify_email: true })
+      toast.success(`${u.username} manually verified.`)
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+    } catch { toast.error('Failed to verify.') }
+  }
+
+  const reenableResend = async (u) => {
+    try {
+      await updateAdminUser(u.id, { reset_resend_count: true })
+      toast.success(`${u.username} can request 3 more resends.`)
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+    } catch { toast.error('Failed to reset.') }
+  }
+
   return (
     <PageShell>
       <PageHeader title="Users" />
 
-      <div style={{ position: 'relative', marginBottom: '1.25rem', maxWidth: '340px' }}>
-        <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search users..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', maxWidth: '340px', flex: '1 1 240px' }}>
+          <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search users..." style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem' }} />
+        </div>
+        <FilterTabs tabs={VERIFIED_TABS} value={verified} onChange={v => { setVerified(v); setPage(1) }} />
       </div>
 
       <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse' }}>
           <thead>
-            <tr>{['#','Username','Email','Balance','Points','Orders','Referral Code','Status','Actions'].map(h => <th key={h} style={TH_STYLE}>{h}</th>)}</tr>
+            <tr>{['#','Username','Email','Balance','Points','Orders','Referral Code','Status','Email Verified','Resends','Actions'].map(h => <th key={h} style={TH_STYLE}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {users.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No users found.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: T.textMuted, padding: '3rem', fontSize: '0.875rem' }}>No users found.</td></tr>
             ) : users.map(u => (
               <tr key={u.id}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,79,219,0.04)'}
@@ -100,7 +126,13 @@ export default function UsersPage() {
                 </td>
                 <td style={TD_STYLE}><StatusPill status={u.is_active ? 'active' : 'inactive'} /></td>
                 <td style={TD_STYLE}>
-                  <div style={{ display: 'flex', gap: '0.375rem' }}>
+                  <StatusPill status={u.is_email_verified ? 'active' : 'pending'} label={u.is_email_verified ? 'Verified' : 'Unverified'} />
+                </td>
+                <td style={{ ...TD_STYLE, color: u.email_resend_count >= 3 ? T.danger : T.textMuted, fontFamily: T.mono }}>
+                  {u.email_resend_count ?? 0}/3
+                </td>
+                <td style={TD_STYLE}>
+                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
                     <IconBtn onClick={() => openEdit(u)} title="Edit balance"><Edit2 size={14} /></IconBtn>
                     <IconBtn
                       onClick={() => toggleActive(u)}
@@ -111,6 +143,28 @@ export default function UsersPage() {
                     >
                       {u.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                     </IconBtn>
+                    {!u.is_email_verified && (
+                      <IconBtn
+                        onClick={() => manuallyVerify(u)}
+                        title="Manually verify email"
+                        color={T.success}
+                        bg={T.successDim}
+                        border={T.successBorder}
+                      >
+                        <MailCheck size={14} />
+                      </IconBtn>
+                    )}
+                    {u.email_resend_count >= 3 && (
+                      <IconBtn
+                        onClick={() => reenableResend(u)}
+                        title="Re-enable account (reset resend count)"
+                        color={T.purpleText}
+                        bg="rgba(139,79,219,0.12)"
+                        border={T.border}
+                      >
+                        <RotateCcw size={14} />
+                      </IconBtn>
+                    )}
                     <IconBtn
                       onClick={() => setDeleteTarget(u)}
                       title="Delete user"

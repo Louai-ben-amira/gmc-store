@@ -672,6 +672,21 @@ button, a, [role="button"] {
   .gmc-wallet-chip  { padding: 0 9px !important; }
 }
 
+/* "Squeezed desktop" range (common laptop widths like 1440x900, 1366x768):
+   the full desktop nav is shown (>960px) but at its default padding/gap the
+   row's natural content width exceeds these viewports - flex items with
+   nowrap text refuse to shrink below their content size, so the row grows
+   past its own maxWidth and pushes the right-side wallet/bell/avatar cluster
+   off the edge of the screen. Tighten spacing so everything fits. */
+@media (min-width: 961px) and (max-width: 1600px) {
+  .gmc-topbar-inner  { gap: 0.25rem !important; padding: 0 0.875rem !important; }
+  .gmc-nav-item      { padding: 5px 6px !important; font-size: 0.75rem !important; }
+  .gmc-logo          { height: 64px !important; }
+  .gmc-topbar-actions { gap: 6px !important; }
+  .gmc-wallet-chip   { padding: 0 10px 0 7px !important; gap: 6px !important; }
+  .gmc-user-name     { max-width: 60px !important; }
+}
+
 /* ── Base grid classes ──────────────────────────────── */
 .cat-grid {
   display: grid;
@@ -722,7 +737,7 @@ button, a, [role="button"] {
   .table-cards td::before {
     content: attr(data-label);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.5625rem;
+    font-size: 0.6875rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -919,9 +934,9 @@ img { max-width: 100%; height: auto; }
   .pcard-body  { padding: 10px 10px 12px !important; gap: 5px !important; }
   .pcard-name  { font-size: 13px !important; -webkit-line-clamp: 1 !important; }
   .pcard-desc  { font-size: 11px !important; -webkit-line-clamp: 1 !important; }
-  .pcard-plabel { font-size: 8px !important; }
+  .pcard-plabel { font-size: 10px !important; }
   .pcard-price  { font-size: 17px !important; }
-  .pcard-chip   { font-size: 8.5px !important; padding: 3px 6px !important; }
+  .pcard-chip   { font-size: 10.5px !important; padding: 3px 6px !important; }
   .pcard-footer { gap: 6px !important; }
   .pcard-btn    { padding: 0 10px !important; font-size: 11px !important; gap: 4px !important; height: 38px !important; }
   .pcard-wish   { width: 34px !important; height: 34px !important; top: 7px !important; right: 7px !important; }
@@ -949,11 +964,13 @@ img { max-width: 100%; height: auto; }
   .order-actions button { padding: 6px 9px !important; font-size: 0.7rem !important; }
   .order-detail-strip { flex-direction: column !important; gap: 0.5rem !important; padding: 0.75rem !important; }
   .order-status-badge { padding: 3px 7px !important; }
-  .order-status-badge span { font-size: 0.5625rem !important; }
+  .order-status-badge span { font-size: 0.6875rem !important; }
 
   /* ── WalletPage ────────────────────────────────────── */
+  .wallet-cards-row { flex-direction: column !important; }
   .wallet-balance-row { flex-direction: column !important; gap: 0.875rem !important; align-items: flex-start !important; }
   .wallet-balance-right { align-items: flex-start !important; }
+  .wallet-sparkline { display: none !important; }
 
   /* ── ProfilePage ───────────────────────────────────── */
   .profile-wrap      { padding: 0.875rem 0.875rem 4rem !important; }

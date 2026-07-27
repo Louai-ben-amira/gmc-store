@@ -9,7 +9,7 @@ class PromoCodeSerializer(serializers.ModelSerializer):
         model  = PromoCode
         fields = [
             'id', 'code', 'discount_type', 'discount_value',
-            'max_uses', 'used_count', 'valid_until', 'is_active', 'created_at',
+            'max_uses', 'used_count', 'one_per_user', 'valid_until', 'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'used_count', 'created_at']
 
@@ -23,10 +23,13 @@ class OrderSerializer(serializers.ModelSerializer):
     user_username      = serializers.CharField(source='user.username', read_only=True)
     promo_code_str     = serializers.SerializerMethodField()
     has_credentials    = serializers.SerializerMethodField()
-    conversation_id    = serializers.SerializerMethodField()
+    open_ticket_id     = serializers.SerializerMethodField()
     variant_label      = serializers.SerializerMethodField()
     is_revealed        = serializers.SerializerMethodField()
     is_refund_eligible = serializers.SerializerMethodField()
+    cost_price_at_sale = serializers.SerializerMethodField()
+    profit_at_sale     = serializers.SerializerMethodField()
+    margin_pct_at_sale = serializers.SerializerMethodField()
 
     class Meta:
         model  = Order
@@ -40,7 +43,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'quantity', 'code_value', 'code_values', 'is_revealed', 'is_refund_eligible',
             'code_viewed_at', 'code_view_ip',
             'promo_code_str', 'has_credentials',
-            'conversation_id', 'created_at', 'batch_id',
+            'open_ticket_id', 'created_at', 'batch_id',
+            'cost_price_at_sale', 'profit_at_sale', 'margin_pct_at_sale',
         ]
         read_only_fields = [
             'id', 'amount_paid', 'service_fee', 'discount_amount', 'points_earned',
@@ -90,11 +94,34 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_has_credentials(self, obj):
         return hasattr(obj, 'credentials')
 
-    def get_conversation_id(self, obj):
-        try:
-            return obj.user.conversation.id
-        except Exception:
+    def get_open_ticket_id(self, obj):
+        # `open_tickets` is populated by a Prefetch in `_order_list_queryset()`
+        # (already filtered to open/in_progress) so this never issues a query.
+        open_tickets = getattr(obj, 'open_tickets', None)
+        if open_tickets is None:
+            ticket = obj.tickets.filter(status__in=('open', 'in_progress')).first()
+        else:
+            ticket = open_tickets[0] if open_tickets else None
+        return ticket.id if ticket else None
+
+    def get_cost_price_at_sale(self, obj):
+        # Admin-only: cost/profit must never reach a client response.
+        if not self._is_admin_request():
             return None
+        return obj.cost_price_at_sale
+
+    def get_profit_at_sale(self, obj):
+        if not self._is_admin_request():
+            return None
+        return obj.profit_at_sale
+
+    def get_margin_pct_at_sale(self, obj):
+        if not self._is_admin_request():
+            return None
+        if obj.profit_at_sale is None or not obj.amount_paid:
+            return None
+        from decimal import Decimal
+        return round(float(Decimal(str(obj.profit_at_sale)) / Decimal(str(obj.amount_paid)) * 100), 2)
 
     def get_variant_label(self, obj):
         return obj.variant.label if obj.variant else None
@@ -118,6 +145,29 @@ class PlaceOrderSerializer(serializers.Serializer):
         if not data.get('product_id') and not data.get('bundle_id'):
             raise serializers.ValidationError('Provide either product_id or bundle_id.')
         return data
+
+
+class BasketItemSerializer(serializers.Serializer):
+    product_id  = serializers.IntegerField()
+    variant_id  = serializers.IntegerField(required=False, allow_null=True)
+    quantity    = serializers.IntegerField(default=1, min_value=1, max_value=20)
+    credentials = serializers.DictField(required=False, allow_empty=True, default=dict)
+
+
+class BasketCheckoutSerializer(serializers.Serializer):
+    items         = BasketItemSerializer(many=True)
+    points_to_use = serializers.IntegerField(default=0, min_value=0)
+    promo_code    = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_points_to_use(self, value):
+        if value % 100 != 0:
+            raise serializers.ValidationError('Points must be a multiple of 100.')
+        return value
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('Basket is empty.')
+        return value
 
 
 class OrderCredentialsSerializer(serializers.ModelSerializer):

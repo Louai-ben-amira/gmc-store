@@ -43,6 +43,10 @@ export const deletePromoCode = (id)       => api.delete(`/orders/promo-codes/${i
 // Analytics
 export const getAnalytics = () => api.get('/admin/analytics/')
 
+// Profit margins / financial overview (admin only)
+export const getAdminMargins    = ()        => api.get('/admin/products/margins/')
+export const getAdminFinancials = (period)  => api.get('/admin/dashboard/financials/', { params: { period } })
+
 // Flash Sales
 export const setFlashSale   = (id, data) => api.patch(`/products/${id}/`, data)
 export const clearFlashSale = (id)       => api.patch(`/products/${id}/`, {

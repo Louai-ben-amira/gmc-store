@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Local dev HTTPS cert (self-signed, machine-specific)
+.certs
+
 # Logs
 logs
 *.log

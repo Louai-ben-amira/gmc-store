@@ -187,7 +187,7 @@ export default function BundlesPage() {
                 {b.description && <p style={{ margin: '0 0 0.75rem', color: T.textMuted, fontSize: '0.8125rem', lineHeight: 1.5 }}>{b.description}</p>}
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                   {(b.products_detail || []).map(p => (
-                    <span key={p.id} style={{ background: 'rgba(155,79,237,0.10)', border: `1px solid ${T.border}`, color: T.purpleText, fontSize: '0.5625rem', fontWeight: 600, padding: '2px 8px', borderRadius: '999px' }}>
+                    <span key={p.id} style={{ background: 'rgba(155,79,237,0.10)', border: `1px solid ${T.border}`, color: T.purpleText, fontSize: '0.6875rem', fontWeight: 600, padding: '2px 8px', borderRadius: '999px' }}>
                       {CARD_ICONS[p.category]} {p.name.slice(0, 16)}{p.name.length > 16 ? '...' : ''}
                     </span>
                   ))}

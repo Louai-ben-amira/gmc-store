@@ -1,6 +1,6 @@
 ﻿from django.urls import path
 from . import views
-from apps.payments.views import RechargeCreateView, redeem_gift_card
+from apps.payments.views import RechargeCreateView, redeem_gift_card, redeem_points
 
 urlpatterns = [
     path('', views.WalletView.as_view(), name='wallet'),
@@ -8,4 +8,5 @@ urlpatterns = [
     path('transactions/', views.WalletTransactionsView.as_view(), name='wallet_transactions'),
     path('referral/', views.referral_stats, name='referral_stats'),
     path('redeem/', redeem_gift_card, name='redeem_gift_card'),
+    path('redeem-points/', redeem_points, name='redeem_points'),
 ]

@@ -2,9 +2,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Search, X, User, Menu } from 'lucide-react'
 import AuthModal from './AuthModal'
+import EmailVerifyBanner from './EmailVerifyBanner'
+import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import {
-  TbShoppingBag, TbWallet, TbMessageCircle, TbUserCircle,
+  TbShoppingBag, TbWallet, TbLifebuoy, TbUserCircle, TbShoppingCart,
   TbLogout, TbChevronDown, TbChevronRight, TbLayoutDashboard,
 } from 'react-icons/tb'
 import {
@@ -23,6 +25,8 @@ import { BsXbox, BsMicrosoft } from 'react-icons/bs'
 import { GiPistolGun } from 'react-icons/gi'
 import { useQuery } from '@tanstack/react-query'
 import useAuthStore from '../store/authStore'
+import useBasketStore, { selectItemCount } from '../store/basketStore'
+import useBasketDrawerStore from '../store/basketDrawerStore'
 import { mediaUrl, formatCurrency } from '../utils/formatters'
 import { getWallet } from '../api/wallet'
 import { getCategories, getProducts } from '../api/products'
@@ -419,6 +423,7 @@ function NavItem({ item, isActive }) {
     return (
       <Link
         to={item.to}
+        className="gmc-nav-item"
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
           padding: '5px 10px', borderRadius: 7, textDecoration: 'none',
@@ -445,6 +450,7 @@ function NavItem({ item, isActive }) {
     >
       {/* Trigger */}
       <button
+        className="gmc-nav-item"
         style={{
           display: 'flex', alignItems: 'center', gap: 5,
           padding: '5px 10px', borderRadius: 7,
@@ -493,7 +499,7 @@ function NavItem({ item, isActive }) {
 const BASE_USER_LINKS = [
   { labelKey: 'auth.myOrders', label: 'My Orders',   to: '/orders',    Icon: TbShoppingBag,   color: '#7C3AED' },
   { labelKey: 'auth.wallet',   label: 'Wallet',      to: '/wallet',    Icon: TbWallet,        color: '#3DDC84' },
-  { labelKey: 'auth.messages', label: 'Messages',    to: '/messenger', Icon: TbMessageCircle, color: '#7C3AED' },
+  { labelKey: 'auth.support',  label: 'Support',     to: '/support',   Icon: TbLifebuoy,      color: '#7C3AED' },
   { labelKey: 'auth.profile',  label: 'Profile',     to: '/profile',   Icon: TbUserCircle,    color: '#7C3AED' },
 ]
 
@@ -532,7 +538,7 @@ function UserMenu({ user, onLogout }) {
         }}>
           {user?.avatar
             ? <img src={mediaUrl(user.avatar)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: 'var(--text-primary)' }}>{initial}</span>
+            : <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-primary)' }}>{initial}</span>
           }
         </div>
         <span className="gmc-user-name" style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -632,6 +638,133 @@ function UserMenu({ user, onLogout }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   MOBILE NAV ITEM  (accordion - expands in place to show sub-categories
+   instead of skipping straight to "View All" like the old flat list did)
+═══════════════════════════════════════════════════════════════════════ */
+function MobileNavItem({ item, onNavigate }) {
+  const { t } = useTranslation('common')
+  const [expanded, setExpanded] = useState(false)
+  const NavIcon = item.NavIcon
+  const color = item.color || 'rgba(255,255,255,0.5)'
+  const label = item.labelKey ? t(item.labelKey) : item.label
+
+  // Flatten grouped items (Accounts, Gift Cards) into one list, tagging each
+  // with its section header so we can print dividers inline.
+  const subItems = item.groups
+    ? item.groups.flatMap(g => (g.items || []).map(it => ({ ...it, section: g.labelKey ? t(g.labelKey) : g.label })))
+    : (item.children || [])
+  const hasSub = subItems.length > 0
+
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', gap: 12,
+    width: '100%', padding: '12px 14px', borderRadius: 12,
+    background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+    color: item.urgent ? color : 'var(--text-secondary)',
+    fontFamily: 'Inter, sans-serif', fontSize: '0.9375rem', fontWeight: 500,
+  }
+
+  const iconBox = (
+    <span style={{
+      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+      background: `${color}18`, border: `1px solid ${color}30`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <NavIcon size={18} color={color} />
+    </span>
+  )
+
+  if (!hasSub) {
+    const link = item.to || item.viewAll?.to || '/'
+    return (
+      <Link to={link} onClick={onNavigate} style={{ ...rowStyle, textDecoration: 'none', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+        {iconBox}
+        <span style={{ flex: 1 }}>{label}</span>
+        {item.urgent && <TbChevronRight size={15} style={{ opacity: 0.6, color, transform: document.documentElement.dir === 'rtl' ? 'scaleX(-1)' : 'none' }} />}
+      </Link>
+    )
+  }
+
+  return (
+    <div style={{
+      borderRadius: 12, overflow: 'hidden',
+      background: 'var(--bg-elevated)', border: `1px solid ${expanded ? `${color}45` : 'var(--border)'}`,
+      transition: 'border-color 0.15s',
+    }}>
+      <button type="button" onClick={() => setExpanded(e => !e)} style={{ ...rowStyle, background: expanded ? `${color}12` : 'none' }}>
+        {iconBox}
+        <span style={{ flex: 1 }}>{label}</span>
+        <TbChevronDown size={16} style={{ transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none', opacity: 0.55, color }} />
+      </button>
+
+      {expanded && (
+        <div style={{
+          padding: '2px 10px 10px', display: 'flex', flexDirection: 'column', gap: 1,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {subItems.map((sub, i) => {
+            const Icon = sub.Icon
+            const showSection = !!sub.section && (i === 0 || subItems[i - 1].section !== sub.section)
+            return (
+              <div key={i}>
+                {showSection && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    margin: '10px 0 5px', paddingLeft: 4,
+                  }}>
+                    <div style={{ width: 3, height: 11, borderRadius: 2, background: color, flexShrink: 0 }} />
+                    <span style={{
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem',
+                      fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color,
+                    }}>{sub.section}</span>
+                  </div>
+                )}
+                <Link
+                  to={sub.to}
+                  onClick={onNavigate}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '9px 8px', borderRadius: 9, textDecoration: 'none',
+                    color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem',
+                  }}
+                >
+                  <span style={{
+                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                    background: `${sub.color}18`, border: `1px solid ${sub.color}30`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {Icon
+                      ? <Icon size={13} color={sub.color} />
+                      : <span style={{ fontSize: '0.75rem', lineHeight: 1 }}>{sub.emoji || '📦'}</span>
+                    }
+                  </span>
+                  {sub.label}
+                </Link>
+              </div>
+            )
+          })}
+
+          {item.viewAll && (
+            <Link
+              to={item.viewAll.to}
+              onClick={onNavigate}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginTop: 6, padding: '10px 10px', borderRadius: 9, textDecoration: 'none',
+                color, fontFamily: 'Inter, sans-serif', fontSize: '0.8125rem', fontWeight: 700,
+                background: `${color}10`,
+              }}
+            >
+              {item.viewAll.labelKey ? t(item.viewAll.labelKey) : item.viewAll.label}
+              <span style={{ display: 'inline-block', transform: document.documentElement.dir === 'rtl' ? 'scaleX(-1)' : 'none' }}>→</span>
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    LIVE SEARCH  (type-ahead dropdown, matches product name/description)
 ═══════════════════════════════════════════════════════════════════════ */
 function useDebouncedValue(value, delay) {
@@ -649,9 +782,15 @@ function SearchBox({ mobile = false, onNavigate, onQueryChange }) {
   const [query, setQuery]     = useState('')
   const [open, setOpen]       = useState(false)
   const [focused, setFocused] = useState(false)
+  const [expanded, setExpanded] = useState(mobile)
   const [activeIdx, setActiveIdx] = useState(-1)
   const wrapRef  = useRef(null)
+  const inputRef = useRef(null)
   const blurTimer = useRef(null)
+
+  useEffect(() => {
+    if (expanded && !mobile) inputRef.current?.focus()
+  }, [expanded, mobile])
 
   const debouncedQuery = useDebouncedValue(query.trim(), 250)
 
@@ -693,6 +832,25 @@ function SearchBox({ mobile = false, onNavigate, onQueryChange }) {
     }
   }
 
+  if (!mobile && !expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        title={t('btn.search')}
+        style={{
+          position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+          cursor: 'pointer', color: 'var(--text-secondary)', transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)' }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+      >
+        <Search size={16} />
+      </button>
+    )
+  }
+
   return (
     <div
       ref={wrapRef}
@@ -705,12 +863,16 @@ function SearchBox({ mobile = false, onNavigate, onQueryChange }) {
         transition: 'color 0.15s',
       }} />
       <input
+        ref={inputRef}
         type="text"
         value={query}
         placeholder={t('btn.search')}
         onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(-1); onQueryChange?.(e.target.value) }}
         onFocus={() => { setFocused(true); setOpen(true) }}
-        onBlur={() => { blurTimer.current = setTimeout(() => { setFocused(false); setOpen(false) }, 150) }}
+        onBlur={() => { blurTimer.current = setTimeout(() => {
+          setFocused(false); setOpen(false)
+          if (!mobile && !query.trim()) setExpanded(false)
+        }, 150) }}
         onKeyDown={handleKeyDown}
         style={{
           width: '100%', height: mobile ? 40 : 32,
@@ -834,6 +996,8 @@ const { t } = useTranslation('common')
 
   const [authModal,   setAuthModal]   = useState({ open: false, tab: 'login' })
   const [mobileOpen,  setMobileOpen]  = useState(false)
+  const itemCount = useBasketStore(selectItemCount)
+  const openBasketDrawer = useBasketDrawerStore(s => s.openDrawer)
 
   useEffect(() => { setMobileOpen(false) }, [location.pathname, location.search])
 
@@ -961,8 +1125,35 @@ const { t } = useTranslation('common')
 
         {/* Right actions - marginInlineStart:auto keeps them anchored right
             on mobile where the desktop nav (flex:1) is hidden */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginInlineStart: 'auto' }}>
+        <div className="gmc-topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginInlineStart: 'auto' }}>
 
+          {/* Basket icon with item-count badge */}
+          <button
+            onClick={openBasketDrawer}
+            title="Basket"
+            style={{
+              position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+              cursor: 'pointer', color: 'var(--text-secondary)', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+          >
+            <TbShoppingCart size={16} />
+            {itemCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16, padding: '0 3px',
+                borderRadius: 999, background: '#7C3AED', color: '#fff',
+                fontSize: '0.75rem', fontWeight: 700, lineHeight: '16px', textAlign: 'center',
+              }}>
+                {itemCount > 99 ? '99+' : itemCount}
+              </span>
+            )}
+          </button>
+
+          {/* Divider between utility icons (search/basket) and account cluster */}
+          {authed && <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.09)', flexShrink: 0 }} />}
 
           {/* Wallet chip - shown when logged in */}
           {authed && walletData != null && (
@@ -1013,7 +1204,7 @@ const { t } = useTranslation('common')
                   </span>
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '0.625rem', fontWeight: 600,
+                    fontSize: '0.75rem', fontWeight: 600,
                     color: 'rgba(61,220,132,0.6)',
                     letterSpacing: '0.05em',
                   }}>DT</span>
@@ -1021,6 +1212,8 @@ const { t } = useTranslation('common')
               </div>
             </Link>
           )}
+
+          {authed && <NotificationBell isAuthenticated={authed} />}
 
           {authed && user ? (
             <UserMenu user={user} onLogout={handleLogout} />
@@ -1057,6 +1250,8 @@ const { t } = useTranslation('common')
         </div>
       </div>
 
+      <EmailVerifyBanner />
+
       <AuthModal
         isOpen={authModal.open}
         onClose={closeAuth}
@@ -1078,47 +1273,11 @@ const { t } = useTranslation('common')
             <SearchBox mobile onNavigate={() => setMobileOpen(false)} />
           </div>
 
-          {/* Nav links */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {resolvedNavItems.map(item => {
-              const link = item.to || item.viewAll?.to || '/'
-              const NavIcon = item.NavIcon
-              return (
-                <Link
-                  key={item.label}
-                  to={link}
-                  onClick={() => setMobileOpen(false)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 14px', borderRadius: 12, textDecoration: 'none',
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
-                    color: item.urgent ? item.color : 'var(--text-secondary)',
-                    fontFamily: 'Inter, sans-serif', fontSize: '0.9375rem', fontWeight: 500,
-                    transition: 'background 0.13s, color 0.13s',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = item.color ? `${item.color}14` : 'rgba(255,255,255,0.07)'
-                    e.currentTarget.style.color = item.color || 'white'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
-                    e.currentTarget.style.color = item.urgent ? item.color : 'var(--text-secondary)'
-                  }}
-                >
-                  <span style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: item.color ? `${item.color}18` : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${item.color ? `${item.color}30` : 'rgba(255,255,255,0.08)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <NavIcon size={18} color={item.color || 'rgba(255,255,255,0.5)'} />
-                  </span>
-                  {item.labelKey ? t(item.labelKey) : item.label}
-                  {item.urgent && <span style={{ marginInlineStart: 'auto', fontSize: '0.75rem', opacity: 0.7, display: 'inline-block', transform: document.documentElement.dir === 'rtl' ? 'scaleX(-1)' : 'none' }}>→</span>}
-                </Link>
-              )
-            })}
+          {/* Nav links - accordion, expands in place to reveal sub-categories */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {resolvedNavItems.map(item => (
+              <MobileNavItem key={item.label} item={item} onNavigate={() => setMobileOpen(false)} />
+            ))}
           </div>
 
           {/* Auth buttons (guest only) */}

@@ -49,7 +49,7 @@ function PaymentTicker() {
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 18px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 7, background: `${pm.color}10`, border: `1px solid ${pm.color}20` }}>
                   {Icon && <Icon size={13} color={pm.color} style={{ flexShrink: 0 }} />}
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.625rem', fontWeight: 800, letterSpacing: '0.07em', color: pm.color }}>{pm.label}</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.07em', color: pm.color }}>{pm.label}</span>
                 </div>
                 <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border-strong)', flexShrink: 0 }} />
               </div>
@@ -314,7 +314,7 @@ export default function Footer() {
             {[
               { label: t('footer.privacy'), to: '/privacy' },
               { label: t('footer.terms'), to: '/terms' },
-              { label: t('footer.contact'), to: '/messenger' },
+              { label: t('footer.contact'), to: '/support' },
             ].map(({ label, to }) => (
               <Link key={label} to={to}
                 style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.12s' }}
