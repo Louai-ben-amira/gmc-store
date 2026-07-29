@@ -28,30 +28,25 @@ def send_password_reset_email(user_id, uid, token):
 
 
 @shared_task
-def send_verification_email(user_id, email, name, token):
-    """Send the "verify your email" link to a newly registered account."""
-    verify_url = f'{settings.FRONTEND_URL}/verify-email?token={token}'
-    subject = 'Verify your GMC Store account'
+def send_verification_email(user_id, email, name, code):
+    """Send the 6-digit verification code to a newly registered account."""
+    subject = f'{code} is your GMC Store verification code'
 
     html_body = f"""
     <div style="font-family:Outfit,sans-serif;max-width:480px;margin:0 auto;
                 background:#0D0018;color:#fff;padding:32px;border-radius:12px">
       <h2 style="color:#B57BFF">GMC Store</h2>
       <p>Hi {name},</p>
-      <p>Click the button below to verify your email address and activate your account:</p>
-      <a href="{verify_url}"
-         style="display:inline-block;margin:20px 0;padding:12px 28px;
-                background:linear-gradient(135deg,#6D28D9,#9B4FED);
-                color:white;border-radius:10px;text-decoration:none;font-weight:700">
-        Verify My Email
-      </a>
+      <p>Enter this code to verify your email address and activate your account:</p>
+      <div style="margin:24px 0;padding:18px 0;text-align:center;
+                  background:rgba(155,79,237,0.12);border:1px solid rgba(155,79,237,0.35);
+                  border-radius:10px;font-size:32px;font-weight:700;letter-spacing:8px;
+                  color:#fff;font-family:'JetBrains Mono',monospace">
+        {code}
+      </div>
       <p style="color:#8866AA;font-size:13px">
-        This link expires in 24 hours.<br>
+        This code expires in 15 minutes.<br>
         If you didn't create a GMC Store account, ignore this email.
-      </p>
-      <p style="color:#8866AA;font-size:11px">
-        Or copy this link:<br>
-        <span style="color:#B57BFF">{verify_url}</span>
       </p>
     </div>
     """
@@ -59,7 +54,7 @@ def send_verification_email(user_id, email, name, token):
     try:
         msg = EmailMultiAlternatives(
             subject=subject,
-            body=f'Verify your account: {verify_url}',
+            body=f'Your GMC Store verification code is: {code} (expires in 15 minutes)',
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
         )

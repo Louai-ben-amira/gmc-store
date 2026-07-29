@@ -140,6 +140,17 @@ def order_ticket_set_status(request, pk):
     return Response(OrderTicketSerializer(ticket).data)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])
+def order_ticket_delete(request, pk):
+    try:
+        ticket = OrderTicket.objects.get(pk=pk)
+    except OrderTicket.DoesNotExist:
+        return Response({'detail': 'Ticket not found.'}, status=status.HTTP_404_NOT_FOUND)
+    ticket.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def admin_order_tickets(request):
@@ -300,6 +311,17 @@ def admin_create_ticket(request):
         link=f'/support/general/{ticket.id}',
     )
     return Response(SupportTicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])
+def support_ticket_delete(request, pk):
+    try:
+        ticket = SupportTicket.objects.get(pk=pk)
+    except SupportTicket.DoesNotExist:
+        return Response({'detail': 'Ticket not found.'}, status=status.HTTP_404_NOT_FOUND)
+    ticket.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])

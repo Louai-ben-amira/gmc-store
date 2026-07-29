@@ -33,7 +33,7 @@ class UserAdmin(BaseUserAdmin):
     @admin.action(description='Manually verify email')
     def manually_verify_action(self, request, queryset):
         from django.utils import timezone
-        queryset.update(is_email_verified=True, email_verify_token=None, email_verified_at=timezone.now())
+        queryset.update(is_email_verified=True, email_verify_code=None, email_verified_at=timezone.now())
 
     @admin.action(description='Re-enable account (reset resend count)')
     def reenable_resend_action(self, request, queryset):
