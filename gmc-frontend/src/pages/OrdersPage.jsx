@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getOrders, reorder, revealCode, cancelOrder, confirmDelivery, openDispute } from '../api/orders'
 import { createOrderTicket } from '../api/tickets'
@@ -709,12 +709,20 @@ export default function OrdersPage() {
   const qc      = useQueryClient()
   const toast   = useToast()
   const navigate = useNavigate()
+  const { id: linkedOrderId } = useParams()
 
   const { data, isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: () => getOrders({ page_size: 100 }).then(r => r.data),
   })
   const allOrders = data?.results || data || []
+
+  // Notification links land on /orders/<id> — auto-open that order's detail
+  useEffect(() => {
+    if (!linkedOrderId || !allOrders.length) return
+    const target = allOrders.find(o => String(o.id) === String(linkedOrderId))
+    if (target) setSelectedOrder(target)
+  }, [linkedOrderId, allOrders.length])
   const orders = filter === 'all' ? allOrders : allOrders.filter(o => o.status === filter)
 
   const handleReorder = async (e, order) => {

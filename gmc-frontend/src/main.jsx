@@ -126,6 +126,8 @@ createRoot(document.getElementById('root')).render(
             <Route path="/product/:slug" element={<Layout><ProductPage /></Layout>} />
             <Route path="/bundle/:id" element={<Layout><BundlePage /></Layout>} />
             <Route path="/orders"    element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
+            {/* Notification links use /orders/<id> — same page, id available for future highlight */}
+            <Route path="/orders/:id" element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
             <Route path="/wallet"    element={<Layout><ProtectedRoute><WalletPage /></ProtectedRoute></Layout>} />
             <Route path="/checkout"  element={<Layout><ProtectedRoute><CheckoutPage /></ProtectedRoute></Layout>} />
             <Route path="/checkout/success" element={<Layout><ProtectedRoute><CheckoutSuccessPage /></ProtectedRoute></Layout>} />
