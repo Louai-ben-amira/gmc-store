@@ -22,6 +22,7 @@ export const sendOrderTicketMessage = (id, { body, attachment }) => {
   return api.post(`/tickets/order/${id}/messages/`, { body })
 }
 export const setOrderTicketStatus = (id, status) => api.patch(`/tickets/order/${id}/status/`, { status })
+export const deleteOrderTicket = (id) => api.delete(`/tickets/order/${id}/delete/`)
 
 // -- Support tickets (client) ------------------------------------------------
 export const createSupportTicket = ({ category, subject, description, attachment }) => {
@@ -43,6 +44,7 @@ export const sendSupportTicketMessage = (id, { body, attachment }) => {
   return api.post(`/tickets/support/${id}/messages/`, { body })
 }
 export const setSupportTicketStatus = (id, status) => api.patch(`/tickets/support/${id}/status/`, { status })
+export const deleteSupportTicket = (id) => api.delete(`/tickets/support/${id}/delete/`)
 
 // -- Admin --------------------------------------------------------------------
 export const getAdminOrderTickets   = (params) => api.get('/admin/tickets/order/', { params })

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { TbAlertTriangle } from 'react-icons/tb'
 import useAuthStore from '../store/authStore'
 import { resendVerification } from '../api/auth'
@@ -19,7 +20,7 @@ export default function EmailVerifyBanner() {
   const handleResend = async () => {
     setResending(true)
     try {
-      const { data } = await resendVerification()
+      const { data } = await resendVerification(user.email)
       setSent(true)
       setRemaining(data.resends_remaining)
       setTimeout(() => setSent(false), 5000)
@@ -64,9 +65,14 @@ export default function EmailVerifyBanner() {
               opacity: resending || remaining === 0 ? 0.5 : 1,
             }}
           >
-            {resending ? 'Sending…' : remaining === 0 ? 'Contact support' : 'Resend verification email'}
+            {resending ? 'Sending…' : remaining === 0 ? 'Contact support' : 'Resend verification code'}
           </button>
         )}
+        <Link to={`/verify-email?email=${encodeURIComponent(user.email)}`}
+          style={{ color: '#f59e0b', fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'underline' }}
+        >
+          Enter code
+        </Link>
       </div>
     </div>
   )

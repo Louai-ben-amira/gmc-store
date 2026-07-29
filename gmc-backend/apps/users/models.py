@@ -13,9 +13,9 @@ def _generate_referral_code():
     return f'GMC-{suffix}'
 
 
-def generate_verify_token():
-    """Cryptographically secure, url-safe token for email verification links."""
-    return secrets.token_urlsafe(32)
+def generate_verify_code():
+    """6-digit numeric code sent by email to confirm a new account."""
+    return f'{secrets.randbelow(1_000_000):06d}'
 
 
 class User(AbstractUser):
@@ -47,10 +47,14 @@ class User(AbstractUser):
                     )
 
     # ── Email verification (new accounts only - see migration 0008) ─────────
+    # Verification is mandatory: RegisterView withholds JWT tokens until the
+    # code below is confirmed via VerifyEmailView.
     is_email_verified    = models.BooleanField(default=False)
-    email_verify_token   = models.CharField(max_length=64, blank=True, null=True, db_index=True)
-    # Timestamp of most recent verification email sent - used to expire the link
+    email_verify_code    = models.CharField(max_length=6, blank=True, null=True, db_index=True)
+    # Timestamp of most recent code sent - used to expire it (15 minutes)
     email_verify_sent_at = models.DateTimeField(null=True, blank=True)
+    # Wrong-code attempts against the current code - caps at 5, then requires a resend
+    email_verify_attempts = models.IntegerField(default=0)
     # How many times the client requested a resend - caps at 3, then soft-blocked
     email_resend_count   = models.IntegerField(default=0)
     # When they verified - audit trail

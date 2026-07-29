@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAdminSupportTickets, getSupportTicket, sendSupportTicketMessage, setSupportTicketStatus } from '../../api/tickets'
+import { getAdminSupportTickets, getSupportTicket, sendSupportTicketMessage, setSupportTicketStatus, deleteSupportTicket } from '../../api/tickets'
 import { useToast } from '../../hooks/useToast'
 import { formatDate } from '../../utils/formatters'
 import TicketThread from '../../components/TicketThread'
 import { PageShell, PageHeader, FilterTabs, StatusPill, DataTable, TD_STYLE, QuickActionButton, T } from '../../components/admin/AdminUI'
+import { ConfirmModal } from '../../components/Modal'
 import { ArrowLeft } from 'lucide-react'
 
 const STATUS_TABS = [
@@ -29,6 +30,8 @@ export default function SupportTicketsPage() {
   const [status, setStatus] = useState('')
   const [category, setCategory] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const params = {}
   if (status) params.status = status
@@ -44,7 +47,7 @@ export default function SupportTicketsPage() {
     queryKey: ['admin-support-ticket-detail', selectedId],
     queryFn: () => getSupportTicket(selectedId).then(r => r.data),
     enabled: !!selectedId,
-    refetchInterval: 30000,
+    refetchInterval: 3000,
   })
 
   const handleSendMessage = async ({ body, attachment }) => {
@@ -61,6 +64,23 @@ export default function SupportTicketsPage() {
       qc.invalidateQueries({ queryKey: ['admin-badge-counts'] })
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Could not update status.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteSupportTicket(deleteTarget)
+      toast.success('Ticket deleted.')
+      if (selectedId === deleteTarget) setSelectedId(null)
+      qc.invalidateQueries({ queryKey: ['admin-support-tickets'] })
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] })
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not delete ticket.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -86,6 +106,7 @@ export default function SupportTicketsPage() {
               <QuickActionButton onClick={() => handleSetStatus('in_progress')}>Mark In Progress</QuickActionButton>
               <QuickActionButton onClick={() => handleSetStatus('resolved')} primary>Resolve</QuickActionButton>
               <QuickActionButton onClick={() => handleSetStatus('closed')} danger>Close</QuickActionButton>
+              <QuickActionButton onClick={() => setDeleteTarget(selectedId)} danger>Delete</QuickActionButton>
             </div>
           </div>
         )}
@@ -102,6 +123,17 @@ export default function SupportTicketsPage() {
         ) : (
           <p style={{ color: T.textMuted }}>Loading…</p>
         )}
+
+        <ConfirmModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          title="Delete Ticket"
+          confirmText="Delete"
+          danger
+          loading={deleting}
+          message="Delete this support ticket? This will permanently remove the ticket and all its messages. This cannot be undone."
+        />
       </PageShell>
     )
   }
@@ -128,11 +160,25 @@ export default function SupportTicketsPage() {
             <td style={{ ...TD_STYLE, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.last_message?.body || '-'}</td>
             <td style={TD_STYLE}>{formatDate(t.created_at)}</td>
             <td style={TD_STYLE}>
-              <QuickActionButton onClick={() => setSelectedId(t.id)}>View</QuickActionButton>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <QuickActionButton onClick={() => setSelectedId(t.id)}>View</QuickActionButton>
+                <QuickActionButton onClick={() => setDeleteTarget(t.id)} danger>Delete</QuickActionButton>
+              </div>
             </td>
           </tr>
         ))}
       </DataTable>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Ticket"
+        confirmText="Delete"
+        danger
+        loading={deleting}
+        message="Delete this support ticket? This will permanently remove the ticket and all its messages. This cannot be undone."
+      />
     </PageShell>
   )
 }

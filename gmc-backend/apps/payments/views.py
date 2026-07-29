@@ -214,6 +214,13 @@ def admin_recharge_list(request):
     status_filter = request.query_params.get('status')
     if status_filter:
         qs = qs.filter(status=status_filter)
+    search = (request.query_params.get('search') or '').strip()
+    if search:
+        from django.db.models import Q
+        q = Q(user__username__icontains=search)
+        if search.isdigit():
+            q |= Q(id=int(search))
+        qs = qs.filter(q)
     serializer = RechargeRequestSerializer(qs, many=True)
     return Response(serializer.data)
 

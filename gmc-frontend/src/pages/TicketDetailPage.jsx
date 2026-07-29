@@ -23,7 +23,7 @@ export default function TicketDetailPage() {
   const { data: ticket, isFetching, refetch } = useQuery({
     queryKey,
     queryFn: () => (isOrderTicket ? getOrderTicket(id) : getSupportTicket(id)).then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 3000,
   })
 
   const handleSendMessage = async ({ body, attachment }) => {

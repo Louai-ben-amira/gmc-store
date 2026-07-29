@@ -1,9 +1,9 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminRecharges, approveAdminRecharge, rejectAdminRecharge } from '../../api/admin'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatDate, mediaUrl } from '../../utils/formatters'
-import { CheckCircle, XCircle, Image } from 'lucide-react'
+import { CheckCircle, XCircle, Image, Search } from 'lucide-react'
 import { PageShell, PageHeader, FilterTabs, StatusPill, T } from '../../components/admin/AdminUI'
 
 const METHOD_META = {
@@ -147,11 +147,19 @@ export default function RechargesPage() {
   const [tab,     setTab]     = useState('pending')
   const [noteMap, setNoteMap] = useState({})
   const [loading, setLoading] = useState({})
+  const [searchInput, setSearchInput] = useState('')
+  const [search,      setSearch]      = useState('')
+
+  // Debounce: apply the typed value 350ms after the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const { data } = useQuery({
-    queryKey: ['admin-recharges', tab],
-    queryFn:  () => getAdminRecharges({ status: tab }).then(r => r.data),
-    refetchInterval: tab === 'pending' ? 15000 : false,
+    queryKey: ['admin-recharges', tab, search],
+    queryFn:  () => getAdminRecharges({ status: tab, search: search || undefined }).then(r => r.data),
+    refetchInterval: tab === 'pending' && !search ? 15000 : false,
   })
   const recharges = data?.results || data || []
 
@@ -195,12 +203,19 @@ export default function RechargesPage() {
     <PageShell>
       <PageHeader title="Recharge Requests" />
 
-      <FilterTabs
-        tabs={tabs}
-        value={tab}
-        onChange={setTab}
-        style={{ marginBottom: '1.5rem' }}
-      />
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <FilterTabs tabs={tabs} value={tab} onChange={setTab} />
+
+        <div style={{ position: 'relative', maxWidth: '260px', flex: '1 1 200px', marginLeft: 'auto' }}>
+          <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: T.textMuted }} />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search by request ID…"
+            style={{ paddingLeft: '2.25rem', background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, color: T.textPrimary, width: '100%', padding: '8px 12px 8px 2.25rem', outline: 'none', fontSize: '0.875rem', boxSizing: 'border-box' }}
+          />
+        </div>
+      </div>
 
       {recharges.length === 0 ? (
         <div style={{ background: T.bgPanel, border: `1px solid ${T.border}`, borderRadius: '0.875rem', padding: '3rem', textAlign: 'center', color: T.textMuted, fontSize: '0.875rem' }}>
@@ -218,7 +233,10 @@ export default function RechargesPage() {
                       {(r.user_username || '?').slice(0, 1).toUpperCase()}
                     </div>
                     <div>
-                      <p style={{ margin: 0, color: T.textPrimary, fontWeight: 600, fontSize: '0.9375rem' }}>{r.user_username}</p>
+                      <p style={{ margin: 0, color: T.textPrimary, fontWeight: 600, fontSize: '0.9375rem' }}>
+                        {r.user_username}
+                        <span style={{ marginLeft: 8, color: T.textMuted, fontWeight: 700, fontSize: '0.75rem', fontFamily: 'JetBrains Mono, monospace' }}>#{r.id}</span>
+                      </p>
                       <p style={{ margin: 0, color: T.textMuted, fontSize: '0.75rem' }}>{formatDate(r.created_at)}</p>
                     </div>
                     <MethodBadge method={r.method} />

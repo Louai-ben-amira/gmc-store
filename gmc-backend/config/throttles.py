@@ -16,6 +16,16 @@ class PasswordResetRateThrottle(AnonRateThrottle):
     scope = 'password_reset'
 
 
+class VerifyEmailRateThrottle(AnonRateThrottle):
+    """20 code-verification attempts per hour per IP - slows down brute-forcing the 6-digit code."""
+    scope = 'verify_email'
+
+
+class ResendVerificationRateThrottle(AnonRateThrottle):
+    """10 resend requests per hour per IP - on top of the per-account 3-resend cap."""
+    scope = 'resend_verification'
+
+
 class RechargeRateThrottle(UserRateThrottle):
     """20 recharge submissions per hour per user."""
     scope = 'recharge'

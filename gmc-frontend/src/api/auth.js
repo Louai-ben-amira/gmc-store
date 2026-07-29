@@ -9,5 +9,5 @@ export const forgotPassword    = (email)          => api.post('/auth/forgot-pass
 export const resetPassword     = (data)           => api.post('/auth/reset-password/', data)
 export const socialAuth        = (provider, token) => api.post('/auth/social/', { provider, token })
 export const getReferralStats  = ()               => api.get('/wallet/referral/')
-export const verifyEmail       = (token)          => api.post('/auth/verify-email/', { token })
-export const resendVerification = ()              => api.post('/auth/resend-verification/')
+export const verifyEmailCode   = (email, code)    => api.post('/auth/verify-email/', { email, code })
+export const resendVerification = (email)         => api.post('/auth/resend-verification/', { email })

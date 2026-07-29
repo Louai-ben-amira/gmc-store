@@ -286,6 +286,8 @@ REST_FRAMEWORK = {
         'login':          '10/minute',
         'register':       '5/hour',
         'password_reset': '5/hour',
+        'verify_email':   '20/hour',
+        'resend_verification': '10/hour',
         'recharge':       '20/hour',
         'order':          '30/hour',
         'promo_validate': '60/hour',

@@ -1,10 +1,11 @@
 ﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { register, resendVerification } from '../api/auth'
+import { register } from '../api/auth'
 import useAuthStore from '../store/authStore'
 import { useToast } from '../hooks/useToast'
-import { UserPlus, MailCheck, ArrowLeft } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import SocialAuthButtons from '../components/SocialAuthButtons'
+import VerifyCodeStep from '../components/VerifyCodeStep'
 
 export default function RegisterPage() {
   const [form,    setForm]    = useState({ username: '', email: '', first_name: '', last_name: '', password: '', confirm_password: '', referral_code: '' })
@@ -13,12 +14,9 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const toast    = useToast()
 
-  // Set once registration succeeds for an account that still needs email
-  // verification - swaps the form out for the "check your inbox" screen.
+  // Set once registration succeeds - swaps the form out for the mandatory
+  // "enter your code" screen. No tokens exist yet at this point.
   const [checkInbox, setCheckInbox] = useState(null) // { email }
-  const [resending,  setResending]  = useState(false)
-  const [resent,     setResent]     = useState(false)
-  const [remaining,  setRemaining]  = useState(3)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,13 +24,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const { data } = await register(form)
-      storeLogin(data.user, data.access, data.refresh)
-      if (data.user.is_email_verified) {
-        toast.success('Account created! Welcome to GMC Store 🎮')
-        navigate('/')
-      } else {
-        setCheckInbox({ email: data.user.email })
-      }
+      setCheckInbox({ email: data.email })
     } catch (err) {
       const errors = err.response?.data
       if (errors) {
@@ -46,23 +38,10 @@ export default function RegisterPage() {
     }
   }
 
-  const handleResend = async () => {
-    setResending(true)
-    try {
-      const { data } = await resendVerification()
-      setResent(true)
-      setRemaining(data.resends_remaining)
-      setTimeout(() => setResent(false), 4000)
-    } catch (err) {
-      if (err.response?.data?.error === 'max_resends_reached') {
-        setRemaining(0)
-        toast.error('Maximum resend attempts reached. Contact support.')
-      } else {
-        toast.error('Could not resend the email. Try again shortly.')
-      }
-    } finally {
-      setResending(false)
-    }
+  const handleVerified = (user, access, refresh) => {
+    storeLogin(user, access, refresh)
+    toast.success('Account verified! Welcome to GMC Store 🎮')
+    navigate('/')
   }
 
   const field = (key, label, type = 'text') => (
@@ -104,52 +83,11 @@ export default function RegisterPage() {
           boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         }}>
           {checkInbox ? (
-            <div style={{ textAlign: 'center', padding: '0.5rem 0 0.25rem' }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: '50%', background: 'rgba(61,220,132,0.12)',
-                border: '1px solid rgba(61,220,132,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 1.125rem',
-              }}>
-                <MailCheck size={24} color="#3DDC84" />
-              </div>
-              <p style={{ color: 'var(--white-primary)', fontWeight: 700, fontSize: '1.0625rem', margin: '0 0 0.5rem' }}>
-                📧 Check your inbox!
-              </p>
-              <p style={{ color: 'var(--muted)', fontSize: '0.875rem', lineHeight: 1.6, margin: '0 0 1.5rem' }}>
-                We sent a verification link to <strong style={{ color: 'var(--white-primary)' }}>{checkInbox.email}</strong>.
-                Click the link in the email to activate your account.
-              </p>
-
-              <button type="button" className="btn-primary" onClick={() => navigate('/')} style={{ width: '100%', justifyContent: 'center', padding: '0.8125rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-                Go to Shop
-              </button>
-
-              {resent ? (
-                <p style={{ color: '#3DDC84', fontSize: '0.8125rem', margin: '0 0 0.5rem' }}>
-                  ✓ Email sent! ({remaining} resend{remaining === 1 ? '' : 's'} remaining)
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resending || remaining === 0}
-                  style={{
-                    width: '100%', marginBottom: '0.5rem', padding: '0.5rem', border: 'none', background: 'none',
-                    color: remaining === 0 ? 'var(--muted)' : 'var(--magenta)', fontWeight: 600, fontSize: '0.8125rem',
-                    cursor: resending || remaining === 0 ? 'not-allowed' : 'pointer', textDecoration: 'underline',
-                    opacity: resending ? 0.6 : 1,
-                  }}
-                >
-                  {resending ? 'Sending…' : remaining === 0 ? 'Contact support' : `Resend email (${remaining} left)`}
-                </button>
-              )}
-
-              <button type="button" onClick={() => setCheckInbox(null)}
-                style={{ width: '100%', padding: '0.5rem', border: 'none', background: 'none', color: 'var(--muted)', fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
-              >
-                <ArrowLeft size={13} /> Change email address
-              </button>
-            </div>
+            <VerifyCodeStep
+              email={checkInbox.email}
+              onVerified={handleVerified}
+              onBack={() => setCheckInbox(null)}
+            />
           ) : (
             <>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

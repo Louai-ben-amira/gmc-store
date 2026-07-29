@@ -593,30 +593,24 @@ export default function DashboardPage() {
           </div>
 
           {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
             <div style={INS_TILE}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.purpleText }}>
                 {financials ? formatCurrency(financials.revenue) : '-'}
               </div>
-              <div style={INS_TILE_LABEL}>Chiffre d'Affaires</div>
-            </div>
-            <div style={INS_TILE}>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.amber }}>
-                {financials ? formatCurrency(financials.total_cost) : '-'}
-              </div>
-              <div style={INS_TILE_LABEL}>Coût Total (Prix d'achat)</div>
+              <div style={INS_TILE_LABEL}>Revenue</div>
             </div>
             <div style={INS_TILE}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: THEME.green }}>
                 {financials ? formatCurrency(financials.net_profit) : '-'}
               </div>
-              <div style={INS_TILE_LABEL}>Bénéfice Net</div>
+              <div style={INS_TILE_LABEL}>Net Profit</div>
             </div>
             <div style={INS_TILE}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: (financials?.avg_margin_pct ?? 0) < 0 ? THEME.red : THEME.green }}>
                 {financials?.avg_margin_pct != null ? `${Number(financials.avg_margin_pct).toFixed(1)}%` : '-'}
               </div>
-              <div style={INS_TILE_LABEL}>Marge Moyenne</div>
+              <div style={INS_TILE_LABEL}>Avg. Margin</div>
             </div>
           </div>
 

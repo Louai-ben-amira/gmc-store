@@ -16,7 +16,10 @@ from .serializers import (
 from .permissions import IsAdmin
 from apps.payments.models import RechargeRequest
 from apps.payments.serializers import RechargeRequestSerializer
-from config.throttles import LoginRateThrottle, RegisterRateThrottle, PasswordResetRateThrottle
+from config.throttles import (
+    LoginRateThrottle, RegisterRateThrottle, PasswordResetRateThrottle,
+    VerifyEmailRateThrottle, ResendVerificationRateThrottle,
+)
 from django.db import transaction
 import requests as http_requests
 import re
@@ -146,29 +149,28 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # New accounts start unverified and get a verification email right away.
-        # Existing users are untouched - see migration 0008 which grandfathers
-        # them in with is_email_verified=True.
-        from .models import generate_verify_token
+        # Verification is mandatory: no JWT tokens are issued here. The account
+        # exists but stays unusable (can't log in) until the code emailed below
+        # is confirmed via VerifyEmailView, which is what actually logs them in.
+        from .models import generate_verify_code
         from .tasks import send_verification_email
 
-        token = generate_verify_token()
-        user.is_email_verified   = False
-        user.email_verify_token  = token
+        code = generate_verify_code()
+        user.is_email_verified    = False
+        user.email_verify_code    = code
         user.email_verify_sent_at = timezone.now()
-        user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verify_sent_at'])
+        user.email_verify_attempts = 0
+        user.save(update_fields=[
+            'is_email_verified', 'email_verify_code', 'email_verify_sent_at', 'email_verify_attempts',
+        ])
 
         send_verification_email.delay(
-            user.id, user.email, user.get_full_name() or user.username, token
+            user.id, user.email, user.get_full_name() or user.username, code
         )
 
-        # Tokens are still issued so the user is logged in immediately - the
-        # frontend reads is_email_verified off the user payload to decide
-        # whether to show the "check your inbox" state.
-        tokens = get_tokens_for_user(user)
         return Response({
-            'user': UserSerializer(user, context={'request': request}).data,
-            **tokens
+            'email': user.email,
+            'message': 'Verification code sent to your email.',
         }, status=status.HTTP_201_CREATED)
 
 
@@ -181,6 +183,14 @@ class LoginView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+
+        if not user.is_email_verified:
+            return Response({
+                'error': 'email_not_verified',
+                'email': user.email,
+                'message': 'Please verify your email before signing in.',
+            }, status=status.HTTP_403_FORBIDDEN)
+
         tokens = get_tokens_for_user(user)
         return Response({
             'user': UserSerializer(user, context={'request': request}).data,
@@ -261,38 +271,78 @@ class ResetPasswordView(generics.GenericAPIView):
 
 
 class VerifyEmailView(generics.GenericAPIView):
+    """
+    Confirms the 6-digit code emailed at sign-up. Unauthenticated by design -
+    RegisterView withholds JWT tokens, so this is what actually logs the user
+    in for the first time once the code checks out.
+    """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifyEmailRateThrottle]
 
     def post(self, request):
-        token = (request.data.get('token') or '').strip()
-        if not token:
-            return Response({'detail': 'token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        email = (request.data.get('email') or '').strip().lower()
+        code  = (request.data.get('code') or '').strip()
+        if not email or not code:
+            return Response({'detail': 'email and code are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.filter(email_verify_token=token, is_email_verified=False).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user:
-            return Response({'detail': 'Invalid or already used token.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Invalid or expired code.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not user.email_verify_sent_at or timezone.now() - user.email_verify_sent_at > timedelta(hours=24):
-            return Response({'detail': 'Link expired - request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_email_verified:
+            return Response({'detail': 'Email is already verified.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user.is_email_verified = True
-        user.email_verify_token = None
-        user.email_verified_at = timezone.now()
-        user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verified_at'])
+        if not user.email_verify_code or not user.email_verify_sent_at \
+                or timezone.now() - user.email_verify_sent_at > timedelta(minutes=15):
+            return Response({'detail': 'Code expired - request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({'message': 'Email verified successfully'})
+        if user.email_verify_attempts >= 5:
+            return Response({
+                'detail': 'Too many incorrect attempts. Request a new code.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if code != user.email_verify_code:
+            user.email_verify_attempts += 1
+            user.save(update_fields=['email_verify_attempts'])
+            return Response({'detail': 'Incorrect code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_email_verified   = True
+        user.email_verify_code   = None
+        user.email_verified_at   = timezone.now()
+        user.email_verify_attempts = 0
+        user.save(update_fields=[
+            'is_email_verified', 'email_verify_code', 'email_verified_at', 'email_verify_attempts',
+        ])
+
+        tokens = get_tokens_for_user(user)
+        return Response({
+            'message': 'Email verified successfully',
+            'user': UserSerializer(user, context={'request': request}).data,
+            **tokens,
+        })
 
 
 class ResendVerificationView(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    """
+    Unauthenticated by design - a freshly registered user has no JWT yet.
+    Always returns the same generic response regardless of whether the email
+    exists, to avoid leaking registered addresses.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ResendVerificationRateThrottle]
+    GENERIC_RESPONSE = {'message': 'If that account needs verifying, a new code has been sent.'}
 
     def post(self, request):
-        from .models import generate_verify_token
+        from .models import generate_verify_code
         from .tasks import send_verification_email
 
-        user = request.user
-        if user.is_email_verified:
-            return Response({'detail': 'Already verified.'}, status=status.HTTP_400_BAD_REQUEST)
+        email = (request.data.get('email') or '').strip().lower()
+        if not email:
+            return Response({'detail': 'email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email__iexact=email, is_email_verified=False).first()
+        if not user:
+            return Response(self.GENERIC_RESPONSE)
 
         if user.email_resend_count >= 3:
             return Response({
@@ -300,18 +350,21 @@ class ResendVerificationView(generics.GenericAPIView):
                 'message': 'Maximum resend attempts reached. Contact support.',
             }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        token = generate_verify_token()
-        user.email_verify_token = token
+        code = generate_verify_code()
+        user.email_verify_code    = code
         user.email_verify_sent_at = timezone.now()
-        user.email_resend_count += 1
-        user.save(update_fields=['email_verify_token', 'email_verify_sent_at', 'email_resend_count'])
+        user.email_verify_attempts = 0
+        user.email_resend_count   += 1
+        user.save(update_fields=[
+            'email_verify_code', 'email_verify_sent_at', 'email_verify_attempts', 'email_resend_count',
+        ])
 
         send_verification_email.delay(
-            user.id, user.email, user.get_full_name() or user.username, token
+            user.id, user.email, user.get_full_name() or user.username, code
         )
 
         return Response({
-            'message': 'Verification email sent',
+            **self.GENERIC_RESPONSE,
             'resends_remaining': 3 - user.email_resend_count,
         })
 
@@ -431,9 +484,9 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
         if verify_email:
             # Manual override for clients with a genuine email delivery problem.
             user.is_email_verified = True
-            user.email_verify_token = None
+            user.email_verify_code = None
             user.email_verified_at = timezone.now()
-            user.save(update_fields=['is_email_verified', 'email_verify_token', 'email_verified_at'])
+            user.save(update_fields=['is_email_verified', 'email_verify_code', 'email_verified_at'])
         if reset_resend_count:
             # Un-does the 3-resend soft-block so the client can request 3 more.
             user.email_resend_count = 0
