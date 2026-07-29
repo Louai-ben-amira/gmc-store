@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminOrderTickets, getOrderTicket, sendOrderTicketMessage, setOrderTicketStatus } from '../../api/tickets'
 import { useToast } from '../../hooks/useToast'
@@ -19,7 +20,10 @@ export default function OrderTicketsPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [status, setStatus] = useState('')
-  const [selectedId, setSelectedId] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Deep-linkable via ?ticket=<id> — e.g. from the "View Ticket" button on Orders
+  const selectedId = searchParams.get('ticket')
+  const setSelectedId = (id) => setSearchParams(id ? { ticket: id } : {})
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-order-tickets', status],

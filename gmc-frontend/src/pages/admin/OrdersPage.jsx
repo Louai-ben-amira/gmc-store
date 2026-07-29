@@ -428,20 +428,21 @@ export default function OrdersPage() {
                     }
                   </td>
                   <td style={{ ...TD_STYLE, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); setMsgOrder(o); setMsgBody('') }}
-                      title="Message this customer about this order"
-                      style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38BDF8', borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
-                    >
-                      <MessageSquare size={12} /> Message
-                    </button>
-                    {o.requires_account && o.open_ticket_id && (
+                    {o.open_ticket_id ? (
                       <button
-                        onClick={e => { e.stopPropagation(); navigate(`/admin/order-tickets`) }}
-                        title="Open ticket"
-                        style={{ background: 'rgba(155,79,237,0.1)', border: `1px solid ${T.border}`, color: T.purpleText, borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+                        onClick={e => { e.stopPropagation(); navigate(`/admin/order-tickets?ticket=${o.open_ticket_id}`) }}
+                        title="Go to the existing conversation with this customer"
+                        style={{ background: 'rgba(155,79,237,0.1)', border: `1px solid ${T.border}`, color: T.purpleText, borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
                       >
-                        <MessageCircle size={12} /> Ticket
+                        <MessageCircle size={12} /> View Ticket
+                      </button>
+                    ) : (
+                      <button
+                        onClick={e => { e.stopPropagation(); setMsgOrder(o); setMsgBody('') }}
+                        title="Message this customer about this order"
+                        style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', color: '#38BDF8', borderRadius: '0.375rem', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
+                      >
+                        <MessageSquare size={12} /> Message
                       </button>
                     )}
                     {o.status === 'completed' && (
