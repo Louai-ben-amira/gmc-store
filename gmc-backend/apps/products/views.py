@@ -497,6 +497,17 @@ class ReviewListView(generics.ListAPIView):
         return Review.objects.filter(product_id=self.kwargs['pk']).select_related('user', 'order')
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])
+def delete_review(request, pk, review_id):
+    try:
+        review = Review.objects.get(pk=review_id, product_id=pk)
+    except Review.DoesNotExist:
+        return Response({'detail': 'Review not found.'}, status=status.HTTP_404_NOT_FOUND)
+    review.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def submit_review(request, pk):
