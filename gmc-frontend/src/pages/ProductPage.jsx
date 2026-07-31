@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { getProduct, getReviews, submitReview, getReviewEligibility } from '../api/products'
+import { getProduct, getReviews, submitReview, getReviewEligibility, deleteReview } from '../api/products'
 import { placeOrder, validatePromo } from '../api/orders'
 import Topbar from '../components/Topbar'
 import Modal from '../components/Modal'
@@ -18,7 +18,7 @@ import { StarPicker } from '../components/StarRating'
 import {
   TbCheck, TbArrowLeft, TbArrowRight, TbX, TbCircleCheck,
   TbShieldCheck, TbBolt, TbStar, TbChevronRight,
-  TbLock, TbTrophy, TbCoins, TbCreditCard,
+  TbLock, TbTrophy, TbCoins, TbCreditCard, TbTrash,
 } from 'react-icons/tb'
 
 /* ── Flash countdown ─────────────────────────────────────────────────── */
@@ -73,6 +73,7 @@ export default function ProductPage() {
   const [reviewRating,      setReviewRating]      = useState(0)
   const [reviewBody,        setReviewBody]        = useState('')
   const [reviewLoading,     setReviewLoading]     = useState(false)
+  const [deletingReviewId,  setDeletingReviewId]  = useState(null)
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', id],
@@ -166,6 +167,18 @@ export default function ProductPage() {
       qc.invalidateQueries({ queryKey: ['product', id] })
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to submit review.') }
     finally { setReviewLoading(false) }
+  }
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Delete this review? This cannot be undone.')) return
+    setDeletingReviewId(reviewId)
+    try {
+      await deleteReview(product.id, reviewId)
+      toast.success('Review deleted.')
+      qc.invalidateQueries({ queryKey: ['reviews', product.id] })
+      qc.invalidateQueries({ queryKey: ['product', id] })
+    } catch { toast.error('Failed to delete review.') }
+    finally { setDeletingReviewId(null) }
   }
 
   const openAuth = () => window.dispatchEvent(new CustomEvent('gmc:open-auth', { detail: { tab: 'login' } }))
@@ -426,12 +439,30 @@ export default function ProductPage() {
                             {(r.username || 'U').slice(0, 1).toUpperCase()}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
                               <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>{r.username}</span>
-                              <div style={{ display: 'flex', gap: 2 }}>
-                                {Array(5).fill(0).map((_, si) => (
-                                  <TbStar key={si} size={11} fill={si < r.rating ? '#f59e0b' : 'none'} color={si < r.rating ? '#f59e0b' : 'rgba(255,255,255,0.15)'} strokeWidth={1.5} />
-                                ))}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', gap: 2 }}>
+                                  {Array(5).fill(0).map((_, si) => (
+                                    <TbStar key={si} size={11} fill={si < r.rating ? '#f59e0b' : 'none'} color={si < r.rating ? '#f59e0b' : 'rgba(255,255,255,0.15)'} strokeWidth={1.5} />
+                                  ))}
+                                </div>
+                                {user?.role === 'admin' && (
+                                  <button
+                                    onClick={() => handleDeleteReview(r.id)}
+                                    disabled={deletingReviewId === r.id}
+                                    title="Delete review (admin)"
+                                    style={{
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      width: 20, height: 20, padding: 0, borderRadius: 5,
+                                      background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                                      color: '#f87171', cursor: deletingReviewId === r.id ? 'not-allowed' : 'pointer',
+                                      opacity: deletingReviewId === r.id ? 0.5 : 1, flexShrink: 0,
+                                    }}
+                                  >
+                                    <TbTrash size={11} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                             {r.body && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0 0 3px', lineHeight: 1.5 }}>"{r.body}"</p>}

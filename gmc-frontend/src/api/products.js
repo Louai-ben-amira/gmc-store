@@ -15,6 +15,7 @@ export const getBundle    = (id)     => api.get(`/products/bundles/${id}/`)
 export const getReviews           = (productId)       => api.get(`/products/${productId}/reviews/`)
 export const submitReview         = (productId, data) => api.post(`/products/${productId}/reviews/submit/`, data)
 export const getReviewEligibility = (productId)       => api.get(`/products/${productId}/reviews/eligibility/`)
+export const deleteReview         = (productId, reviewId) => api.delete(`/products/${productId}/reviews/${reviewId}/`)
 export const getPendingReviews    = ()                => api.get('/products/reviews/pending/')
 
 export const getRecommendations = ()   => api.get('/products/recommendations/')

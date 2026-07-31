@@ -21,6 +21,7 @@ urlpatterns = [
     path('<int:pk>/variants/<int:variant_id>/', views.product_variant_detail, name='product_variant_detail'),
     path('<int:pk>/reviews/',          views.ReviewListView.as_view(),       name='product_reviews'),
     path('<int:pk>/reviews/submit/',   views.submit_review,                  name='submit_review'),
+    path('<int:pk>/reviews/<int:review_id>/', views.delete_review,           name='delete_review'),
     path('<int:pk>/reviews/eligibility/', views.review_eligibility,         name='review_eligibility'),
     path('<int:pk>/wishlist/',         views.wishlist_toggle,                name='wishlist_toggle'),
     # Bundles
