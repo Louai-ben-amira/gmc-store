@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell, CheckCircle2, XCircle, MessageCircle, Gift, Flame, TrendingDown, Wallet, Check,
+  Bell, CheckCircle2, XCircle, MessageCircle, Gift, Flame, TrendingDown, Wallet, Check, X,
 } from 'lucide-react'
-import { getNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead } from '../api/notifications'
+import { getNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead, deleteNotification } from '../api/notifications'
 
 const TYPE_ICON = {
   order_complete:       { icon: CheckCircle2,  color: '#3DDC84' },
@@ -76,6 +76,15 @@ export default function NotificationBell({ isAuthenticated }) {
     markAllNotificationsRead().catch(() => {})
   }
 
+  const handleDelete = (e, n) => {
+    e.stopPropagation()
+    qc.setQueryData(['notifications'], (old = []) => old.filter(x => x.id !== n.id))
+    if (!n.is_read) {
+      qc.setQueryData(['notifications-unread-count'], (c) => Math.max(0, (c || 1) - 1))
+    }
+    deleteNotification(n.id).catch(() => {})
+  }
+
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
@@ -129,11 +138,14 @@ export default function NotificationBell({ isAuthenticated }) {
             {notifications.map(n => {
               const { icon: Icon, color } = TYPE_ICON[n.type] || { icon: Bell, color: '#7C3AED' }
               return (
-                <button
+                <div
                   key={n.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleItemClick(n)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleItemClick(n) }}
                   style={{
-                    display: 'flex', gap: '0.625rem', width: '100%', textAlign: 'left',
+                    display: 'flex', gap: '0.625rem', width: '100%', textAlign: 'left', boxSizing: 'border-box',
                     padding: '0.75rem 1rem', background: n.is_read ? 'transparent' : 'rgba(124,58,237,0.06)',
                     border: 'none', borderBottom: '1px solid #232330', cursor: 'pointer',
                   }}
@@ -148,13 +160,26 @@ export default function NotificationBell({ isAuthenticated }) {
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <p style={{ margin: 0, color: '#F0EEE6', fontWeight: n.is_read ? 500 : 700, fontSize: '0.8125rem' }}>{n.title}</p>
+                      <p style={{ margin: 0, color: '#F0EEE6', fontWeight: n.is_read ? 500 : 700, fontSize: '0.8125rem', flex: 1, minWidth: 0 }}>{n.title}</p>
                       {!n.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED', flexShrink: 0 }} />}
+                      <button
+                        onClick={(e) => handleDelete(e, n)}
+                        title="Delete notification"
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: 18, height: 18, padding: 0, borderRadius: 5, flexShrink: 0,
+                          background: 'transparent', border: 'none', color: '#6B6960', cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6B6960' }}
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                     <p style={{ margin: '2px 0 0', color: '#9E9C94', fontSize: '0.75rem', lineHeight: 1.4 }}>{n.body}</p>
                     <p style={{ margin: '4px 0 0', color: '#6B6960', fontSize: '0.6875rem' }}>{timeAgo(n.created_at)}</p>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>

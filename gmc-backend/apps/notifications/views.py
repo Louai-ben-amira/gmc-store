@@ -36,3 +36,12 @@ def mark_read(request, pk):
 def mark_all_read(request):
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return Response({'detail': 'All marked as read.'})
+
+
+@api_view(['DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def delete_notification(request, pk):
+    deleted, _ = Notification.objects.filter(pk=pk, user=request.user).delete()
+    if not deleted:
+        return Response({'detail': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_204_NO_CONTENT)
