@@ -141,17 +141,28 @@ if (typeof document !== 'undefined' && !document.getElementById('pcard-style')) 
       font-size: 11px;
       color: var(--text-muted);
       text-decoration: line-through;
-      margin-right: 4px;
-      align-self: center;
+      line-height: 1.3;
     }
 
     /* ── footer row ── */
+    /* flex-wrap is a safety net: if the price block (e.g. a struck-through
+       original price on a discount) doesn't leave enough room, the actions
+       drop to their own line instead of being clipped by .pcard's
+       overflow:hidden — the Buy Now button must never be invisible/unclickable. */
     .pcard-footer {
       display: flex;
       align-items: flex-end;
-      justify-content: space-between;
+      flex-wrap: wrap;
+      row-gap: 8px;
       gap: 10px;
       margin-top: auto;
+    }
+    .pcard-footer > .pcard-price-block {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .pcard-footer > .pcard-actions {
+      margin-left: auto;
     }
 
     /* ── buy button ── */
@@ -500,14 +511,16 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
 
         {/* Price + Buy Now */}
         <div className="pcard-footer">
-          <div>
+          <div className="pcard-price-block">
             {!product.has_variants && (
               <>
                 <div className="pcard-plabel">{t('product.price')}</div>
+                {/* Original price stacks above (not inline) so a long struck-through
+                    amount can't push the Buy Now button out of the card. */}
+                {flash && orig > price && (
+                  <div className="pcard-orig">{orig.toFixed(2)} DT</div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
-                  {flash && orig > price && (
-                    <span className="pcard-orig">{orig.toFixed(2)}</span>
-                  )}
                   <span className="pcard-price">{price.toFixed(2)}</span>
                   <span className="pcard-cur">DT</span>
                 </div>
@@ -515,7 +528,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <div className="pcard-actions" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             {stock !== 0 && (
               <button
                 className="pcard-btn pcard-btn-basket"
