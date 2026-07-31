@@ -231,7 +231,7 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
         notify_bulk(
             user_ids, 'flash_sale', 'Flash Sale Started',
             f'Flash Sale live now — {product.name} {pct}% off for a limited time!',
-            link=f'/products/{product.slug}',
+            link=f'/product/{product.slug}',
         )
 
     def _notify_wishlist_price_drop(self, product):
@@ -241,7 +241,7 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
             notify(
                 user_id, 'wishlist_price_drop', 'Wishlist Price Drop',
                 f'{product.name} dropped to {product.effective_price} DT — it\'s in your wishlist.',
-                link=f'/products/{product.slug}',
+                link=f'/product/{product.slug}',
             )
 
 
