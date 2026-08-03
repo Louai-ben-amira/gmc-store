@@ -117,23 +117,32 @@ function CodesModal({ batch, onClose }) {
               <Loader size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} />
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
               {(codes || []).map(c => (
                 <div key={c.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  display: 'flex', flexDirection: 'column', gap: 4,
                   padding: '6px 10px', borderRadius: 8,
                   background: c.is_used ? 'rgba(255,255,255,0.02)' : 'rgba(124,58,237,0.06)',
                   border: `1px solid ${c.is_used ? 'rgba(255,255,255,0.06)' : 'rgba(124,58,237,0.2)'}`,
                 }}>
-                  <span style={{
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem',
-                    color: c.is_used ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
-                    textDecoration: c.is_used ? 'line-through' : 'none',
-                  }}>{c.code}</span>
-                  {c.is_used
-                    ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Used</span>
-                    : <CopyBtn text={c.code} />
-                  }
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem',
+                      color: c.is_used ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
+                      textDecoration: c.is_used ? 'line-through' : 'none',
+                    }}>{c.code}</span>
+                    {c.is_used
+                      ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Used</span>
+                      : <CopyBtn text={c.code} />
+                    }
+                  </div>
+                  {c.is_used && c.redeemed_by && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif' }}>
+                      by <span style={{ color: '#A78BFA', fontWeight: 600 }}>{c.redeemed_by.username}</span>
+                      {' · '}{c.redeemed_by.email}
+                      {c.redeemed_at && <> · {formatDate(c.redeemed_at)}</>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

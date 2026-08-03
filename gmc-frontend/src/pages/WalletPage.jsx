@@ -453,9 +453,13 @@ function RechargeModal({ isOpen, onClose, onSuccess }) {
     const clippedInt = intPart.slice(0, 3)
     return rest.length ? `${clippedInt}.${rest.join('.')}` : clippedInt
   }
+  // Printed recharge cards often show the code with spaces (e.g. "1234 5678 9012 34"),
+  // and clients copy it exactly - strip all whitespace so it doesn't break duplicate
+  // detection or admin verification against the code stored on the physical ticket.
+  const sanitizeTicketCode = (raw) => raw.replace(/\s+/g, '')
   const updateTicket = (id, field, val) =>
     setTickets(ts => ts.map(t => t.id === id
-      ? { ...t, [field]: field === 'value' ? sanitizeTicketValue(val) : val }
+      ? { ...t, [field]: field === 'value' ? sanitizeTicketValue(val) : field === 'code' ? sanitizeTicketCode(val) : val }
       : t
     ))
   const addTicket    = () => setTickets(ts => [...ts, mkTicket()])

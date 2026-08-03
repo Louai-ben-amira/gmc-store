@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal, InvalidOperation
 from rest_framework import serializers
 from . import hero
@@ -66,7 +67,10 @@ class RechargeRequestSerializer(serializers.ModelSerializer):
             seen_codes = set()
             parsed = []
             for item in items:
-                code  = str(item.get('code', '')).strip()
+                # Printed recharge cards often show the code with spaces - strip all
+                # whitespace (not just the ends) so codes match regardless of how the
+                # client typed/pasted them.
+                code  = re.sub(r'\s+', '', str(item.get('code', '')))
                 value = item.get('value')
                 if not code:
                     raise serializers.ValidationError({'tickets': 'Every ticket needs a code.'})
@@ -181,14 +185,25 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
 
 
 class GiftCardSerializer(serializers.ModelSerializer):
-    amount     = serializers.DecimalField(source='batch.amount', max_digits=10, decimal_places=2, read_only=True)
-    expires_at = serializers.DateTimeField(source='batch.expires_at', read_only=True)
-    is_used    = serializers.BooleanField(read_only=True)
-    is_expired = serializers.BooleanField(read_only=True)
+    amount       = serializers.DecimalField(source='batch.amount', max_digits=10, decimal_places=2, read_only=True)
+    expires_at   = serializers.DateTimeField(source='batch.expires_at', read_only=True)
+    is_used      = serializers.BooleanField(read_only=True)
+    is_expired   = serializers.BooleanField(read_only=True)
+    redeemed_by  = serializers.SerializerMethodField()
 
     class Meta:
         model  = GiftCard
-        fields = ['id', 'code', 'amount', 'expires_at', 'is_used', 'is_expired', 'created_at', 'redeemed_at']
+        fields = ['id', 'code', 'amount', 'expires_at', 'is_used', 'is_expired', 'created_at', 'redeemed_at', 'redeemed_by']
+
+    def get_redeemed_by(self, obj):
+        user = obj.redeemed_by
+        if not user:
+            return None
+        return {
+            'id':       user.id,
+            'username': user.username,
+            'email':    user.email,
+        }
 
 
 class GiftCardBatchSerializer(serializers.ModelSerializer):
