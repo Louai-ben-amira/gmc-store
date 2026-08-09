@@ -118,7 +118,9 @@ export default function BasketDrawer() {
                     </div>
                     <button onClick={() => removeItem(item.id)} className="basket-item-trash" style={{
                       background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
-                      display: 'flex', padding: 3, flexShrink: 0, borderRadius: 6, transition: 'color 0.15s ease',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 28, height: 28, flexShrink: 0, borderRadius: 7, transition: 'color 0.15s ease, background 0.15s ease',
+                      marginTop: -4, marginRight: -4,
                     }}>
                       <TbTrash size={14} />
                     </button>
@@ -130,13 +132,13 @@ export default function BasketDrawer() {
                     {allowQty ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 2 }}>
                         <button onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} className="basket-qty-btn"
-                          style={{ width: 20, height: 20, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: item.quantity <= 1 ? 'default' : 'pointer', opacity: item.quantity <= 1 ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <TbMinus size={11} />
+                          style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: item.quantity <= 1 ? 'default' : 'pointer', opacity: item.quantity <= 1 ? 0.35 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TbMinus size={12} />
                         </button>
                         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.75rem', color: 'var(--text-primary)', minWidth: 18, textAlign: 'center' }}>{item.quantity}</span>
                         <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="basket-qty-btn"
-                          style={{ width: 20, height: 20, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <TbPlus size={11} />
+                          style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <TbPlus size={12} />
                         </button>
                       </div>
                     ) : (
@@ -151,7 +153,7 @@ export default function BasketDrawer() {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{
               background: 'var(--bg-elevated)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10,
               padding: '0.75rem 0.875rem', display: 'flex', flexDirection: 'column', gap: 6,
@@ -181,12 +183,12 @@ export default function BasketDrawer() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <button className="btn-secondary" onClick={closeDrawer} style={{ flex: 1, justifyContent: 'center' }}>
-                Continue Shopping
-              </button>
-              <button className="btn-primary" onClick={handleCheckout} style={{ flex: 1.3, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
+              <button className="btn-primary" onClick={handleCheckout} style={{ width: '100%', justifyContent: 'center', padding: '0.8125rem', fontSize: '0.9375rem' }}>
                 Checkout — {total.toFixed(2)} DT
+              </button>
+              <button className="btn-secondary" onClick={closeDrawer} style={{ width: '100%', justifyContent: 'center' }}>
+                Continue Shopping
               </button>
             </div>
           </div>
