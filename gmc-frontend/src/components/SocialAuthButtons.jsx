@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { socialAuth } from '../api/auth'
 import useAuthStore from '../store/authStore'
 import { useToast } from '../hooks/useToast'
-import { googleLogin, facebookLogin } from '../utils/socialAuth'
+import { googleLogin } from '../utils/socialAuth'
 
 export default function SocialAuthButtons({ onSuccess }) {
   const [loadingGoogle, setLoadingGoogle] = useState(false)
-  const [loadingFb,     setLoadingFb]     = useState(false)
   const { login: storeLogin } = useAuthStore()
   const navigate = useNavigate()
   const toast    = useToast()
@@ -51,16 +50,14 @@ export default function SocialAuthButtons({ onSuccess }) {
     }} />
   )
 
-  const disabled = loadingGoogle || loadingFb
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <button
         type="button"
         onClick={() => handleSocial('google', googleLogin, setLoadingGoogle)}
-        disabled={disabled}
+        disabled={loadingGoogle}
         style={btnBase}
-        onMouseEnter={e => { if (!disabled) e.currentTarget.style.borderColor = '#4285f4' }}
+        onMouseEnter={e => { if (!loadingGoogle) e.currentTarget.style.borderColor = '#4285f4' }}
         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bg-border)'}
       >
         {loadingGoogle ? spinner('#4285f4') : <GoogleIcon />}
@@ -69,14 +66,16 @@ export default function SocialAuthButtons({ onSuccess }) {
 
       <button
         type="button"
-        onClick={() => handleSocial('facebook', facebookLogin, setLoadingFb)}
-        disabled={disabled}
-        style={btnBase}
-        onMouseEnter={e => { if (!disabled) e.currentTarget.style.borderColor = '#1877f2' }}
-        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bg-border)'}
+        disabled
+        title="Facebook sign-in is temporarily unavailable"
+        style={{ ...btnBase, opacity: 0.45, cursor: 'not-allowed' }}
       >
-        {loadingFb ? spinner('#1877f2') : <FacebookIcon />}
-        {loadingFb ? 'Connecting…' : 'Continue with Facebook'}
+        <FacebookIcon />
+        Continue with Facebook
+        <span style={{
+          marginLeft: 'auto', fontSize: '0.6875rem', fontWeight: 700,
+          color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em',
+        }}>Soon</span>
       </button>
     </div>
   )
