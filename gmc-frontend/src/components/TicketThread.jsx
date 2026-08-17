@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { TbSend, TbPaperclip, TbX, TbRefresh, TbMessageCircle } from 'react-icons/tb'
-import { useToast } from '../hooks/useToast'
+import { useToast, useToastStore } from '../hooks/useToast'
 import { formatDate, mediaUrl } from '../utils/formatters'
 
 /**
@@ -14,17 +14,54 @@ import { formatDate, mediaUrl } from '../utils/formatters'
  *  - isAdmin:        bool - whether the current viewer is an admin (styles "own" bubble accordingly)
  *  - isRefreshing:   bool - shows a spin state on the refresh button
  */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024 // 10 MB - nginx allows 20M, keep headroom
+
 export default function TicketThread({ ticket, messages = [], onSendMessage, onRefresh, isAdmin = false, isRefreshing = false }) {
   const toast = useToast()
+  const addToast = useToastStore(s => s.addToast) // stable ref - safe to depend on in callbacks
   const [input, setInput] = useState('')
   const [attachment, setAttachment] = useState(null)
   const [sending, setSending] = useState(false)
   const fileRef = useRef(null)
   const bottomRef = useRef(null)
+  const textareaRef = useRef(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'auto' }) }, [messages.length])
 
   const isClosed = ticket && ['resolved', 'closed'].includes(ticket.status)
+
+  // Validate + stage a file coming from the picker or from a paste.
+  const acceptFile = useCallback((file) => {
+    if (!file) return
+    if (!file.type?.startsWith('image/')) { addToast({ type: 'error', message: 'Only image files can be attached.' }); return }
+    if (file.size > MAX_ATTACHMENT_BYTES) { addToast({ type: 'error', message: 'Image is too large (max 10 MB).' }); return }
+    setAttachment(file)
+  }, [addToast])
+
+  // Listen on the document so Ctrl+V works whether or not the message box has focus.
+  // Only image pastes are intercepted - plain text pastes bubble through untouched.
+  useEffect(() => {
+    if (isClosed) return undefined
+    const onPaste = (e) => {
+      const item = Array.from(e.clipboardData?.items || []).find(
+        it => it.kind === 'file' && it.type.startsWith('image/')
+      )
+      const blob = item?.getAsFile()
+      if (!blob) return
+      e.preventDefault()
+      // Clipboard screenshots come in unnamed (or always "image.png"), so give them a unique
+      // filename with a real extension for Django's ImageField storage.
+      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg').split('+')[0]
+      acceptFile(new File([blob], `pasted-${Date.now()}.${ext}`, { type: blob.type }))
+      textareaRef.current?.focus()
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [isClosed, acceptFile])
+
+  // Local object URL for the pending attachment thumbnail, revoked when it changes/unmounts.
+  const preview = useMemo(() => (attachment ? URL.createObjectURL(attachment) : null), [attachment])
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -106,7 +143,9 @@ export default function TicketThread({ ticket, messages = [], onSendMessage, onR
       <div style={{ padding: '0.75rem 1.125rem', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         {attachment && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 10px', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 8 }}>
-            <TbPaperclip size={13} color="#A78BFA" />
+            {preview
+              ? <img src={preview} alt="" style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+              : <TbPaperclip size={13} color="#A78BFA" />}
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
             <button type="button" onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><TbX size={13} /></button>
           </div>
@@ -119,8 +158,9 @@ export default function TicketThread({ ticket, messages = [], onSendMessage, onR
           </div>
         ) : (
           <form onSubmit={handleSend} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }} onChange={e => setAttachment(e.target.files[0])} />
-            <button type="button" onClick={() => fileRef.current?.click()} style={{
+            <input type="file" ref={fileRef} accept="image/*" style={{ display: 'none' }}
+              onChange={e => { acceptFile(e.target.files[0]); e.target.value = '' }} />
+            <button type="button" onClick={() => fileRef.current?.click()} title="Attach an image - or just paste a screenshot with Ctrl+V" style={{
               width: 38, height: 38, borderRadius: 10, flexShrink: 0,
               background: 'var(--bg-elevated)', border: '1px solid var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)',
@@ -128,10 +168,11 @@ export default function TicketThread({ ticket, messages = [], onSendMessage, onR
               <TbPaperclip size={16} />
             </button>
             <textarea
+              ref={textareaRef}
               rows={1} value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message…"
+              placeholder="Type a message… (Ctrl+V to paste a screenshot)"
               style={{ flex: 1, resize: 'none', minHeight: 38, maxHeight: 100, fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', padding: '8px 12px' }}
             />
             <button type="submit" disabled={sending || (!input.trim() && !attachment)} style={{
