@@ -326,11 +326,35 @@ def bulk_upload_codes(request, pk):
     product.stock_count = product.codes.filter(status='available').count()
     product.save(update_fields=['stock_count'])
 
+    # Stock just arrived - hand it straight to anyone already in the pre-order
+    # queue, oldest first, before it becomes buyable by everyone else.
+    preorder_result = _auto_fulfill_preorders(product)
+
     return Response({
         'created':    len(created),
         'duplicates': duplicates,
         'codes':      CodeSerializer(created, many=True).data,
+        'preorders':  preorder_result,
     }, status=status.HTTP_201_CREATED)
+
+
+def _auto_fulfill_preorders(product):
+    """
+    Deliver newly arrived stock to the pre-order queue (FIFO) and summarize
+    what happened, or None when nobody was waiting. Never raises - a problem
+    here must not fail the admin's stock upload.
+    """
+    try:
+        from apps.preorders.models import PreOrder
+        if not PreOrder.objects.filter(product=product, status='pending').exists():
+            return None
+        from apps.preorders.services import auto_fulfill_product, recalculate_queue
+        results, counts = auto_fulfill_product(product)
+        recalculate_queue(product)
+        product.refresh_from_db(fields=['stock_count'])
+        return {**counts, 'details': results}
+    except Exception:
+        return None
 
 
 @api_view(['DELETE'])
@@ -452,10 +476,15 @@ def product_variant_detail(request, pk, variant_id):
         variant.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    old_stock = variant.stock_count
     serializer = AdminProductVariantSerializer(variant, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+    variant = serializer.save()
+
+    data = serializer.data
+    if variant.stock_count > old_stock:
+        data['preorders'] = _auto_fulfill_preorders(variant.product)
+    return Response(data)
 
 
 class BundleListView(generics.ListCreateAPIView):

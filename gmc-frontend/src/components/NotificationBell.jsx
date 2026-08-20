@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell, CheckCircle2, XCircle, MessageCircle, Gift, Flame, TrendingDown, Wallet, Check, X,
+  ClipboardList, Clock, AlertTriangle,
 } from 'lucide-react'
 import { getNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead, deleteNotification } from '../api/notifications'
 
@@ -14,6 +15,10 @@ const TYPE_ICON = {
   referral_bonus:       { icon: Gift,          color: '#f59e0b' },
   flash_sale:           { icon: Flame,         color: '#e53e3e' },
   wishlist_price_drop:  { icon: TrendingDown,  color: '#3b82f6' },
+  preorder_placed:      { icon: ClipboardList, color: '#FFC84D' },
+  preorder_ready:       { icon: CheckCircle2,  color: '#3DDC84' },
+  preorder_reminder:    { icon: Clock,         color: '#FFC84D' },
+  preorder_failed:      { icon: AlertTriangle, color: '#ef4444' },
 }
 
 function timeAgo(dateStr) {

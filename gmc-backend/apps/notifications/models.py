@@ -11,6 +11,10 @@ class Notification(models.Model):
         ('referral_bonus',    'Referral Bonus'),
         ('flash_sale',        'Flash Sale'),
         ('wishlist_price_drop', 'Wishlist Price Drop'),
+        ('preorder_placed',    'Pre-order Placed'),
+        ('preorder_ready',     'Pre-order Ready'),
+        ('preorder_reminder',  'Pre-order Cancel Window'),
+        ('preorder_failed',    'Pre-order Failed'),
     ]
 
     user       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')

@@ -215,7 +215,7 @@ const EMPTY_FORM = {
   name: '', category: '', price: '', cost_price: '', description: '',
   visible: true, is_flash_sale: false, flash_sale_price: '', flash_sale_end: '',
   requires_account: false, has_variants: false, required_fields: [], points_purchasable: false,
-  points_earned: 0,
+  points_earned: 0, allows_preorder: false, preorder_note: '',
   delivery_type: 'code',  // 'code' | 'service' | 'topup'
 }
 
@@ -470,6 +470,30 @@ function ProductForm({ form, onChange, imagePreview, onImageChange, flatCategori
           <input type="checkbox" checked={form.points_purchasable} onChange={e => onChange('points_purchasable', e.target.checked)} />
           <span style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 500 }}>Purchasable with points</span>
         </label>
+      </div>
+
+      {/* Pre-orders - what clients see once this product hits zero stock */}
+      <div style={{ borderTop: '1px solid var(--bg-border)', paddingTop: '0.875rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
+          <input type="checkbox" checked={form.allows_preorder} onChange={e => onChange('allows_preorder', e.target.checked)} />
+          <span style={{ color: '#FFC84D', fontSize: '0.875rem', fontWeight: 600 }}>Allow Pre-Orders</span>
+        </label>
+        <p style={{ margin: '0.375rem 0 0 1.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
+          When stock hits 0, clients can reserve a spot in the queue instead of seeing
+          "Out of Stock". No payment is taken until you deliver a code.
+        </p>
+        {form.allows_preorder && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <label style={LBL}>Pre-Order Note (shown to clients)</label>
+            <input
+              value={form.preorder_note}
+              onChange={e => onChange('preorder_note', e.target.value)}
+              placeholder="Stock expected within 3-5 days"
+              maxLength={200}
+              style={INP}
+            />
+          </div>
+        )}
       </div>
 
       {/* Extra required fields - only for service products */}
@@ -841,6 +865,8 @@ export default function ProductsPage() {
       has_variants: p.has_variants || false,
       required_fields: Array.isArray(p.required_fields) ? p.required_fields : [],
       points_purchasable: p.points_purchasable || false,
+      allows_preorder: p.allows_preorder || false,
+      preorder_note: p.preorder_note || '',
       points_earned: p.points_earned || 0,
       delivery_type: inferDeliveryType(p),
     })
@@ -884,6 +910,8 @@ export default function ProductsPage() {
     fd.append('requires_account', form.requires_account)
     fd.append('has_variants', form.has_variants)
     fd.append('points_purchasable', form.points_purchasable)
+    fd.append('allows_preorder', form.allows_preorder)
+    fd.append('preorder_note', form.preorder_note || '')
     // Points are always auto-calculated from price (1 DT = 1 point) — never set manually.
     fd.append('points_earned', 0)
     fd.append('required_fields', JSON.stringify(form.required_fields || []))
@@ -934,8 +962,19 @@ export default function ProductsPage() {
         ? `${data.created} codes added (${data.duplicates} duplicates skipped).`
         : `${data.created} codes added.`
       toast.success(msg)
+      // New stock is handed to the pre-order queue first - say so, since it
+      // explains why the codes may not be sitting in stock afterwards.
+      const pre = data.preorders
+      if (pre?.fulfilled > 0) {
+        toast.success(`${pre.fulfilled} pre-order${pre.fulfilled > 1 ? 's' : ''} auto-fulfilled from the queue.`)
+      }
+      if (pre?.skipped > 0) {
+        toast.error(`${pre.skipped} client${pre.skipped > 1 ? 's' : ''} skipped — insufficient balance. See Pre-Orders.`)
+      }
       qc.invalidateQueries({ queryKey: ['admin-products'] })
       qc.invalidateQueries({ queryKey: ['admin-codes'] })
+      qc.invalidateQueries({ queryKey: ['admin-preorder-queue'] })
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] })
       closeModal()
     } catch { toast.error('Upload failed.') }
     setLoading(false)

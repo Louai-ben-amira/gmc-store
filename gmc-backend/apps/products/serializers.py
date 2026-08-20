@@ -99,6 +99,8 @@ class ProductSerializer(serializers.ModelSerializer):
     variants          = ProductVariantSerializer(many=True, read_only=True)
     min_price         = serializers.SerializerMethodField()
     code_count        = serializers.SerializerMethodField()
+    preorder_queue    = serializers.SerializerMethodField()
+    my_preorder       = serializers.SerializerMethodField()
 
     class Meta:
         model  = Product
@@ -110,6 +112,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'avg_rating', 'review_count', 'is_wishlisted',
             'requires_account', 'required_fields', 'has_variants',
             'variants', 'min_price', 'points_purchasable', 'code_count',
+            'allows_preorder', 'preorder_note', 'preorder_queue', 'my_preorder',
         ]
 
     def get_available_stock(self, obj):
@@ -158,6 +161,46 @@ class ProductSerializer(serializers.ModelSerializer):
         if hasattr(obj, '_code_count'):
             return obj._code_count
         return obj.codes.count()
+
+    def get_preorder_queue(self, obj):
+        """How many clients are already waiting - 0 unless pre-orders are on."""
+        if not obj.allows_preorder:
+            return 0
+        if hasattr(obj, '_preorder_count'):
+            return obj._preorder_count
+        from apps.preorders.models import PreOrder
+        return PreOrder.objects.filter(product=obj, status='pending').count()
+
+    def get_my_preorder(self, obj):
+        """
+        The requesting client's own pending pre-order for this product, if any,
+        so the page can show "You're #3 in queue" instead of the button.
+
+        The lookup is done once per serialization pass and cached on the
+        serializer (a client never has many live pre-orders), so a product
+        list costs one extra query total rather than one per card.
+        """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated or not obj.allows_preorder:
+            return None
+        if not hasattr(self, '_my_preorder_map'):
+            from apps.preorders.models import PreOrder
+            self._my_preorder_map = {
+                po.product_id: po
+                for po in PreOrder.objects.filter(user=request.user, status='pending')
+            }
+        po = self._my_preorder_map.get(obj.id)
+        if po is None:
+            return None
+        return {
+            'id':             po.id,
+            'variant':        po.variant_id,
+            'queue_position': po.queue_position,
+            'price_at_order': str(po.price_at_order),
+            'total_price':    str(po.total_at_order),
+            'can_cancel':     po.can_cancel,
+            'created_at':     po.created_at,
+        }
 
     def validate_required_fields(self, value):
         import json

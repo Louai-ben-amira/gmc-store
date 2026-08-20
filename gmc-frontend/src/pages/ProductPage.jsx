@@ -11,6 +11,7 @@ import CodeModal from '../components/CodeModal'
 import TicketStub from '../components/ui/TicketStub'
 import Badge from '../components/ui/Badge'
 import BlockRating from '../components/ui/BlockRating'
+import PreOrderPanel from '../components/PreOrderPanel'
 import { useToast } from '../hooks/useToast'
 import useAuthStore from '../store/authStore'
 import { formatCurrency, mediaUrl } from '../utils/formatters'
@@ -129,6 +130,10 @@ export default function ProductPage() {
   // orders, which are always a single delivery.
   const hasRequiredFields = product.required_fields?.length > 0
   const allowQuantity  = !product.requires_account && !hasRequiredFields
+  // Out of stock is only a dead end when the admin hasn't opened pre-orders.
+  // Services / top-ups are delivered by hand and never enter the queue.
+  const canPreOrder    = !inStock && product.allows_preorder
+    && !product.requires_account && !hasRequiredFields
   const maxQty          = Math.min(20, selectedVariant
     ? selectedVariant.stock_count
     : (activeVariants.length > 0 ? 0 : product.available_stock))
@@ -673,7 +678,10 @@ export default function ProductPage() {
                     </div>
                   )}
 
-                  {/* CTA */}
+                  {/* CTA - or the pre-order queue when stock is out */}
+                  {canPreOrder ? (
+                    <PreOrderPanel product={product} variant={selectedVariant} unverified={unverified} />
+                  ) : (
                   <div style={{ padding: '1rem 1.5rem' }}>
                     <button
                       className="btn-primary"
@@ -692,10 +700,11 @@ export default function ProductPage() {
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{t('product.encrypted')}</span>
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Promo code */}
-                {isAuthenticated() && (
+                {isAuthenticated() && !canPreOrder && (
                   <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
                     <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.625rem' }}>{t('product.promoCode')}</p>
                     {promoResult ? (
@@ -722,7 +731,7 @@ export default function ProductPage() {
                 )}
 
                 {/* Points slider - only shown when admin enabled points for this product (single-unit purchases only) */}
-                {isAuthenticated() && user && maxRounded > 0 && product.points_purchasable && qty === 1 && (
+                {isAuthenticated() && !canPreOrder && user && maxRounded > 0 && product.points_purchasable && qty === 1 && (
                   <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1rem 1.25rem' }}>
                     <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 0.625rem' }}>{t('product.redeemPoints')}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

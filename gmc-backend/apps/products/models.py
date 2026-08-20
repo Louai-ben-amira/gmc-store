@@ -21,6 +21,11 @@ class ProductQuerySet(models.QuerySet):
         codes = (
             Code.objects.filter(product=OuterRef('pk')).order_by().values('product')
         )
+        from apps.preorders.models import PreOrder
+        preorders = (
+            PreOrder.objects.filter(product=OuterRef('pk'), status='pending')
+            .order_by().values('product')
+        )
         return self.annotate(
             _avg_rating=Subquery(reviews.annotate(a=Avg('rating')).values('a')[:1]),
             _review_count=Coalesce(
@@ -28,6 +33,9 @@ class ProductQuerySet(models.QuerySet):
             ),
             _code_count=Coalesce(
                 Subquery(codes.annotate(c=Count('id')).values('c')[:1]), 0
+            ),
+            _preorder_count=Coalesce(
+                Subquery(preorders.annotate(c=Count('id')).values('c')[:1]), 0
             ),
         ).prefetch_related('variants')
 
@@ -102,6 +110,13 @@ class Product(models.Model):
     points_purchasable = models.BooleanField(default=False)
     # How many loyalty points the buyer earns per purchase (0 = use global POINTS_RATE)
     points_earned      = models.IntegerField(default=0)
+    # Pre-orders: when stock hits 0 and this is on, clients can reserve a spot
+    # in the queue instead of seeing a dead "Out of Stock" button. No money is
+    # taken at pre-order time - see apps/preorders.
+    allows_preorder  = models.BooleanField(default=False)
+    # Optional line shown to clients on the pre-order card
+    # (e.g. "Stock expected within 3-5 days").
+    preorder_note    = models.TextField(blank=True)
     # Flash sale
     is_flash_sale    = models.BooleanField(default=False)
     flash_sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

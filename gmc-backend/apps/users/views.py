@@ -907,11 +907,14 @@ def admin_stats(request):
         created_at__date=today, status='completed'
     ).aggregate(total=Sum('amount_paid'))['total'] or 0
 
+    from apps.preorders.models import PreOrder
+
     return Response({
         'revenue_today': revenue_today,
         'total_orders': Order.objects.count(),
         'active_users': User.objects.filter(is_active=True).count(),
         'pending_recharges': RechargeRequest.objects.filter(status='pending').count(),
+        'pending_preorders': PreOrder.objects.filter(status='pending').count(),
     })
 
 
@@ -923,6 +926,7 @@ def admin_badge_counts(request):
     from apps.orders.models import Order
     from apps.payments.models import CryptoPayment
     from apps.tickets.models import OrderTicket, SupportTicket
+    from apps.preorders.models import PreOrder
 
     # Orders badge = notification of NEW orders since the admin last opened
     # the Orders page (cleared by admin_orders_seen below).
@@ -937,6 +941,7 @@ def admin_badge_counts(request):
         'crypto': CryptoPayment.objects.filter(status__in=['pending', 'confirming']).count(),
         'order_tickets': OrderTicket.objects.filter(status__in=('open', 'in_progress')).count(),
         'support_tickets': SupportTicket.objects.filter(status__in=('open', 'in_progress')).count(),
+        'preorders': PreOrder.objects.filter(status='pending').count(),
     })
 
 

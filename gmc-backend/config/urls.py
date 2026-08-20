@@ -12,8 +12,10 @@ urlpatterns = [
     path('api/payments/', include('apps.payments.urls')),
     path('api/tickets/', include('apps.tickets.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
+    path('api/preorders/', include('apps.preorders.urls')),
     path('api/admin/', include('apps.users.admin_urls')),
     path('api/admin/tickets/', include('apps.tickets.admin_urls')),
+    path('api/admin/preorders/', include('apps.preorders.admin_urls')),
 ]
 
 # Serve uploaded media locally only when R2 is not the active backend.

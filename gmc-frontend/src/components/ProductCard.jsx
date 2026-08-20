@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  TbShoppingCartPlus, TbBasket,
+  TbShoppingCartPlus, TbBasket, TbClipboardList,
   TbDeviceGamepad2, TbGift, TbWifi,
   TbBrandSteam, TbBrandValorant, TbBrandXbox,
   TbDeviceMobile, TbPlaystationCircle,
@@ -285,8 +285,9 @@ function cat(key) {
 }
 
 /* ─── Stock badge ─────────────────────────────────────────────────────── */
-function StockBadge({ n }) {
+function StockBadge({ n, preorder }) {
   const { t } = useTranslation('shop')
+  if (n === 0 && preorder) return <Badge bg="rgba(255,200,77,0.18)" border="rgba(255,200,77,0.5)" color="#FFC84D">Pre-Order</Badge>
   if (n === 0) return <Badge bg="rgba(220,38,60,0.18)"  border="rgba(220,38,60,0.5)"  color="#FF6070">{t('product.outOfStock')}</Badge>
   if (n <= 5)  return <Badge bg="rgba(234,150,0,0.18)"  border="rgba(234,150,0,0.5)"  color="#FFBE40">{t('product.lowStock', { count: n })}</Badge>
   return              <Badge bg="rgba(16,185,100,0.15)" border="rgba(16,185,100,0.5)" color="#2EE8A0">{t('product.inStock')}</Badge>
@@ -313,6 +314,10 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
   const price = parseFloat(product.effective_price || product.price)
   const orig  = parseFloat(product.price)
   const stock = product.available_stock ?? product.stock_count ?? 0
+  // Out of stock, but the admin left the pre-order queue open - the card
+  // sends the buyer to the product page to join it instead of dead-ending.
+  const canPreOrder = stock === 0 && product.allows_preorder
+    && !product.requires_account && !(product.required_fields?.length > 0)
   const disc  = product.discount_percentage || 0
   const cfg   = cat(product.category_detail?.slug || product.category_detail?.name)
   const { Icon, c1, c2, ic, bg } = cfg
@@ -351,7 +356,9 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
       window.dispatchEvent(new CustomEvent('gmc:open-auth', { detail: { tab: 'login' } }))
       return
     }
-    if (onBuyClick) { onBuyClick(product); return }
+    // Pre-orders are placed on the product page (price lock + confirmation),
+    // so never hand one to a quick-buy handler.
+    if (onBuyClick && !canPreOrder) { onBuyClick(product); return }
     navigate(`/product/${product.slug || product.id}`)
   }
 
@@ -452,7 +459,7 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             <Icon size={9} strokeWidth={2} />
             {catName.length > 14 ? catName.slice(0, 12) + '…' : catName}
           </span>
-          <StockBadge n={stock} />
+          <StockBadge n={stock} preorder={canPreOrder} />
         </div>
 
         {/* Wishlist - circle top-right */}
@@ -548,10 +555,12 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
             <button
               className="pcard-btn pcard-btn-buy"
               onClick={doBuy}
-              disabled={stock === 0 || unverified}
+              disabled={(stock === 0 && !canPreOrder) || unverified}
               title={unverified ? 'Verify your email to enable purchases' : undefined}
-              style={stock === 0 || unverified
+              style={(stock === 0 && !canPreOrder) || unverified
                 ? { background: 'rgba(60,40,90,0.3)', color: 'rgba(180,150,240,0.3)', boxShadow: 'none' }
+                : canPreOrder
+                ? { background: 'linear-gradient(135deg,#FFC84D,#F0A81E)', color: '#1A1206', boxShadow: '0 4px 16px rgba(255,200,77,0.4)' }
                 : {
                     background: flash
                       ? 'linear-gradient(135deg,#AA0016,#E8172E)'
@@ -562,7 +571,9 @@ export default function ProductCard({ product, index = 0, onBuyClick }) {
                   }
               }
             >
-              {stock === 0
+              {canPreOrder
+                ? <><TbClipboardList size={14} strokeWidth={2.2} /> Pre-Order</>
+                : stock === 0
                 ? t('product.soldOut')
                 : <><TbShoppingCartPlus size={14} strokeWidth={2.2} /> {t('product.buyNow')}</>
               }

@@ -364,6 +364,10 @@ export default function DashboardPage() {
     },
     lowStockItems.length > 0 && { dot: 'amber', text: `${lowStockItems.length} product${lowStockItems.length > 1 ? 's' : ''} low on stock` },
     stats?.pending_recharges > 0 && { dot: 'amber', pulse: true, text: `${stats.pending_recharges} pending recharge${stats.pending_recharges > 1 ? 's' : ''} awaiting review` },
+    stats?.pending_preorders > 0 && {
+      dot: 'amber', pulse: true, to: '/admin/preorders',
+      text: `📋 ${stats.pending_preorders} pending pre-order${stats.pending_preorders > 1 ? 's' : ''}`,
+    },
   ].filter(Boolean)
 
   return (
@@ -374,7 +378,9 @@ export default function DashboardPage() {
         {pulseItems.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, background: THEME.sidebarBg, borderBottom: '1px solid rgba(139,79,219,0.2)', borderRadius: 12, padding: '10px 18px', marginBottom: 22, overflowX: 'auto' }}>
             {pulseItems.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#B3A4D4', whiteSpace: 'nowrap' }}>
+              <div key={i}
+                onClick={item.to ? () => navigate(item.to) : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#B3A4D4', whiteSpace: 'nowrap', cursor: item.to ? 'pointer' : 'default' }}>
                 {i > 0 && <span style={{ color: '#3D2F58' }}>·</span>}
                 <span className={item.pulse ? 'pulse-dot' : undefined} style={{ width: 6, height: 6, borderRadius: '50%', background: item.dot === 'amber' ? THEME.amber : THEME.green, boxShadow: item.dot === 'amber' ? '0 0 8px rgba(255,200,77,0.6)' : '0 0 8px rgba(54,255,192,0.6)', flexShrink: 0, display: 'inline-block' }} />
                 {item.text}
