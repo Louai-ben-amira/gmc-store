@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Package, ShoppingCart, Users,
   Wallet, LifeBuoy, LogOut, Store, ChevronRight, Tag, Flame, Bitcoin, Settings, Gift, Menu, X, FolderOpen,
+  ClipboardList,
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import api from '../../api/index'
@@ -34,6 +35,7 @@ const NAV_SECTIONS = [
     label: 'TRANSACTIONS',
     items: [
       { to: '/admin/orders',     icon: ShoppingCart, label: 'Orders',     badge: 'orders'    },
+      { to: '/admin/preorders',  icon: ClipboardList, label: 'Pre-Orders', badge: 'preorders' },
       { to: '/admin/recharges',  icon: Wallet,       label: 'Recharges',  badge: 'recharges' },
       { to: '/admin/crypto',     icon: Bitcoin,      label: 'Crypto',     badge: 'crypto'    },
       { to: '/admin/gift-cards', icon: Gift,         label: 'Gift Cards' },

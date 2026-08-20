@@ -21,6 +21,7 @@ import RegisterPage   from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import OrdersPage     from './pages/OrdersPage'
+import PreOrdersPage  from './pages/PreOrdersPage'
 import WalletPage     from './pages/WalletPage'
 import SupportPage    from './pages/SupportPage'
 import TicketDetailPage from './pages/TicketDetailPage'
@@ -51,6 +52,7 @@ import CryptoPage       from './pages/admin/CryptoPage'
 import SettingsPage     from './pages/admin/SettingsPage'
 import GiftCardsPage    from './pages/admin/GiftCardsPage'
 import CategoriesPage   from './pages/admin/CategoriesPage'
+import AdminPreOrdersPage from './pages/admin/PreOrdersPage'
 
 // -- Guards ----------------------------------------------------------------
 function AuthRoute({ children }) {
@@ -128,6 +130,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/orders"    element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
             {/* Notification links use /orders/<id> — same page, id available for future highlight */}
             <Route path="/orders/:id" element={<Layout><ProtectedRoute><OrdersPage /></ProtectedRoute></Layout>} />
+            <Route path="/preorders" element={<Layout><ProtectedRoute><PreOrdersPage /></ProtectedRoute></Layout>} />
             <Route path="/wallet"    element={<Layout><ProtectedRoute><WalletPage /></ProtectedRoute></Layout>} />
             <Route path="/checkout"  element={<Layout><ProtectedRoute><CheckoutPage /></ProtectedRoute></Layout>} />
             <Route path="/checkout/success" element={<Layout><ProtectedRoute><CheckoutSuccessPage /></ProtectedRoute></Layout>} />
@@ -149,6 +152,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="flash-sales"   element={<FlashSalesPage />} />
               <Route path="promo-codes"   element={<PromoCodesPage />} />
               <Route path="orders"        element={<AdminOrdersPage />} />
+              <Route path="preorders"     element={<AdminPreOrdersPage />} />
               <Route path="users"         element={<AdminUsersPage />} />
               <Route path="recharges"     element={<RechargesPage />} />
               <Route path="crypto"        element={<CryptoPage />} />

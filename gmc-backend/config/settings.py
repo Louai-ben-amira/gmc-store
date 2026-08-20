@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'apps.tickets',
     'apps.payments',
     'apps.notifications',
+    'apps.preorders',
     # Auto-deletes old files from storage (R2) when a model row is deleted or
     # its FileField/ImageField changes. MUST stay last so its signals are
     # registered after every model is loaded.
@@ -335,6 +336,11 @@ CELERY_BEAT_SCHEDULE = {
     'expire-flash-sales-every-minute': {
         'task':     'apps.products.tasks.expire_flash_sales',
         'schedule': 60.0,
+    },
+    # Warns clients whose 24h free-cancellation window closes within the hour.
+    'preorder-cancel-reminders-hourly': {
+        'task':     'apps.preorders.tasks.send_preorder_cancel_reminders',
+        'schedule': 3600.0,
     },
 }
 

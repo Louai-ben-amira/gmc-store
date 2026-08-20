@@ -6,7 +6,7 @@ import EmailVerifyBanner from './EmailVerifyBanner'
 import NotificationBell from './NotificationBell'
 import { useTranslation } from 'react-i18next'
 import {
-  TbShoppingBag, TbWallet, TbLifebuoy, TbUserCircle, TbShoppingCart,
+  TbShoppingBag, TbWallet, TbLifebuoy, TbUserCircle, TbShoppingCart, TbClipboardList,
   TbLogout, TbChevronDown, TbChevronRight, TbLayoutDashboard,
 } from 'react-icons/tb'
 import {
@@ -498,6 +498,7 @@ function NavItem({ item, isActive }) {
 ═══════════════════════════════════════════════════════════════════════ */
 const BASE_USER_LINKS = [
   { labelKey: 'auth.myOrders', label: 'My Orders',   to: '/orders',    Icon: TbShoppingBag,   color: '#7C3AED' },
+  { labelKey: 'auth.preorders', label: 'Pre-Orders', to: '/preorders', Icon: TbClipboardList, color: '#FFC84D' },
   { labelKey: 'auth.wallet',   label: 'Wallet',      to: '/wallet',    Icon: TbWallet,        color: '#3DDC84' },
   { labelKey: 'auth.support',  label: 'Support',     to: '/support',   Icon: TbLifebuoy,      color: '#7C3AED' },
   { labelKey: 'auth.profile',  label: 'Profile',     to: '/profile',   Icon: TbUserCircle,    color: '#7C3AED' },
