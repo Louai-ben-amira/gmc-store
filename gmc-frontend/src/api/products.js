@@ -12,7 +12,7 @@ export const getProduct   = (slug)   => api.get(`/products/${slug}/`)
 export const getBundles   = (params) => api.get('/products/bundles/', { params })
 export const getBundle    = (id)     => api.get(`/products/bundles/${id}/`)
 
-export const getReviews           = (productId)       => api.get(`/products/${productId}/reviews/`)
+export const getReviews           = (productId, params) => api.get(`/products/${productId}/reviews/`, { params })
 export const submitReview         = (productId, data) => api.post(`/products/${productId}/reviews/submit/`, data)
 export const getReviewEligibility = (productId)       => api.get(`/products/${productId}/reviews/eligibility/`)
 export const deleteReview         = (productId, reviewId) => api.delete(`/products/${productId}/reviews/${reviewId}/`)

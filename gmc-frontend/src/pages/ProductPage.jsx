@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { getProduct, getReviews, submitReview, getReviewEligibility, deleteReview } from '../api/products'
 import { placeOrder, validatePromo } from '../api/orders'
@@ -37,6 +37,11 @@ function useCountdown(endTime) {
   }, [endTime])
   return time
 }
+
+/* How many reviews come back per page as the list is scrolled. */
+const REVIEWS_PAGE_SIZE = 20
+/* Tallest the review list gets before it becomes its own scroll area. */
+const REVIEWS_MAX_HEIGHT = 520
 
 /* ── Section label ───────────────────────────────────────────────────── */
 function SectionLabel({ children }) {
@@ -75,6 +80,9 @@ export default function ProductPage() {
   const [reviewBody,        setReviewBody]        = useState('')
   const [reviewLoading,     setReviewLoading]     = useState(false)
   const [deletingReviewId,  setDeletingReviewId]  = useState(null)
+  const [reviewsAtEnd,      setReviewsAtEnd]      = useState(false)
+  const reviewScroller = useRef(null)
+  const reviewSentinel = useRef(null)
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', id],
@@ -83,11 +91,24 @@ export default function ProductPage() {
   // Review endpoints only accept a numeric product id, while the page URL may
   // be a slug — so wait for the product to load and use its real id.
   const productId = product?.id
-  const { data: reviews = [] } = useQuery({
+  // Reviews are paged, not capped: the list below scrolls and pulls the next
+  // page as the visitor reaches the bottom, so every review is reachable.
+  const {
+    data: reviewPages,
+    fetchNextPage: fetchMoreReviews,
+    hasNextPage: hasMoreReviews,
+    isFetchingNextPage: loadingMoreReviews,
+  } = useInfiniteQuery({
     queryKey: ['reviews', productId],
-    queryFn: () => getReviews(productId).then(r => r.data?.results || r.data || []),
+    queryFn: ({ pageParam }) =>
+      getReviews(productId, { page: pageParam, page_size: REVIEWS_PAGE_SIZE }).then(r => r.data),
+    initialPageParam: 1,
+    // DRF returns an absolute `next` URL, or null on the last page.
+    getNextPageParam: (lastPage, pages) => (lastPage?.next ? pages.length + 1 : undefined),
     enabled: !!productId,
   })
+  const reviews = reviewPages?.pages.flatMap(p => p?.results || (Array.isArray(p) ? p : [])) ?? []
+  const reviewTotal = reviewPages?.pages?.[0]?.count ?? reviews.length
   const { data: eligibility } = useQuery({
     queryKey: ['review-eligibility', productId],
     queryFn: () => getReviewEligibility(productId).then(r => r.data),
@@ -95,6 +116,20 @@ export default function ProductPage() {
   })
 
   const timer = useCountdown(product?.flash_sale_end)
+
+  // Auto-load the next page when the sentinel at the end of the review list
+  // scrolls into view. rootMargin fetches slightly early so the list never
+  // visibly stalls at the bottom.
+  useEffect(() => {
+    const el = reviewSentinel.current
+    if (!el || !hasMoreReviews || loadingMoreReviews) return
+    const io = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) fetchMoreReviews() },
+      { root: reviewScroller.current, rootMargin: '160px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasMoreReviews, loadingMoreReviews, fetchMoreReviews, reviews.length])
 
   if (isLoading) return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -409,7 +444,14 @@ export default function ProductPage() {
 
                 {/* REVIEWS */}
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.25rem 1.5rem' }}>
-                  <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 1rem' }}>{t('product.reviews')}</p>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 0 1rem' }}>
+                    <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>{t('product.reviews')}</p>
+                    {reviewTotal > 0 && (
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--accent)' }}>
+                        {reviewTotal}
+                      </span>
+                    )}
+                  </div>
 
                   {isAuthenticated() && eligibility?.can_review && (
                     <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 10, padding: '1rem', marginBottom: '1.25rem' }}>
@@ -437,9 +479,24 @@ export default function ProductPage() {
                   {reviews.length === 0 ? (
                     <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem', fontStyle: 'italic', textAlign: 'center', padding: '1rem 0' }}>{t('product.noReviews')}</p>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                      {reviews.slice(0, 6).map((r, i) => (
-                        <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0.875rem', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)', animation: `fadeSlideUp 0.35s ${i * 0.04}s ease both` }}>
+                    <div style={{ position: 'relative' }}>
+                    <div
+                      ref={reviewScroller}
+                      data-reviews-scroll
+                      onScroll={e => {
+                        const el = e.currentTarget
+                        setReviewsAtEnd(el.scrollHeight - el.scrollTop - el.clientHeight < 24)
+                      }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.875rem',
+                        maxHeight: REVIEWS_MAX_HEIGHT, overflowY: 'auto',
+                        // Keep the page from scrolling on once this list bottoms out
+                        overscrollBehavior: 'contain',
+                        paddingRight: 6, marginRight: -6,
+                      }}
+                    >
+                      {reviews.map((r, i) => (
+                        <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0.875rem', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)', animation: `fadeSlideUp 0.35s ${Math.min(i, 8) * 0.04}s ease both` }}>
                           <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(124,58,237,0.1))', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: '0.75rem', color: 'var(--accent)' }}>
                             {(r.username || 'U').slice(0, 1).toUpperCase()}
                           </div>
@@ -477,6 +534,24 @@ export default function ProductPage() {
                           </div>
                         </div>
                       ))}
+
+                      {/* Tripwire for the observer + the only visible loading state */}
+                      {hasMoreReviews && <div ref={reviewSentinel} style={{ height: 1, flexShrink: 0 }} />}
+                      {loadingMoreReviews && (
+                        <p style={{ textAlign: 'center', padding: '0.5rem 0', margin: 0, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6875rem', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                          {t('product.loading')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Fade hint - only while there is more list below the fold */}
+                    {!reviewsAtEnd && (reviews.length > 4 || hasMoreReviews) && (
+                      <div style={{
+                        position: 'absolute', left: 0, right: 0, bottom: 0, height: 44,
+                        background: 'linear-gradient(to top, var(--bg-surface), transparent)',
+                        pointerEvents: 'none', borderRadius: '0 0 10px 10px',
+                      }} />
+                    )}
                     </div>
                   )}
                 </div>
