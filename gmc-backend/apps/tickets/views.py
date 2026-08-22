@@ -109,11 +109,11 @@ def order_ticket_send_message(request, pk):
 
     if user.role == 'admin':
         _fire(send_order_ticket_reply_email.delay, ticket.id)
-        from apps.notifications.services import notify
-        notify(
-            ticket.user, 'ticket_reply', 'Ticket Reply',
-            f'GMC Store replied to your ticket #{ticket.id} — Order #{ticket.order_id}',
+        from apps.notifications.services import notify_event
+        notify_event(
+            ticket.user, 'ticket_reply',
             link=f'/support/order/{ticket.id}',
+            ticket_id=ticket.id, subject=f'Order #{ticket.order_id}',
         )
     else:
         _telegram_alert(f"📦 New reply on order ticket #{ticket.id}\n{user.username}")
@@ -219,11 +219,11 @@ def support_ticket_send_message(request, pk):
 
     if user.role == 'admin':
         _fire(send_support_ticket_reply_email.delay, ticket.id)
-        from apps.notifications.services import notify
-        notify(
-            ticket.user, 'ticket_reply', 'Ticket Reply',
-            f'GMC Store replied to your ticket #{ticket.id} — {ticket.subject}',
+        from apps.notifications.services import notify_event
+        notify_event(
+            ticket.user, 'ticket_reply',
             link=f'/support/general/{ticket.id}',
+            ticket_id=ticket.id, subject=ticket.subject,
         )
     else:
         _telegram_alert(f"🛠️ New reply on support ticket #{ticket.id}\n{user.username}")
@@ -259,7 +259,7 @@ def admin_create_ticket(request):
     optional order_id (creates an OrderTicket on that order instead).
     """
     from django.contrib.auth import get_user_model
-    from apps.notifications.services import notify
+    from apps.notifications.services import notify_event
 
     subject = (request.data.get('subject') or '').strip()
     body    = (request.data.get('body') or '').strip()
@@ -281,10 +281,10 @@ def admin_create_ticket(request):
             ticket.save()  # bump updated_at
 
         _fire(send_order_ticket_reply_email.delay, ticket.id)
-        notify(
-            ticket.user, 'ticket_reply', 'Message from GMC Store',
-            f'GMC Store opened a ticket about your Order #{order.id} — {subject}',
+        notify_event(
+            ticket.user, 'ticket_reply',
             link=f'/support/order/{ticket.id}',
+            ticket_id=ticket.id, subject=subject,
         )
         return Response(OrderTicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
 
@@ -305,10 +305,10 @@ def admin_create_ticket(request):
         SupportTicketMessage.objects.create(ticket=ticket, sender=request.user, body=body)
 
     _fire(send_support_ticket_reply_email.delay, ticket.id)
-    notify(
-        client, 'ticket_reply', 'Message from GMC Store',
-        f'GMC Store opened a ticket for you — {subject}',
+    notify_event(
+        client, 'ticket_reply',
         link=f'/support/general/{ticket.id}',
+        ticket_id=ticket.id, subject=subject,
     )
     return Response(SupportTicketSerializer(ticket).data, status=status.HTTP_201_CREATED)
 

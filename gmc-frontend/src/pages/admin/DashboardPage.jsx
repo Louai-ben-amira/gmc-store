@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getStats, getAdminOrders, getAdminRecharges, getAnalytics, getProducts, getAdminFinancials } from '../../api/admin'
 import api from '../../api/index'
+import BroadcastModal from '../../components/admin/BroadcastModal'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { RefreshCw, Inbox } from 'lucide-react'
 
@@ -302,6 +303,7 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const qc       = useQueryClient()
   const [finPeriod, setFinPeriod] = useState('month')
+  const [broadcastOpen, setBroadcastOpen] = useState(false)
 
   const { data: stats     } = useQuery({ queryKey: ['admin-stats'],             queryFn: () => getStats().then(r => r.data) })
   const { data: financials } = useQuery({ queryKey: ['admin-financials', finPeriod], queryFn: () => getAdminFinancials(finPeriod).then(r => r.data) })
@@ -396,6 +398,7 @@ export default function DashboardPage() {
             <div style={{ fontSize: 12, color: '#7A6A9E', marginTop: 2 }}>{today}</div>
           </div>
           <div className="admin-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setBroadcastOpen(true)} style={QA_BTN_AMBER}>📢 Announce</button>
             <button onClick={() => navigate('/admin/gift-cards')} style={QA_BTN_PURPLE}>🎁 Gift Card Batch</button>
             <button onClick={() => navigate('/admin/flash-sales')} style={QA_BTN_AMBER}>🔥 Flash Sale</button>
             <button onClick={() => navigate('/admin/products')} style={QA_BTN_PRIMARY}>+ Add Product</button>
@@ -1008,6 +1011,8 @@ export default function DashboardPage() {
         }
         .pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }
       `}</style>
+
+      <BroadcastModal open={broadcastOpen} onClose={() => setBroadcastOpen(false)} />
     </div>
   )
 }

@@ -65,12 +65,11 @@ def _fire(fn, *args, **kwargs):
 
 def _notify_order_complete(order):
     """In-app bell notification once an order's code/service is ready to reveal."""
-    from apps.notifications.services import notify
+    from apps.notifications.services import notify_event
     name = order.product.name if order.product_id else (order.bundle.name if order.bundle_id else 'Your order')
-    notify(
-        order.user, 'order_complete', 'Order Ready',
-        f'Your {name} is ready — click to reveal your code.',
-        link=f'/orders/{order.id}',
+    notify_event(
+        order.user, 'order_complete',
+        link=f'/orders/{order.id}', product=name,
     )
 
 
@@ -658,11 +657,10 @@ class BasketCheckoutView(generics.GenericAPIView):
         if len(completed_orders) == 1:
             _notify_order_complete(completed_orders[0])
         elif len(completed_orders) > 1:
-            from apps.notifications.services import notify
-            notify(
-                user, 'order_complete', 'Order Ready',
-                f'Your basket order ({len(completed_orders)} items) is ready — click to reveal your codes.',
-                link='/orders',
+            from apps.notifications.services import notify_event
+            notify_event(
+                user, 'order_complete_basket',
+                link='/orders', count=len(completed_orders),
             )
 
         try:

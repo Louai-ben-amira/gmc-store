@@ -72,10 +72,8 @@ def handle_referral_first_purchase(buyer):
 
 
 def _send_referral_notification(referrer, buyer):
-    from apps.notifications.services import notify
-    display = buyer.get_full_name() or buyer.username
-    notify(
-        referrer, 'referral_bonus', 'Referral Bonus Earned',
-        f'{display} joined with your code — +{BONUS_AMOUNT:.2f} DT added to your wallet.',
-        link='/wallet',
+    from apps.notifications.services import notify_event
+    notify_event(
+        referrer, 'referral_bonus',
+        link='/wallet', amount=f'{BONUS_AMOUNT:.2f}',
     )

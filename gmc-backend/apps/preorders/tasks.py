@@ -218,7 +218,7 @@ def send_preorder_cancel_reminders():
 
     from django.utils import timezone
 
-    from apps.notifications.services import notify
+    from apps.notifications.services import notify_event
     from .models import CANCEL_WINDOW_HOURS, PreOrder
 
     now      = timezone.now()
@@ -234,10 +234,8 @@ def send_preorder_cancel_reminders():
     sent = 0
     for po in due:
         try:
-            notify(
-                po.user, 'preorder_reminder', '1 hour left to cancel',
-                f'Your free-cancellation window for {_label(po)} closes in about an hour.',
-                link='/preorders',
+            notify_event(
+                po.user, 'preorder_reminder', link='/preorders', product=_label(po),
             )
             send_preorder_reminder_email(po.id)
             po.cancel_reminder_sent = True
