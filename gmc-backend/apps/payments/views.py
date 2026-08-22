@@ -267,12 +267,8 @@ def admin_recharge_approve(request, pk):
     except Exception:
         pass
 
-    from apps.notifications.services import notify
-    notify(
-        user, 'recharge_approved', 'Recharge Approved',
-        f'{recharge.wallet_credit} DT has been added to your wallet.',
-        link='/wallet',
-    )
+    from apps.notifications.services import notify_event
+    notify_event(user, 'recharge_approved', link='/wallet', amount=recharge.wallet_credit)
 
     return Response({'detail': 'Approved and balance credited.', 'wallet_credit': str(recharge.wallet_credit)})
 
@@ -299,11 +295,10 @@ def admin_recharge_reject(request, pk):
     recharge.reviewed_by = request.user
     recharge.save(update_fields=['status', 'admin_note', 'reviewed_at', 'reviewed_by'])
 
-    from apps.notifications.services import notify
-    message = 'Your recharge request was rejected.'
-    if admin_note:
-        message += f' Reason: {admin_note}'
-    notify(recharge.user, 'recharge_rejected', 'Recharge Rejected', message, link='/wallet')
+    from apps.notifications.services import notify_event
+    lang = getattr(recharge.user, 'language_preference', 'en') or 'en'
+    reason = admin_note or ('لم يُذكر سبب' if lang == 'ar' else 'No reason given')
+    notify_event(recharge.user, 'recharge_rejected', link='/wallet', reason=reason)
 
     return Response({'detail': 'Rejected.'})
 

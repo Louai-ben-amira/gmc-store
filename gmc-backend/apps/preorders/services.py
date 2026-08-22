@@ -294,12 +294,10 @@ def _label(preorder):
 
 
 def notify_placed(preorder):
-    from apps.notifications.services import notify
-    notify(
-        preorder.user, 'preorder_placed', 'Pre-order placed',
-        f"You're #{preorder.queue_position} in queue for {_label(preorder)}. "
-        f'No payment until your code arrives.',
-        link='/preorders',
+    from apps.notifications.services import notify_event
+    notify_event(
+        preorder.user, 'preorder_placed', link='/preorders',
+        position=preorder.queue_position, product=_label(preorder),
     )
     try:
         from .tasks import send_preorder_placed_email
@@ -316,22 +314,19 @@ def notify_placed(preorder):
 
 
 def notify_fulfilled(preorder):
-    from apps.notifications.services import notify
-    notify(
-        preorder.user, 'preorder_ready', 'Your pre-order is ready!',
-        f'{_label(preorder)} - click to reveal your code. '
-        f'{preorder.total_at_order} DT has been deducted from your wallet.',
+    from apps.notifications.services import notify_event
+    notify_event(
+        preorder.user, 'preorder_fulfilled',
         link=f'/orders/{preorder.order_id}' if preorder.order_id else '/orders',
+        product=_label(preorder), amount=preorder.total_at_order,
     )
 
 
 def notify_insufficient_balance(preorder, needed, available):
-    from apps.notifications.services import notify
-    notify(
-        preorder.user, 'preorder_failed', 'Pre-order could not be fulfilled',
-        f'Your pre-order for {_label(preorder)} needs {needed} DT but your wallet '
-        f'has {available} DT. Please top up and contact support.',
-        link='/preorders',
+    from apps.notifications.services import notify_event
+    notify_event(
+        preorder.user, 'preorder_failed', link='/wallet',
+        product=_label(preorder),
     )
     try:
         from .tasks import send_preorder_failed_email

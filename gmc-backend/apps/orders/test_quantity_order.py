@@ -18,6 +18,9 @@ class QuantityOrderTests(TestCase):
             username='client1', email='c1@test.com', password='pass12345'
         )
         self.user.balance = Decimal('100.00')
+        # Checkout is gated behind email verification (added after this test
+        # was written) - without this every place-order call 403s.
+        self.user.is_email_verified = True
         self.user.save()
         self.product = Product.objects.create(
             name='Test Product', price=Decimal('3.80'), visible=True, stock_count=3

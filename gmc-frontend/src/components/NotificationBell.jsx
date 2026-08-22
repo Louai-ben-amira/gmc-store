@@ -1,37 +1,35 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell, Check, X } from 'lucide-react'
 import {
-  Bell, CheckCircle2, XCircle, MessageCircle, Gift, Flame, TrendingDown, Wallet, Check, X,
-  ClipboardList, Clock, AlertTriangle,
-} from 'lucide-react'
-import { getNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead, deleteNotification } from '../api/notifications'
+  getNotifications, markAllNotificationsRead, deleteNotification,
+} from '../api/notifications'
 
+/* One emoji per event type — announcements read as broadcasts, everything
+   else as something that happened to you personally. */
 const TYPE_ICON = {
-  order_complete:       { icon: CheckCircle2,  color: '#3DDC84' },
-  recharge_approved:    { icon: Wallet,        color: '#3DDC84' },
-  recharge_rejected:    { icon: XCircle,       color: '#ef4444' },
-  ticket_reply:         { icon: MessageCircle, color: '#7C3AED' },
-  referral_bonus:       { icon: Gift,          color: '#f59e0b' },
-  flash_sale:           { icon: Flame,         color: '#e53e3e' },
-  wishlist_price_drop:  { icon: TrendingDown,  color: '#3b82f6' },
-  preorder_placed:      { icon: ClipboardList, color: '#FFC84D' },
-  preorder_ready:       { icon: CheckCircle2,  color: '#3DDC84' },
-  preorder_reminder:    { icon: Clock,         color: '#FFC84D' },
-  preorder_failed:      { icon: AlertTriangle, color: '#ef4444' },
+  order_complete:     '✅',
+  recharge_approved:  '💰',
+  recharge_rejected:  '❌',
+  ticket_reply:       '💬',
+  referral_bonus:     '🎁',
+  tier_upgrade:       '⭐',
+  flash_sale:         '🔥',
+  preorder_fulfilled: '🎉',
+  preorder_failed:    '⚠️',
+  announcement:       '📢',
+  // Types outside the headline set, still sent by live code
+  wishlist_price_drop: '📉',
+  preorder_placed:     '📋',
+  preorder_reminder:   '⏰',
 }
+const getNotifIcon = (type) => TYPE_ICON[type] || '🔔'
 
-function timeAgo(dateStr) {
-  const diffMs = Date.now() - new Date(dateStr).getTime()
-  const mins   = Math.floor(diffMs / 60000)
-  if (mins < 1)   return 'just now'
-  if (mins < 60)  return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7)   return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString()
-}
+/* Store-wide announcements get an amber identity so they never read as
+   "something happened to my account". */
+const ANNOUNCEMENT_BG     = 'rgba(255,200,77,0.07)'
+const ANNOUNCEMENT_BORDER = '#FFC84D'
 
 export default function NotificationBell({ isAuthenticated }) {
   const [open, setOpen] = useState(false)
@@ -39,20 +37,17 @@ export default function NotificationBell({ isAuthenticated }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const { data: unread } = useQuery({
-    queryKey: ['notifications-unread-count'],
-    queryFn: () => getUnreadCount().then(r => r.data.count),
-    enabled: isAuthenticated,
-    staleTime: 15000,
-    refetchInterval: 30000,
-  })
-
-  const { data: notifications = [] } = useQuery({
+  // Single endpoint returns the feed and the badge count together, so one
+  // poll keeps both in sync.
+  const { data } = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => getNotifications().then(r => r.data?.results || r.data || []),
-    enabled: isAuthenticated && open,
-    staleTime: 10000,
+    queryFn: () => getNotifications().then(r => r.data),
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   })
+  const notifications = data?.notifications || []
+  const unread        = data?.unread_count || 0
 
   useEffect(() => {
     const handler = (e) => {
@@ -64,36 +59,42 @@ export default function NotificationBell({ isAuthenticated }) {
 
   if (!isAuthenticated) return null
 
-  const handleItemClick = async (n) => {
-    setOpen(false)
-    if (!n.is_read) {
-      qc.setQueryData(['notifications'], (old = []) => old.map(x => x.id === n.id ? { ...x, is_read: true } : x))
-      qc.setQueryData(['notifications-unread-count'], (c) => Math.max(0, (c || 1) - 1))
-      markNotificationRead(n.id).catch(() => {})
-    }
-    if (n.link) navigate(n.link)
+  /* Opening the dropdown IS the read receipt — clear the badge optimistically
+     and let the request settle in the background. */
+  const markEverythingRead = () => {
+    qc.setQueryData(['notifications'], (old) => old && ({
+      ...old,
+      unread_count: 0,
+      notifications: old.notifications.map(n => ({ ...n, is_read: true })),
+    }))
+    markAllNotificationsRead().catch(() => {})
   }
 
-  const handleMarkAllRead = async (e) => {
-    e.stopPropagation()
-    qc.setQueryData(['notifications'], (old = []) => old.map(x => ({ ...x, is_read: true })))
-    qc.setQueryData(['notifications-unread-count'], 0)
-    markAllNotificationsRead().catch(() => {})
+  const toggleOpen = () => {
+    const next = !open
+    setOpen(next)
+    if (next && unread > 0) markEverythingRead()
+  }
+
+  const handleItemClick = (n) => {
+    setOpen(false)
+    if (n.link && n.link !== '/') navigate(n.link)
   }
 
   const handleDelete = (e, n) => {
     e.stopPropagation()
-    qc.setQueryData(['notifications'], (old = []) => old.filter(x => x.id !== n.id))
-    if (!n.is_read) {
-      qc.setQueryData(['notifications-unread-count'], (c) => Math.max(0, (c || 1) - 1))
-    }
+    qc.setQueryData(['notifications'], (old) => old && ({
+      ...old,
+      unread_count: n.is_read ? old.unread_count : Math.max(0, old.unread_count - 1),
+      notifications: old.notifications.filter(x => x.id !== n.id),
+    }))
     deleteNotification(n.id).catch(() => {})
   }
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={toggleOpen}
         title="Notifications"
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -128,7 +129,10 @@ export default function NotificationBell({ isAuthenticated }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderBottom: '1px solid #2A2A38' }}>
             <span style={{ color: '#F0EEE6', fontWeight: 600, fontSize: '0.875rem' }}>Notifications</span>
             {notifications.some(n => !n.is_read) && (
-              <button onClick={handleMarkAllRead} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#7C3AED', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); markEverythingRead() }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#7C3AED', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
                 <Check size={12} /> Mark all read
               </button>
             )}
@@ -136,12 +140,17 @@ export default function NotificationBell({ isAuthenticated }) {
 
           <div style={{ maxHeight: 380, overflowY: 'auto' }}>
             {notifications.length === 0 && (
-              <p style={{ margin: 0, padding: '2rem 1rem', textAlign: 'center', color: '#9E9C94', fontSize: '0.8125rem' }}>
-                No notifications yet.
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '2.5rem 1rem' }}>
+                <Bell size={28} style={{ color: '#6B6960', opacity: 0.4 }} />
+                <p style={{ margin: 0, color: '#9E9C94', fontSize: '0.8125rem' }}>No notifications yet.</p>
+              </div>
             )}
+
             {notifications.map(n => {
-              const { icon: Icon, color } = TYPE_ICON[n.type] || { icon: Bell, color: '#7C3AED' }
+              const isAnnouncement = n.type === 'announcement'
+              const restingBg = isAnnouncement
+                ? ANNOUNCEMENT_BG
+                : (n.is_read ? 'transparent' : 'rgba(124,58,237,0.06)')
               return (
                 <div
                   key={n.id}
@@ -151,22 +160,27 @@ export default function NotificationBell({ isAuthenticated }) {
                   onKeyDown={(e) => { if (e.key === 'Enter') handleItemClick(n) }}
                   style={{
                     display: 'flex', gap: '0.625rem', width: '100%', textAlign: 'left', boxSizing: 'border-box',
-                    padding: '0.75rem 1rem', background: n.is_read ? 'transparent' : 'rgba(124,58,237,0.06)',
-                    border: 'none', borderBottom: '1px solid #232330', cursor: 'pointer',
+                    padding: '0.75rem 1rem', background: restingBg,
+                    border: 'none', borderBottom: '1px solid #232330',
+                    borderLeft: isAnnouncement ? `2px solid ${ANNOUNCEMENT_BORDER}` : '2px solid transparent',
+                    cursor: 'pointer',
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#0F0F13'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = n.is_read ? 'transparent' : 'rgba(124,58,237,0.06)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = restingBg}
                 >
                   <div style={{
-                    width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: color + '18',
-                    border: '1px solid ' + color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                    background: isAnnouncement ? 'rgba(255,200,77,0.12)' : 'rgba(124,58,237,0.12)',
+                    border: `1px solid ${isAnnouncement ? 'rgba(255,200,77,0.3)' : 'rgba(124,58,237,0.25)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1,
                   }}>
-                    <Icon size={15} color={color} />
+                    {getNotifIcon(n.type)}
                   </div>
+
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <p style={{ margin: 0, color: '#F0EEE6', fontWeight: n.is_read ? 500 : 700, fontSize: '0.8125rem', flex: 1, minWidth: 0 }}>{n.title}</p>
-                      {!n.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED', flexShrink: 0 }} />}
+                      {!n.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: isAnnouncement ? ANNOUNCEMENT_BORDER : '#7C3AED', flexShrink: 0 }} />}
                       <button
                         onClick={(e) => handleDelete(e, n)}
                         title="Delete notification"
@@ -182,7 +196,8 @@ export default function NotificationBell({ isAuthenticated }) {
                       </button>
                     </div>
                     <p style={{ margin: '2px 0 0', color: '#9E9C94', fontSize: '0.75rem', lineHeight: 1.4 }}>{n.body}</p>
-                    <p style={{ margin: '4px 0 0', color: '#6B6960', fontSize: '0.6875rem' }}>{timeAgo(n.created_at)}</p>
+                    {/* time_ago comes from the server, already in the reader's language */}
+                    <p style={{ margin: '4px 0 0', color: '#6B6960', fontSize: '0.6875rem' }}>{n.time_ago}</p>
                   </div>
                 </div>
               )

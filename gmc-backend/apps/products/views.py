@@ -222,26 +222,31 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def _notify_flash_sale_started(self, product):
         from django.contrib.auth import get_user_model
-        from apps.notifications.services import notify_bulk
+        from apps.notifications.services import notify_bulk_event
         User = get_user_model()
         pct = 0
         if product.price:
             pct = int((1 - float(product.flash_sale_price) / float(product.price)) * 100)
         user_ids = User.objects.filter(is_active=True).values_list('id', flat=True)
-        notify_bulk(
-            user_ids, 'flash_sale', 'Flash Sale Started',
-            f'Flash Sale live now — {product.name} {pct}% off for a limited time!',
+        notify_bulk_event(
+            user_ids, 'flash_sale',
             link=f'/product/{product.slug}',
+            product=product.name, pct=pct,
         )
 
     def _notify_wishlist_price_drop(self, product):
-        from apps.notifications.services import notify
-        wishlisters = Wishlist.objects.filter(product=product).values_list('user_id', flat=True)
-        for user_id in wishlisters:
-            notify(
-                user_id, 'wishlist_price_drop', 'Wishlist Price Drop',
-                f'{product.name} dropped to {product.effective_price} DT — it\'s in your wishlist.',
+        from django.contrib.auth import get_user_model
+        from apps.notifications.services import notify_event
+        # Fetch the users, not just their ids: notify_event needs each
+        # recipient's language_preference to pick the right copy.
+        wishlisters = get_user_model().objects.filter(
+            wishlist__product=product,
+        ).only('id', 'language_preference')
+        for user in wishlisters:
+            notify_event(
+                user, 'wishlist_price_drop',
                 link=f'/product/{product.slug}',
+                product=product.name, price=product.effective_price,
             )
 
 
