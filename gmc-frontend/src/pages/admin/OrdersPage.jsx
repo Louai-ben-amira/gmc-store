@@ -9,6 +9,29 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
 import { PageShell, PageHeader, FilterTabs, DataTable, StatusPill, Pagination, TH_STYLE, TD_STYLE, T } from '../../components/admin/AdminUI'
 
+/* ── Code reveal pill ────────────────────────────────────────────────────
+   Sits under the status pill in the Status column. Deliberately state-only:
+   "has the buyer seen the code yet?" is the question this column answers at a
+   glance. The exact timestamp and IP stay in the expanded row, where they
+   belong for a dispute. */
+function RevealPill({ revealed }) {
+  const cfg = revealed
+    ? { Icon: Eye,    label: 'Revealed',     color: T.success, bg: T.successDim, border: T.successBorder }
+    : { Icon: EyeOff, label: 'Not revealed', color: T.warning, bg: T.warningDim, border: T.warningBorder }
+  const { Icon } = cfg
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '2px 8px', borderRadius: 999,
+      background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color,
+      fontSize: '0.625rem', fontWeight: 700,
+      letterSpacing: '0.04em', whiteSpace: 'nowrap', lineHeight: 1.6,
+    }}>
+      <Icon size={10} strokeWidth={2.5} /> {cfg.label}
+    </span>
+  )
+}
+
 const SERVICE_STATUS_CONFIG = {
   pending:     { label: '⏳ Pending',     color: '#FFB800' },
   in_progress: { label: '🔄 In Progress', color: '#38BDF8' },
@@ -413,11 +436,8 @@ export default function OrdersPage() {
                     <StatusPill status={o.status} />
                     {/* Code reveal indicator */}
                     {o.code_value && !o.requires_account && (
-                      <div style={{ marginTop: 3 }}>
-                        {o.is_revealed
-                          ? <span style={{ fontSize: '0.6875rem', color: '#22C55E', fontFamily: 'JetBrains Mono, monospace' }}>👁 Revealed {o.code_viewed_at ? formatDate(o.code_viewed_at) : ''}</span>
-                          : <span style={{ fontSize: '0.6875rem', color: '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>🔒 Not revealed</span>
-                        }
+                      <div style={{ marginTop: 5 }}>
+                        <RevealPill revealed={o.is_revealed} />
                       </div>
                     )}
                   </td>
@@ -544,9 +564,18 @@ export default function OrdersPage() {
             : <span style={{ color: T.textMuted, fontSize: '0.75rem' }}>Mixed</span>
           }
           {!first.requires_account && (
-            <div style={{ marginTop: 3 }}>
-              <span style={{ fontSize: '0.6875rem', color: revealed === members.length ? '#22C55E' : '#f59e0b', fontFamily: 'JetBrains Mono, monospace' }}>
-                👁 {revealed}/{members.length} revealed
+            <div style={{ marginTop: 5 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '2px 8px', borderRadius: 999,
+                background: revealed === members.length ? T.successDim : T.warningDim,
+                border: `1px solid ${revealed === members.length ? T.successBorder : T.warningBorder}`,
+                color: revealed === members.length ? T.success : T.warning,
+                fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.04em',
+                whiteSpace: 'nowrap', lineHeight: 1.6,
+              }}>
+                <Eye size={10} strokeWidth={2.5} />
+                <span style={{ fontFamily: T.mono }}>{revealed}/{members.length}</span> revealed
               </span>
             </div>
           )}
