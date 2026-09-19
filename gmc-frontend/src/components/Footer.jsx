@@ -234,7 +234,7 @@ export default function Footer() {
             <div style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>
               <SocialBtn label="WhatsApp" color="#25d366" Icon={TbBrandWhatsapp} href="https://wa.me/21624027209" />
               <SocialBtn label="Facebook" color="#0084ff" Icon={TbBrandMessenger} href="https://www.facebook.com/profile.php?id=61590296486053" />
-              <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcvstorex" />
+              <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcstorex/" />
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(61,220,132,0.07)', border: '1px solid rgba(61,220,132,0.18)', borderRadius: 100, padding: '6px 14px' }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#3DDC84', boxShadow: '0 0 6px #3DDC84', animation: 'dot-pulse 2s infinite', flexShrink: 0 }} />
@@ -266,7 +266,7 @@ export default function Footer() {
               <div style={{ display: 'flex', gap: 10, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
                 <SocialBtn label="WhatsApp" color="#25d366" Icon={TbBrandWhatsapp} href="https://wa.me/21624027209" />
                 <SocialBtn label="Facebook" color="#0084ff" Icon={TbBrandMessenger} href="https://www.facebook.com/profile.php?id=61590296486053" />
-                <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcvstorex" />
+                  <SocialBtn label="Instagram" color="#e1306c" Icon={TbBrandInstagram} href="https://www.instagram.com/gmcstorex/" />
               </div>
 
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(61,220,132,0.07)', border: '1px solid rgba(61,220,132,0.18)', borderRadius: 100, padding: '6px 14px' }}>
